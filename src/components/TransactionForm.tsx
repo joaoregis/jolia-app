@@ -1,0 +1,139 @@
+// src/components/TransactionForm.tsx
+
+import React, { useState, ChangeEvent, FormEvent, useEffect } from 'react';
+import { Transaction, TransactionFormState } from '../types';
+import { CurrencyInput } from './CurrencyInput.tsx';
+import { ToggleSwitch } from './ToggleSwitch.tsx';
+import { DateInput } from './DateInput.tsx';
+
+interface TransactionFormProps {
+    onClose: () => void;
+    onSave: (transactionData: TransactionFormState, id?: string) => void;
+    initialValues?: Partial<Transaction> | null;
+}
+
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, initialValues }) => {
+    const [formData, setFormData] = useState<TransactionFormState>({
+        description: initialValues?.description || '',
+        type: initialValues?.type || 'expense',
+        planned: initialValues?.planned || 0,
+        actual: initialValues?.actual || 0,
+        date: initialValues?.date || new Date().toISOString().split('T')[0],
+        paymentDate: initialValues?.paymentDate || undefined,
+        paid: initialValues?.paid || false,
+        isShared: initialValues?.isShared || false,
+        isRecurring: initialValues?.isRecurring || false,
+        subprofileId: initialValues?.subprofileId || undefined,
+    });
+
+    useEffect(() => {
+        if (!initialValues?.id && !formData.paymentDate) {
+            setFormData(prev => ({ ...prev, paymentDate: prev.date }));
+        }
+    }, [formData.date, initialValues?.id]);
+
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        
+        if (type === 'checkbox') {
+            const checked = (e.target as HTMLInputElement).checked;
+            setFormData(prev => ({ ...prev, [name]: checked }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleValueChange = (name: 'planned' | 'actual', value: number) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    }
+
+    const handleSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        onSave(formData, initialValues?.id);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Descrição</label>
+                <input type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white p-3"/>
+            </div>
+            
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Valor Previsto</label>
+                    <CurrencyInput
+                        value={formData.planned}
+                        onValueChange={(newValue) => handleValueChange('planned', newValue)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Valor Efetivo</label>
+                    <CurrencyInput
+                        value={formData.actual}
+                        onValueChange={(newValue) => handleValueChange('actual', newValue)}
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo</label>
+                    <select name="type" value={formData.type} onChange={handleChange} disabled={!!initialValues?.id} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white p-3">
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+                 <div>
+                    <label htmlFor="date" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data de Lançamento</label>
+                    <DateInput
+                        id="date"
+                        name="date"
+                        value={formData.date}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
+            </div>
+            
+            <div>
+                <label htmlFor="paymentDate" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    {formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}
+                </label>
+                <DateInput
+                    id="paymentDate"
+                    name="paymentDate"
+                    value={formData.paymentDate || ''}
+                    onChange={handleChange}
+                />
+            </div>
+            
+            <fieldset className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                <legend className="px-2 text-sm font-medium text-slate-600 dark:text-slate-400">Opções</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+                    <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                        <label htmlFor="paid" className="block text-sm font-medium text-slate-900 dark:text-slate-200">{formData.type === 'expense' ? 'Pago' : 'Recebido'}</label>
+                        <ToggleSwitch id="paid" name="paid" checked={formData.paid} onChange={handleChange} />
+                    </div>
+
+                    {formData.type === 'expense' && (
+                        <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                            <label htmlFor="isShared" className="block text-sm text-slate-900 dark:text-slate-200">Da Casa</label>
+                            <ToggleSwitch id="isShared" name="isShared" checked={formData.isShared} onChange={handleChange} disabled={!!initialValues?.id} />
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                        <label htmlFor="isRecurring" className="block text-sm text-slate-900 dark:text-slate-200">Recorrente</label>
+                        <ToggleSwitch id="isRecurring" name="isRecurring" checked={formData.isRecurring} onChange={handleChange} />
+                    </div>
+                </div>
+            </fieldset>
+
+            <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700 mt-6">
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Salvar</button>
+            </div>
+        </form>
+    );
+};

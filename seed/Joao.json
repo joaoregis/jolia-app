@@ -1,0 +1,131 @@
+[
+  {
+    "description": "Aluguel e Água",
+    "planned": 1875.11,
+    "actual": 1875.11,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Parcela do Carro (2/60)",
+    "planned": 1720.00,
+    "actual": 1720.00,
+    "date": "2025-06-15",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Cartão Crédito Nubank",
+    "planned": 3000.00,
+    "actual": 5285.86,
+    "date": "2025-06-28",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Cartão Crédito Inter",
+    "planned": 161.38,
+    "actual": 161.38,
+    "date": "2025-06-20",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "FIES",
+    "planned": 444.20,
+    "actual": 444.20,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Seguro do Carro",
+    "planned": 351.12,
+    "actual": 351.12,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Energia Elétrica",
+    "planned": 70.00,
+    "actual": 62.67,
+    "date": "2025-06-25",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Vivo",
+    "planned": 168.00,
+    "actual": 166.10,
+    "date": "2025-06-08",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Capitalização Santander",
+    "planned": 50.00,
+    "actual": 50.00,
+    "date": "2025-06-05",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "IPTU",
+    "planned": 88.58,
+    "actual": 88.58,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Plano de Saúde HFC",
+    "planned": 150.00,
+    "actual": 150.00,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Internet",
+    "planned": 89.90,
+    "actual": 89.90,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  
+  {
+    "description": "Salário",
+    "planned": 8800.00,
+    "actual": 8800.00,
+    "date": "2025-06-05",
+    "type": "income",
+    "paid": true
+  },
+  {
+    "description": "Sobra do Mês",
+    "planned": 674.83,
+    "actual": 674.83,
+    "date": "2025-06-05",
+    "type": "income",
+    "paid": true
+  },
+  {
+    "description": "FGTS",
+    "planned": 700.00,
+    "actual": 700.00,
+    "date": "2025-06-10",
+    "type": "income",
+    "paid": true
+  },
+  {
+    "description": "Divisão Ferias Ju",
+    "planned": 0.00,
+    "actual": 700.00,
+    "date": "2025-06-20",
+    "type": "income",
+    "paid": true
+  }
+]

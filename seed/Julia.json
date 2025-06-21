@@ -1,0 +1,115 @@
+[
+  {
+    "description": "Aluguel",
+    "planned": 832.00,
+    "actual": 832.00,
+    "date": "2025-06-05",
+    "type": "income",
+    "paid": true
+  },
+  {
+    "description": "Auxilio",
+    "planned": 600.00,
+    "actual": 600.00,
+    "date": "2025-06-10",
+    "type": "income",
+    "paid": true
+  },
+  {
+    "description": "Rescisão",
+    "planned": 1386.49,
+    "actual": 1386.49,
+    "date": "2025-06-15",
+    "type": "income",
+    "paid": true
+  },
+  
+  {
+    "description": "Água",
+    "planned": 130.00,
+    "actual": 224.20,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Energia",
+    "planned": 300.00,
+    "actual": 268.84,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Nubank",
+    "planned": 98.85,
+    "actual": 98.85,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Banho da Niina",
+    "planned": 250.00,
+    "actual": 250.00,
+    "date": "2025-06-18",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Psicóloga",
+    "planned": 150.00,
+    "actual": 150.00,
+    "date": "2025-06-18",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Consórcio oBoticário",
+    "planned": 50.00,
+    "actual": 50.00,
+    "date": "2025-06-18",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Minha Faculdade",
+    "planned": 156.80,
+    "actual": 156.80,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Faculdade do Andrey",
+    "planned": 90.00,
+    "actual": 90.00,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": true
+  },
+  {
+    "description": "Passagem Avião (3/4)",
+    "planned": 267.55,
+    "actual": 267.55,
+    "date": "2025-06-18",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Amazon Prime",
+    "planned": 19.90,
+    "actual": 19.90,
+    "date": "2025-06-29",
+    "type": "expense",
+    "paid": false
+  },
+  {
+    "description": "Férias/Polaco",
+    "planned": 700.00,
+    "actual": 700.00,
+    "date": "2025-06-10",
+    "type": "expense",
+    "paid": false
+  }
+]

@@ -49,6 +49,56 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ## 💅 Melhorias de UI/UX
 
+### 🎨 Sistema de Temas por Subperfil
+
+**Objetivo:** Permitir que cada subperfil tenha um esquema de cores predefinido, que é ativado quando a sua aba é selecionada. A "Visão Geral" utiliza sempre o tema padrão.
+
+-   [ ] **Modelagem de Dados:**
+    -   No `types/index.ts`, adicionar um campo opcional `themeId: string` à interface `Subprofile`. Este campo guardará a chave do tema selecionado (ex: "noite_estrelada").
+
+-   [ ] **Definição dos Presets de Tema:**
+    -   Criar um novo ficheiro: `src/lib/themes.ts`.
+    -   Neste ficheiro, exportar um objeto `themes` que mapeia um `themeId` a um objeto de tema. Cada objeto de tema conterá um nome de exibição e as classes CSS do Tailwind para os elementos principais.
+    -   **Exemplo da Estrutura:**
+        ```typescript
+        export const themes = {
+          'noite_estrelada': {
+            name: 'Noite Estrelada',
+            background: 'bg-slate-900',
+            text: 'text-slate-100',
+            primary: 'bg-blue-500', // para botões ativos, abas
+            card: 'bg-slate-800', // cor dos cards
+            accent: 'border-blue-500' // para a borda da aba ativa
+          },
+          'doce_algodao': {
+            name: 'Doce Algodão',
+            background: 'bg-pink-50',
+            text: 'text-pink-900',
+            primary: 'bg-pink-500',
+            card: 'bg-white',
+            accent: 'border-pink-500'
+          },
+          // ... definir os outros 8+ temas
+        };
+        ```
+    -   **Lista de Temas a Criar (10 presets):**
+        -   **Masculinos Dark:** "Noite Estrelada" (cinza/azul escuro), "Floresta Sombria" (verde musgo/grafite).
+        -   **Masculinos Light:** "Céu de Verão" (azul claro/branco), "Manhã de Névoa" (cinza claro/verde água).
+        -   **Femininos Dark:** "Ametista Noturna" (tons de roxo/rosa escuro), "Vinho do Porto" (tons de vinho/preto suave).
+        -   **Femininos Light:** "Doce Algodão" (rosa bebê/branco), "Pôr do Sol Rosa" (tons de pêssego/lavanda).
+        -   **Variados:** "Energia Solar" (laranja/amarelo), "Brisa Cítrica" (verde limão/branco).
+
+-   [ ] **Interface de Seleção:**
+    -   No `AddSubprofileModal.tsx`, adicionar um seletor visual para os temas.
+    -   Mapear o objeto `themes` para renderizar uma lista de opções. Cada opção deve mostrar uma pequena paleta de cores e o nome do tema.
+    -   Ao salvar, o `themeId` selecionado é guardado no objeto do subperfil.
+    -   Adicionar preview do tema durante a criação do profile
+
+-   [ ] **Aplicação Dinâmica do Tema:**
+    -   No `DashboardScreen.tsx`, quando uma aba de subperfil estiver ativa, identificar o `themeId` guardado nesse subperfil.
+    -   Com base no `themeId`, obter o objeto de tema correspondente de `themes.ts`.
+    -   Passar as classes do tema (ex: `theme.background`, `theme.accent`) como props para os componentes relevantes (`Layout`, `Card`, botões, abas) ou, de forma mais robusta, aplicar as classes ao `div` principal da aplicação para que todos os componentes filhos herdem os estilos. A "Visão Geral" usará sempre as classes padrão.
+
 ### 📊 Ordenação Persistente e Estável
 
 **Objetivo:** Melhorar a experiência de ordenação da tabela, tornando-a mais previsível e personalizável.
@@ -76,21 +126,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
     -   Criar um componente `BalanceIndicator` que recebe o valor do saldo e as receitas como props.
     -   O componente implementa a lógica de seleção de cor/ícone e renderiza o resultado.
     -   Substituir o texto do saldo no `Card` do Balanço por este novo componente.
-
-### 🎨 Tema Customizado por Subperfil
-
-**Objetivo:** Permitir que cada subperfil tenha um esquema de cores personalizado para fácil identificação.
-
--   [ ] **Modelagem de Dados:**
-    -   Adicionar um campo opcional `themeColor: string` (ex: `#ff0000`) ao `Subprofile` no `types/index.ts`.
-
--   [ ] **Interface de Seleção:**
-    -   Na modal de adição/edição de subperfil, adicionar um seletor de cores (`<input type="color">`).
-    -   Salvar a cor escolhida no documento do Perfil, dentro do respetivo subperfil.
-
--   [ ] **Aplicação do Tema:**
-    -   No `DashboardScreen`, quando uma aba de subperfil estiver ativa, ler a `themeColor`.
-    -   Aplicar essa cor dinamicamente usando variáveis CSS ou ajustando as classes do Tailwind. Os alvos seriam a borda inferior da aba ativa e, talvez, o cabeçalho dos `Cards`.
 
 ---
 

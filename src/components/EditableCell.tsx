@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, X, Edit2 } from 'lucide-react';
-import { formatCurrency } from '../lib/utils.ts';
-import { CurrencyInput } from './CurrencyInput.tsx'; 
+import { formatCurrency } from '../lib/utils';
+import { CurrencyInput } from './CurrencyInput';
 
 interface EditableCellProps {
     value: string | number;
@@ -39,10 +39,8 @@ export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type 
 
     if (isEditing && !disabled) {
         return (
-            // --- MELHORIA: Aumenta o gap para melhor espaçamento ---
             <div className="flex items-center gap-2 w-full"> 
                 {formatAsCurrency ? (
-                    // --- MELHORIA: Passa a prop 'size' para diminuir o campo ---
                     <CurrencyInput
                         value={Number(currentValue)}
                         onValueChange={(newValue) => setCurrentValue(newValue)}
@@ -59,7 +57,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type 
                         autoFocus
                         onBlur={handleSave}
                         onKeyDown={handleKeyDown}
-                        className="w-full bg-slate-100 dark:bg-slate-700 p-2 rounded border border-blue-500"
+                        className="w-full bg-background text-text-primary p-2 rounded border border-accent"
                     />
                 )}
                  <button onClick={handleSave} className="p-2 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full"><Check size={16} /></button>
@@ -76,7 +74,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type 
             {!disabled && (
                 <button
                     onClick={() => setIsEditing(true)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                 >
                     <Edit2 size={12} />
                 </button>

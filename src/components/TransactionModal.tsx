@@ -11,8 +11,13 @@ interface TransactionModalProps {
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, children, title }) => {
-    // Efeito para fechar o modal com a tecla "Esc"
     useEffect(() => {
+        const body = document.body;
+        if (isOpen) {
+            // Impede o scroll da página de fundo quando o modal está aberto
+            body.style.overflow = 'hidden';
+        }
+
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 onClose();
@@ -23,7 +28,9 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
             document.addEventListener('keydown', handleKeyDown);
         }
 
+        // Função de limpeza que restaura o scroll quando o modal é fechado
         return () => {
+            body.style.overflow = 'unset';
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [isOpen, onClose]);
@@ -38,15 +45,16 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
         >
             <div 
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg animate-fade-in-up"
+                className="bg-card rounded-lg shadow-xl w-full max-w-lg animate-fade-in-up"
             >
-                <div className="flex justify-between items-center p-4 border-b dark:border-slate-700">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{title}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <div className="flex justify-between items-center p-4 border-b border-border-color">
+                    <h3 className="text-xl font-semibold text-text-primary">{title}</h3>
+                    <button onClick={onClose} className="text-text-secondary hover:opacity-75">
                         <X size={24} />
                     </button>
                 </div>
-                <div className="p-6">
+                {/* O corpo do modal agora usa a cor de fundo do tema */}
+                <div className="p-6 bg-background rounded-b-lg">
                     {children}
                 </div>
             </div>

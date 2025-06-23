@@ -1,43 +1,76 @@
 // src/components/AddSubprofileModal.tsx
 
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
+import { themes } from '../lib/themes';
 
 interface AddSubprofileModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (name: string) => void;
+    onSave: (name: string, themeId: string) => void;
 }
+
+const ThemeSelector: React.FC<{ selectedThemeId: string, onSelect: (themeId: string) => void }> = ({ selectedThemeId, onSelect }) => (
+    <div>
+        <label className="block text-sm font-medium text-text-secondary mb-2">
+            Escolha um Tema
+        </label>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
+            {Object.entries(themes).map(([id, theme]) => (
+                <div key={id} onClick={() => onSelect(id)} className="cursor-pointer text-center">
+                    <div className={`w-full h-16 rounded-lg flex items-center justify-center border-4 ${selectedThemeId === id ? 'border-accent' : 'border-transparent'}`} style={{ background: theme.variables['--card'] }}>
+                        <div className="flex gap-1">
+                            <div className="w-4 h-8 rounded" style={{ background: theme.variables['--accent'] }}></div>
+                            <div className="w-4 h-8 rounded" style={{ background: theme.variables['--text-primary'] }}></div>
+                            <div className="w-4 h-8 rounded" style={{ background: theme.variables['--text-secondary'] }}></div>
+                        </div>
+                    </div>
+                    <span className="text-xs mt-1 block text-text-secondary">{theme.name}</span>
+                </div>
+            ))}
+        </div>
+    </div>
+);
 
 export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, onClose, onSave }) => {
     const [name, setName] = useState('');
+    const [selectedThemeId, setSelectedThemeId] = useState('default_light');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (name.trim()) {
-            onSave(name.trim());
-            setName(''); // Limpa o campo após salvar
+            onSave(name.trim(), selectedThemeId);
+            setName('');
+            setSelectedThemeId('default_light');
             onClose();
         }
     };
 
     if (!isOpen) return null;
 
+    const previewTheme = themes[selectedThemeId] || themes.default_light;
+
+    // Aplica o tema diretamente no elemento raiz do modal
+    const modalStyle = {
+      ...previewTheme.variables as React.CSSProperties
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div 
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-sm animate-fade-in-up"
+                className="bg-card rounded-lg shadow-xl w-full max-w-md"
+                style={modalStyle}
             >
-                <div className="flex justify-between items-center p-4 border-b dark:border-slate-700">
-                    <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Adicionar Novo Subperfil</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <div className="flex justify-between items-center p-4 border-b border-border-color">
+                    <h3 className="text-xl font-semibold text-text-primary">Adicionar Novo Subperfil</h3>
+                    <button onClick={onClose} className="text-text-secondary hover:opacity-75">
                         <X size={24} />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div>
-                        <label htmlFor="subprofileName" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <label htmlFor="subprofileName" className="block text-sm font-medium text-text-secondary">
                             Nome do Subperfil
                         </label>
                         <input
@@ -46,16 +79,19 @@ export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
-                            className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                            className="mt-1 block w-full rounded-md shadow-sm p-2 bg-background text-text-primary border border-border-color focus:ring-accent focus:border-accent"
                             placeholder="ex: Júlia"
                         />
                     </div>
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">
+
+                    <ThemeSelector selectedThemeId={selectedThemeId} onSelect={setSelectedThemeId} />
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-border-color">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80">
                             Cancelar
                         </button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                            Salvar
+                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg flex items-center gap-2 bg-accent hover:bg-accent-hover">
+                            <Check size={16} /> Salvar
                         </button>
                     </div>
                 </form>

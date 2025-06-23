@@ -4,6 +4,7 @@ export interface Subprofile {
     id: string;
     name: string;
     status: 'active' | 'archived';
+    themeId?: string; 
 }
 
 export interface Profile {
@@ -25,8 +26,8 @@ export interface Transaction {
   isShared?: boolean;
   isRecurring?: boolean; 
   subprofileId?: string;
-  date: string; // Data de Lançamento
-  paymentDate?: string; // --- NOVO CAMPO: Data de Pagamento ---
+  date: string;
+  paymentDate?: string;
   profileId: string;
 }
 
@@ -35,7 +36,6 @@ export interface AppData {
   despesas: Transaction[];
 }
 
-// Omit<> garante que o novo campo seja incluído no tipo do formulário
 export type TransactionFormState = Omit<Transaction, 'id' | 'profileId'>;
 
 export interface SortConfig {

@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat } from 'lucide-react';
 import { Transaction, SortConfig } from '../types';
-import { formatCurrency, formatShortDate } from '../lib/utils.ts';
-import { EditableCell } from './EditableCell.tsx';
+import { formatCurrency, formatShortDate } from '../lib/utils';
+import { EditableCell } from './EditableCell';
+import { Card, CardHeader, CardTitle, CardContent } from './Card';
 
 const ActionMenu: React.FC<{
     item: Transaction;
@@ -39,16 +40,16 @@ const ActionMenu: React.FC<{
 
     return (
         <div className="relative inline-block text-left" ref={menuRef}>
-            <button onClick={handleToggle} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
+            <button onClick={handleToggle} className="p-2 rounded-full text-text-secondary hover:bg-background">
                 <MoreVertical size={18}/>
             </button>
             {isOpen && (
-                <div className={`${position} absolute right-0 w-40 rounded-md shadow-lg bg-white dark:bg-slate-800 ring-1 ring-black ring-opacity-5 z-20`}>
+                <div className={`${position} absolute right-0 w-40 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-20 border border-border-color`}>
                     <div className="py-1">
-                        <button onClick={() => { onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700">
+                        <button onClick={() => { onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background">
                             <Edit size={16} /> Editar
                         </button>
-                        <button onClick={() => { onDelete(item.id); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <button onClick={() => { onDelete(item.id); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-background">
                             <Trash2 size={16} /> Excluir
                         </button>
                     </div>
@@ -57,11 +58,6 @@ const ActionMenu: React.FC<{
         </div>
     );
 };
-
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (<div className="bg-white dark:bg-slate-800 rounded-xl shadow-md">{children}</div>);
-const CardHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (<div className="p-4 border-b border-slate-200 dark:border-slate-700">{children}</div>);
-const CardTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (<h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">{children}</h3>);
-const CardContent: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (<div className={`${className}`}>{children}</div>);
 
 interface TransactionTableProps {
   title: string;
@@ -82,8 +78,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
 
     const getSortIndicator = (key: keyof Transaction) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-2 opacity-30 group-hover:opacity-100" />;
-        if (sortConfig.direction === 'ascending') return <ArrowUpDown size={14} className="ml-2 text-blue-500" />;
-        return <ArrowUpDown size={14} className="ml-2 text-blue-500 transform rotate-180" />;
+        if (sortConfig.direction === 'ascending') return <ArrowUpDown size={14} className="text-accent" />;
+        return <ArrowUpDown size={14} className="text-accent transform rotate-180" />;
     };
 
     const SortableHeader: React.FC<{ sortKey: keyof Transaction; children: React.ReactNode; className?: string }> = ({ sortKey, children, className }) => (
@@ -99,13 +95,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
             <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
             <CardContent>
                 <div className="w-full overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400 table-auto">
-                        <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
+                    <table className="w-full text-sm text-left text-text-secondary table-auto">
+                        <thead className="text-xs text-text-primary uppercase bg-background">
                             <tr>
                                 <SortableHeader sortKey="description" className="w-[28%]">Descrição</SortableHeader>
-                                {/* --- COLUNA AGORA VISÍVEL PARA AMBOS OS TIPOS --- */}
                                 <SortableHeader sortKey="paymentDate" className="w-[12%]">
-                                    {/* --- CABEÇALHO DINÂMICO --- */}
                                     {type === 'expense' ? 'Pagamento' : 'Recebimento'}
                                 </SortableHeader>
                                 <SortableHeader sortKey="planned" className="w-[15%]">Previsto</SortableHeader>
@@ -117,28 +111,27 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        <tbody className="divide-y divide-border-color">
                             {data.map(item => {
                                 const difference = item.actual - item.planned;
-                                let differenceColor = 'text-slate-500 dark:text-slate-400';
+                                let differenceColor = 'text-text-secondary';
                                 if (difference !== 0) {
                                     const isNegative = type === 'expense' ? difference > 0 : difference < 0;
                                     differenceColor = isNegative ? 'text-red-500' : 'text-green-500';
                                 }
                                 
                                 return (
-                                <tr key={item.id} className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                    <td className="px-4 py-3 align-middle font-medium text-slate-900 dark:text-white">
+                                <tr key={item.id} className="bg-card hover:bg-background">
+                                    <td className="px-4 py-3 align-middle font-medium text-text-primary">
                                         <div className="flex items-center gap-2">
                                             {item.isRecurring && (
                                                 <span title="Transação Recorrente">
-                                                    <Repeat size={12} className="text-blue-500 flex-shrink-0"/>
+                                                    <Repeat size={12} className="text-accent flex-shrink-0"/>
                                                 </span>
                                             )}
                                             <EditableCell value={item.description} onSave={(newValue) => onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed} />
                                         </div>
                                     </td>
-                                    {/* --- CÉLULA AGORA VISÍVEL PARA AMBOS OS TIPOS --- */}
                                     <td className="px-4 py-3 align-middle">
                                         {editingDateId === item.id && !isClosed ? (
                                             <div className="flex items-center gap-1">
@@ -159,14 +152,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                                             setEditingDateId(null);
                                                         }
                                                     }}
-                                                    className="w-full bg-slate-100 dark:bg-slate-700 p-2 rounded border border-blue-500"
+                                                    className="w-full bg-background text-text-primary p-2 rounded border border-accent"
                                                 />
                                             </div>
                                         ) : (
                                             <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && setEditingDateId(item.id)}>
                                                 <span>{formatShortDate(item.paymentDate)}</span>
                                                 {!isClosed && (
-                                                    <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
+                                                    <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
                                                         <Edit size={12} />
                                                     </button>
                                                 )}
@@ -201,7 +194,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                 </tr>
                                 )})}
                         </tbody>
-                        <tfoot className="font-bold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-700">
+                        <tfoot className="font-bold text-text-primary bg-background">
                             <tr>
                                 <td className="px-4 py-3">TOTAL</td>
                                 <td className="px-4 py-3"></td>

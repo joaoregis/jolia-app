@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, QuerySnapshot, DocumentData, addDoc, updateDoc, deleteDoc, doc, writeBatch, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, QuerySnapshot, DocumentData, addDoc, updateDoc, deleteDoc, doc, writeBatch, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
+import { themes } from '../lib/themes';
 
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionModal } from '../components/TransactionModal';
@@ -68,8 +69,7 @@ export const DashboardScreen: React.FC = () => {
             snapshot.forEach(doc => {
                 const transactionDate = doc.data().date;
                 if (transactionDate && typeof transactionDate === 'string') {
-                    const monthStr = transactionDate.substring(0, 7);
-                    months.add(monthStr);
+                    months.add(transactionDate.substring(0, 7));
                 }
             });
             
@@ -84,27 +84,22 @@ export const DashboardScreen: React.FC = () => {
         return () => unsubscribe();
     }, [profile]);
     
-    // --- MELHORIA: Define o mês inicial como o último mês em aberto ---
     useEffect(() => {
         if (monthsLoading || !profile) return;
 
         const closedMonthsSet = new Set(profile.closedMonths || []);
         
-        // Encontra o primeiro mês na lista de meses disponíveis que NÃO está fechado
         const firstOpenMonthStr = availableMonths.find(month => !closedMonthsSet.has(month));
 
         if (firstOpenMonthStr) {
-            // Se encontrou um mês aberto, define-o como o mês atual
             const [year, month] = firstOpenMonthStr.split('-').map(Number);
             setCurrentMonth(new Date(year, month - 1, 1));
         } else if (availableMonths.length > 0) {
-            // Se todos os meses com dados estiverem fechados, vai para o mês seguinte ao último fechado
              const lastMonthStr = availableMonths[availableMonths.length - 1];
              const [year, month] = lastMonthStr.split('-').map(Number);
-             setCurrentMonth(new Date(year, month, 1)); // month já é 0-based, então month+1 é month
+             setCurrentMonth(new Date(year, month, 1));
         }
         else {
-            // Se não houver dados nenhuns, mantém o mês atual do calendário
             setCurrentMonth(new Date());
         }
 
@@ -112,21 +107,13 @@ export const DashboardScreen: React.FC = () => {
 
 
     useEffect(() => {
-        if (!profile) return;
+        if (!profile || !currentMonth) return;
         setLoading(true);
         const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
         const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
-
-        const q = query(
-            collection(db, "transactions"), 
-            where("profileId", "==", profile.id),
-            where("date", ">=", startOfMonth),
-            where("date", "<=", endOfMonth)
-        );
-
+        const q = query(collection(db, "transactions"), where("profileId", "==", profile.id), where("date", ">=", startOfMonth), where("date", "<=", endOfMonth));
         const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-            const transactions = snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[];
-            setAllTransactions(transactions);
+            setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
             setLoading(false);
         }, (error) => {
             console.error("Erro ao buscar transações: ", error);
@@ -135,6 +122,28 @@ export const DashboardScreen: React.FC = () => {
         return () => unsubscribe();
     }, [profile, currentMonth]);
     
+    const activeTheme = useMemo(() => {
+        if (activeTab === 'geral' || !profile) {
+            return themes.default_light;
+        }
+        const activeSub = profile.subprofiles.find(s => s.id === activeTab);
+        return themes[activeSub?.themeId || 'noite_estrelada'] || themes.default_light;
+    }, [activeTab, profile]);
+    
+    useEffect(() => {
+        const root = document.documentElement;
+        if (activeTheme) {
+            Object.entries(activeTheme.variables).forEach(([key, value]) => {
+                root.style.setProperty(key, value);
+            });
+        }
+        return () => {
+            Object.keys(themes.default_light.variables).forEach(key => {
+                root.style.removeProperty(key);
+            });
+        };
+    }, [activeTheme]);
+
     const filteredData = useMemo<AppData>(() => {
         let result: AppData = { receitas: [], despesas: [] };
         if (activeTab === 'geral') {
@@ -170,6 +179,7 @@ export const DashboardScreen: React.FC = () => {
     }, [filteredData, sortConfig]);
     
     const currentMonthString = useMemo(() => {
+        if(!currentMonth) return '';
         return `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
     }, [currentMonth]);
     
@@ -225,7 +235,7 @@ export const DashboardScreen: React.FC = () => {
     }, [sortConfig]);
     
     const handleOpenModalForNew = useCallback(() => {
-        if (isCurrentMonthClosed) return;
+        if (isCurrentMonthClosed || !currentMonth) return;
         const date = new Date(currentMonth);
         date.setDate(1);
         const dateString = date.toISOString().split('T')[0];
@@ -292,6 +302,7 @@ export const DashboardScreen: React.FC = () => {
     
     const changeMonth = useCallback((amount: number) => {
         setCurrentMonth(prev => {
+            if (!prev) return new Date();
             const newDate = new Date(prev);
             newDate.setDate(1);
             newDate.setMonth(newDate.getMonth() + amount);
@@ -349,12 +360,13 @@ export const DashboardScreen: React.FC = () => {
         changeMonth(1);
     };
 
-    const handleCreateSubprofile = async (name: string) => {
+    const handleCreateSubprofile = async (name: string, themeId: string) => {
         if (!profile) return;
         const newSubprofile: Subprofile = {
             id: name.trim().toLowerCase().replace(/\s+/g, '-'),
             name: name.trim(),
-            status: 'active'
+            status: 'active',
+            themeId: themeId
         };
         const updatedSubprofiles = [...profile.subprofiles, newSubprofile];
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
@@ -399,7 +411,7 @@ export const DashboardScreen: React.FC = () => {
     const totalDespesaEfetivo = filteredData.despesas.reduce((acc, d) => acc + d.actual, 0);
     const saldoPrevisto = totalReceitaPrevisto - totalDespesaPrevisto;
     const saldoEfetivo = totalReceitaEfetivo - totalDespesaEfetivo;
-    const formattedMonth = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
+    const formattedMonth = currentMonth ? currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase()) : '...';
     const currentSubprofileName = profile.subprofiles.find(s => s.id === activeTab)?.name;
 
     let closeMonthTitle = 'Fechar o mês e criar recorrências';
@@ -407,126 +419,124 @@ export const DashboardScreen: React.FC = () => {
     else if (!canCloseMonth) closeMonthTitle = 'Feche os meses anteriores primeiro';
 
     return (
-        <>
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-                            Dashboard: {profile.name}
-                            {activeTab !== 'geral' && (
-                                <>
-                                    <span className="mx-2 font-light text-slate-400 dark:text-slate-500">/</span>
-                                    <span className="font-semibold">{currentSubprofileName}</span>
-                                </>
-                            )}
-                        </h2>
-                        <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
-                            <button 
-                                onClick={() => changeMonth(-1)} 
-                                className="p-1 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                                disabled={!canGoToPreviousMonth}
-                                title={!canGoToPreviousMonth ? "Não há registos em meses anteriores" : "Mês anterior"}
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <span className="text-slate-500 dark:text-slate-400 font-semibold text-center min-w-[150px]">
-                                {formattedMonth}
-                            </span>
-                            <button 
-                                onClick={() => changeMonth(1)} 
-                                className="p-1 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                                disabled={!canGoToNextMonth}
-                                title={!canGoToNextMonth ? "Não há registos em meses futuros" : "Mês seguinte"}
-                            >
-                                <ChevronRight size={20} />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {isCurrentMonthClosed ? (
-                            <span className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 bg-slate-200 dark:bg-slate-700 dark:text-slate-400 rounded-lg">
-                                <ShieldCheck size={16}/> Mês Fechado
-                            </span>
-                        ) : (
-                            <button 
-                                onClick={handleCloseMonthAttempt}
-                                disabled={!canCloseMonth}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                                title={closeMonthTitle}
-                            >
-                                <Lock size={16}/> Fechar Mês
-                            </button>
-                        )}
-                        <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
-                            <Download size={16}/> Exportar
-                        </button>
+        <div className="p-6 lg:p-10 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
+                        Dashboard: {profile.name}
                         {activeTab !== 'geral' && (
-                            <button 
-                                onClick={() => setIsImportModalOpen(true)} 
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                                disabled={isCurrentMonthClosed}
-                            >
-                                <Upload size={16}/> Importar
-                            </button>
+                            <>
+                                <span className="mx-2 font-light text-text-secondary">/</span>
+                                <span className="font-semibold">{currentSubprofileName}</span>
+                            </>
                         )}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
                         <button 
-                            onClick={handleOpenModalForNew} 
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                            disabled={isCurrentMonthClosed}
+                            onClick={() => changeMonth(-1)} 
+                            className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                            disabled={!canGoToPreviousMonth}
+                            title={!canGoToPreviousMonth ? "Não há registos em meses anteriores" : "Mês anterior"}
                         >
-                            <PlusCircle size={16}/> Nova Transação
+                            <ChevronLeft size={20} />
+                        </button>
+                        <span className="font-semibold text-center min-w-[150px] text-text-secondary">
+                            {formattedMonth}
+                        </span>
+                        <button 
+                            onClick={() => changeMonth(1)} 
+                            className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                            disabled={!canGoToNextMonth}
+                            title={!canGoToNextMonth ? "Não há registos em meses futuros" : "Mês seguinte"}
+                        >
+                            <ChevronRight size={20} />
                         </button>
                     </div>
                 </div>
-            
-                <div className="border-b border-slate-200 dark:border-slate-700">
-                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                        <button onClick={() => handleTabClick('geral')} className={`${activeTab === 'geral' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
-                            Visão Geral
+                <div className="flex items-center gap-2">
+                    {isCurrentMonthClosed ? (
+                        <span className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                            <ShieldCheck size={16}/> Mês Fechado
+                        </span>
+                    ) : (
+                        <button 
+                            onClick={handleCloseMonthAttempt}
+                            disabled={!canCloseMonth}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
+                            title={closeMonthTitle}
+                        >
+                            <Lock size={16}/> Fechar Mês
                         </button>
-                        {activeSubprofiles.map(sub => (
+                    )}
+                    <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-card text-text-primary hover:opacity-80 border border-border-color">
+                        <Download size={16}/> Exportar
+                    </button>
+                    {activeTab !== 'geral' && (
+                        <button 
+                            onClick={() => setIsImportModalOpen(true)} 
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-card text-text-primary hover:opacity-80 border border-border-color disabled:opacity-50"
+                            disabled={isCurrentMonthClosed}
+                        >
+                            <Upload size={16}/> Importar
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleOpenModalForNew} 
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50"
+                        disabled={isCurrentMonthClosed}
+                    >
+                        <PlusCircle size={16}/> Nova Transação
+                    </button>
+                </div>
+            </div>
+            
+            <div className="border-b border-border-color">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}>
+                        Visão Geral
+                    </button>
+                    {activeSubprofiles.map(sub => {
+                        const isActive = activeTab === sub.id;
+                        return (
                             <div key={sub.id} className="relative group flex items-center">
-                                <button onClick={() => handleTabClick(sub.id)} className={`${activeTab === sub.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                                <button 
+                                    onClick={() => handleTabClick(sub.id)} 
+                                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${isActive ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'}`}
+                                >
                                     {sub.name}
                                 </button>
-                                <button onClick={() => setSubprofileToArchive(sub)} className="absolute -right-2 -top-1 p-1 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
+                                <button onClick={() => setSubprofileToArchive(sub)} className="absolute -right-2 -top-1 p-1 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
                                     <Trash2 size={12}/>
                                 </button>
                             </div>
-                        ))}
-                        {canAddSubprofile && (
-                            <button onClick={() => setIsSubprofileModalOpen(true)} className="py-4 px-2 text-slate-400 hover:text-blue-600">
-                                <Plus size={16} />
-                            </button>
-                        )}
-                    </nav>
-                </div>
-            
-                <div className="grid gap-6">
-                    {activeTab === 'geral' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card>
-                                <CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader>
-                                <CardContent><div className="text-2xl font-bold text-slate-700 dark:text-slate-300">{formatCurrency(totalDespesaPrevisto)}</div></CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader>
-                                <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent>
-                            </Card>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-                            <Card className="col-span-2 lg:col-span-1"><CardHeader><CardTitle>Receitas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-green-600">{formatCurrency(totalReceitaEfetivo)}</div><p className="text-xs text-slate-500">Previsto: {formatCurrency(totalReceitaPrevisto)}</p></CardContent></Card>
-                            <Card className="col-span-2 lg:col-span-1"><CardHeader><CardTitle>Despesas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div><p className="text-xs text-slate-500">Previsto: {formatCurrency(totalDespesaPrevisto)}</p></CardContent></Card>
-                            <Card className="col-span-2 lg:col-span-1"><CardHeader><CardTitle>Balanço</CardTitle></CardHeader><CardContent><div className={`text-xl font-bold ${saldoEfetivo >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(saldoEfetivo)}</div><p className="text-xs text-slate-500">Previsto: {formatCurrency(saldoPrevisto)}</p></CardContent></Card>
-                        </div>
+                        )
+                    })}
+                    {canAddSubprofile && (
+                        <button onClick={() => setIsSubprofileModalOpen(true)} className="py-4 px-2 text-text-secondary hover:text-accent">
+                            <Plus size={16} />
+                        </button>
                     )}
-                </div>
+                </nav>
+            </div>
             
-                <div className="grid grid-cols-1 gap-6">
-                    <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
-                    <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
-                </div>
+            <div className="grid gap-6">
+                {activeTab === 'geral' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card><CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(totalDespesaPrevisto)}</div></CardContent></Card>
+                        <Card><CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent></Card>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Card><CardHeader><CardTitle>Receitas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-green-600">{formatCurrency(totalReceitaEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalReceitaPrevisto)}</p></CardContent></Card>
+                        <Card><CardHeader><CardTitle>Despesas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalDespesaPrevisto)}</p></CardContent></Card>
+                        <Card><CardHeader><CardTitle>Balanço</CardTitle></CardHeader><CardContent><div className={`text-xl font-bold ${saldoEfetivo >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(saldoEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(saldoPrevisto)}</p></CardContent></Card>
+                    </div>
+                )}
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
+                <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
+                <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
             </div>
             
             <TransactionModal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={modalInitialValues?.id ? 'Editar Transação' : 'Nova Transação'}>
@@ -539,7 +549,7 @@ export const DashboardScreen: React.FC = () => {
                 onConfirm={handleArchiveSubprofile}
                 itemName={subprofileToArchive?.name || ''}
                 title={`Arquivar "${subprofileToArchive?.name}"`}
-                message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="dark:text-white">{subprofileToArchive?.name}</strong>.</p>}
+                message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-white">{subprofileToArchive?.name}</strong>.</p>}
                 confirmButtonText='Arquivar'
             />
             <ConfirmationModal 
@@ -566,6 +576,6 @@ export const DashboardScreen: React.FC = () => {
                     allTransactions={allTransactions}
                 />
             }
-        </>
+        </div>
     );
 };

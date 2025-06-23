@@ -34,18 +34,13 @@ export const DashboardScreen: React.FC = () => {
     const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
     const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'descending' });
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
     
     const [availableMonths, setAvailableMonths] = useState<string[]>([]);
     const [monthsLoading, setMonthsLoading] = useState(true);
     
     const activeTab = subprofileId || 'geral';
-
-    useEffect(() => {
-        setCurrentMonth(new Date());
-    }, []);
-
 
     const handleTabClick = useCallback((tabId: string) => {
         const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
@@ -88,6 +83,32 @@ export const DashboardScreen: React.FC = () => {
 
         return () => unsubscribe();
     }, [profile]);
+    
+    // --- MELHORIA: Define o mês inicial como o último mês em aberto ---
+    useEffect(() => {
+        if (monthsLoading || !profile) return;
+
+        const closedMonthsSet = new Set(profile.closedMonths || []);
+        
+        // Encontra o primeiro mês na lista de meses disponíveis que NÃO está fechado
+        const firstOpenMonthStr = availableMonths.find(month => !closedMonthsSet.has(month));
+
+        if (firstOpenMonthStr) {
+            // Se encontrou um mês aberto, define-o como o mês atual
+            const [year, month] = firstOpenMonthStr.split('-').map(Number);
+            setCurrentMonth(new Date(year, month - 1, 1));
+        } else if (availableMonths.length > 0) {
+            // Se todos os meses com dados estiverem fechados, vai para o mês seguinte ao último fechado
+             const lastMonthStr = availableMonths[availableMonths.length - 1];
+             const [year, month] = lastMonthStr.split('-').map(Number);
+             setCurrentMonth(new Date(year, month, 1)); // month já é 0-based, então month+1 é month
+        }
+        else {
+            // Se não houver dados nenhuns, mantém o mês atual do calendário
+            setCurrentMonth(new Date());
+        }
+
+    }, [monthsLoading, availableMonths, profile]);
 
 
     useEffect(() => {
@@ -399,7 +420,6 @@ export const DashboardScreen: React.FC = () => {
                                 </>
                             )}
                         </h2>
-                        {/* --- MELHORIA: Contêiner com mais largura e sem quebra de linha --- */}
                         <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
                             <button 
                                 onClick={() => changeMonth(-1)} 
@@ -409,7 +429,6 @@ export const DashboardScreen: React.FC = () => {
                             >
                                 <ChevronLeft size={20} />
                             </button>
-                            {/* --- MELHORIA: Aumenta a largura mínima para acomodar meses longos --- */}
                             <span className="text-slate-500 dark:text-slate-400 font-semibold text-center min-w-[150px]">
                                 {formattedMonth}
                             </span>

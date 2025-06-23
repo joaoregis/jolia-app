@@ -37,11 +37,15 @@ export const DashboardScreen: React.FC = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
     
-    // --- CORREÇÃO: Armazena a lista de meses que possuem transações ---
     const [availableMonths, setAvailableMonths] = useState<string[]>([]);
     const [monthsLoading, setMonthsLoading] = useState(true);
     
     const activeTab = subprofileId || 'geral';
+
+    useEffect(() => {
+        setCurrentMonth(new Date());
+    }, []);
+
 
     const handleTabClick = useCallback((tabId: string) => {
         const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
@@ -58,7 +62,6 @@ export const DashboardScreen: React.FC = () => {
         return () => unsubscribe();
     }, [profileId, navigate]);
 
-    // --- CORREÇÃO: Lógica para buscar todos os meses com transações ---
     useEffect(() => {
         if (!profile) return;
 
@@ -182,7 +185,6 @@ export const DashboardScreen: React.FC = () => {
         return true;
     }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
     
-    // --- CORREÇÃO: Lógica de navegação baseada no array de meses disponíveis ---
     const canGoToPreviousMonth = useMemo(() => {
         if (monthsLoading || availableMonths.length === 0) return false;
         return currentMonthString > availableMonths[0];
@@ -300,19 +302,23 @@ export const DashboardScreen: React.FC = () => {
             const transactionsRef = collection(db, 'transactions');
             
             recurringTransactions.forEach(t => {
-                const dateParts = t.date.split('-').map(Number);
-                const nextMonthDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-                nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+                const newTransactionData: Omit<Transaction, 'id'> = { ...t };
+                delete (newTransactionData as Partial<Transaction>).id;
 
-                const newTransaction: Omit<Transaction, 'id'> = {
-                    ...t,
-                    date: nextMonthDate.toISOString().split('T')[0],
-                    paid: false,
-                    actual: 0 
-                };
-                delete (newTransaction as Partial<Transaction>).id;
+                const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00');
+                nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
+                newTransactionData.date = nextLaunchDate.toISOString().split('T')[0];
+
+                if (newTransactionData.paymentDate) {
+                    const nextPaymentDate = new Date(newTransactionData.paymentDate + 'T00:00:00');
+                    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                    newTransactionData.paymentDate = nextPaymentDate.toISOString().split('T')[0];
+                }
+                
+                newTransactionData.paid = false;
+                
                 const docRef = doc(transactionsRef);
-                batch.set(docRef, newTransaction);
+                batch.set(docRef, newTransactionData);
             });
             await batch.commit();
         }
@@ -393,7 +399,8 @@ export const DashboardScreen: React.FC = () => {
                                 </>
                             )}
                         </h2>
-                        <div className="flex items-center gap-2 mt-1">
+                        {/* --- MELHORIA: Contêiner com mais largura e sem quebra de linha --- */}
+                        <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
                             <button 
                                 onClick={() => changeMonth(-1)} 
                                 className="p-1 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -402,7 +409,10 @@ export const DashboardScreen: React.FC = () => {
                             >
                                 <ChevronLeft size={20} />
                             </button>
-                            <span className="text-slate-500 dark:text-slate-400 font-semibold w-32 text-center">{formattedMonth}</span>
+                            {/* --- MELHORIA: Aumenta a largura mínima para acomodar meses longos --- */}
+                            <span className="text-slate-500 dark:text-slate-400 font-semibold text-center min-w-[150px]">
+                                {formattedMonth}
+                            </span>
                             <button 
                                 onClick={() => changeMonth(1)} 
                                 className="p-1 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -495,7 +505,7 @@ export const DashboardScreen: React.FC = () => {
                 </div>
             
                 <div className="grid grid-cols-1 gap-6">
-                    {activeTab !== 'geral' && <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />}
+                    <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
                     <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
                 </div>
             </div>

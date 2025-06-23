@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, QuerySnapshot, DocumentData, addDoc, updateDoc, deleteDoc, doc, writeBatch, getDocs, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, QuerySnapshot, DocumentData, addDoc, updateDoc, deleteDoc, doc, writeBatch, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
@@ -20,7 +20,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 
 import { formatCurrency } from '../lib/utils';
-import { PlusCircle, Plus, Upload, Trash2, Download, ChevronLeft, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Plus, Upload, Download, ChevronLeft, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
 
 export const DashboardScreen: React.FC = () => {
     const { profileId, '*': subprofileId } = useParams<{ profileId: string; '*': string }>();
@@ -137,23 +137,23 @@ export const DashboardScreen: React.FC = () => {
     
     const activeTheme = useMemo(() => {
         if (activeTab === 'geral' || !profile) {
-            return themes.default_light;
+            return themes.default;
         }
         const activeSub = profile.subprofiles.find(s => s.id === activeTab);
-        return themes[activeSub?.themeId || 'noite_estrelada'] || themes.default_light;
+        return themes[activeSub?.themeId || 'default'] || themes.default;
     }, [activeTab, profile]);
     
     useEffect(() => {
         const root = document.documentElement;
         const body = document.body;
-        if (activeTheme) {
+        if (activeTheme && activeTheme.variables) {
             Object.entries(activeTheme.variables).forEach(([key, value]) => {
                 root.style.setProperty(key, value);
             });
             body.style.backgroundColor = activeTheme.variables['--background'];
         }
         return () => {
-            Object.keys(themes.default_light.variables).forEach(key => {
+            Object.keys(themes.default.variables).forEach(key => {
                 root.style.removeProperty(key);
             });
             body.style.backgroundColor = '';
@@ -560,8 +560,15 @@ export const DashboardScreen: React.FC = () => {
             <div className="grid gap-6">
                 {activeTab === 'geral' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card><CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(totalDespesaPrevisto)}</div></CardContent></Card>
-                        <Card><CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent></Card>
+                        <Card>
+                            <CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader>
+                            {/* CORREÇÃO: Adicionada a classe text-text-primary para garantir a cor correta do tema */}
+                            <CardContent><div className="text-2xl font-bold text-text-primary">{formatCurrency(totalDespesaPrevisto)}</div></CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader>
+                            <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent>
+                        </Card>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">

@@ -37,15 +37,14 @@ const ThemeSelector: React.FC<{ selectedThemeId: string, onSelect: (themeId: str
 
 export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen, onClose, onSave, subprofile }) => {
     const [name, setName] = useState('');
-    const [selectedThemeId, setSelectedThemeId] = useState('default_light');
+    const [selectedThemeId, setSelectedThemeId] = useState('default');
 
-    // Efeito para preencher o formulário quando um subperfil é selecionado para edição
     useEffect(() => {
-        if (subprofile) {
+        if (subprofile && isOpen) {
             setName(subprofile.name);
-            setSelectedThemeId(subprofile.themeId || 'default_light');
+            setSelectedThemeId(subprofile.themeId || 'default');
         }
-    }, [subprofile]);
+    }, [subprofile, isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,7 +56,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
 
     if (!isOpen || !subprofile) return null;
 
-    const previewTheme = themes[selectedThemeId] || themes.default_light;
+    const previewTheme = themes[selectedThemeId] || themes.default;
 
     const modalStyle = {
       ...previewTheme.variables as React.CSSProperties

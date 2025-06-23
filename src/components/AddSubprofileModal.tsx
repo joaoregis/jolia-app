@@ -34,23 +34,25 @@ const ThemeSelector: React.FC<{ selectedThemeId: string, onSelect: (themeId: str
 
 export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, onClose, onSave }) => {
     const [name, setName] = useState('');
-    const [selectedThemeId, setSelectedThemeId] = useState('default_light');
+    // CORREÇÃO: O tema inicial agora é o 'default' (escuro)
+    const [selectedThemeId, setSelectedThemeId] = useState('default');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (name.trim()) {
             onSave(name.trim(), selectedThemeId);
             setName('');
-            setSelectedThemeId('default_light');
+            // CORREÇÃO: Reseta para o novo tema padrão
+            setSelectedThemeId('default');
             onClose();
         }
     };
 
     if (!isOpen) return null;
 
-    const previewTheme = themes[selectedThemeId] || themes.default_light;
+    // CORREÇÃO: O tema de fallback agora é o 'default'
+    const previewTheme = themes[selectedThemeId] || themes.default;
 
-    // Aplica o tema diretamente no elemento raiz do modal
     const modalStyle = {
       ...previewTheme.variables as React.CSSProperties
     };

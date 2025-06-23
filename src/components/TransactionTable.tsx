@@ -7,6 +7,92 @@ import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 
+// Subcomponente para renderizar cada linha de detalhe no cartão mobile
+const DetailRow: React.FC<{ label: string; value: React.ReactNode; valueClassName?: string }> = ({ label, value, valueClassName }) => (
+    <div className="flex justify-between items-baseline text-sm">
+        <span className="text-text-secondary">{label}</span>
+        <span className={valueClassName}>{value}</span>
+    </div>
+);
+
+
+// Componente interno para renderizar cada transação como um cartão no mobile
+const TransactionItem: React.FC<{
+    item: Transaction;
+    type: 'income' | 'expense';
+    isClosed: boolean;
+    onEdit: (transaction: Transaction) => void;
+    onDelete: (id: string) => void;
+    onTogglePaid: (id: string, currentStatus: boolean) => void;
+    onUpdateField: (transactionId: string, field: keyof Transaction, value: any) => void;
+}> = ({ item, type, isClosed, onEdit, onDelete, onTogglePaid, onUpdateField }) => {
+    const difference = item.actual - item.planned;
+    let differenceColor = 'text-text-secondary';
+    if (difference !== 0) {
+        const isNegative = type === 'expense' ? difference > 0 : difference < 0;
+        differenceColor = isNegative ? 'text-red-500' : 'text-green-500';
+    }
+
+    return (
+        <div className="md:hidden border border-border-color rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50">
+            {/* Cabeçalho do Cartão */}
+            <div className="flex justify-between items-start">
+                 <div className="font-medium text-text-primary flex items-center gap-2 pr-2 overflow-hidden">
+                     {item.isRecurring && (
+                        <span title="Transação Recorrente">
+                            <Repeat size={12} className="text-accent flex-shrink-0" />
+                        </span>
+                     )}
+                     <EditableCell value={item.description} onSave={(v) => onUpdateField(item.id, 'description', String(v))} disabled={isClosed} />
+                </div>
+                 {!isClosed && (
+                    <ActionMenu item={item} onEdit={onEdit} onDelete={onDelete} />
+                )}
+            </div>
+
+            {/* Corpo do Cartão com valores alinhados */}
+            <div className="space-y-2">
+                <DetailRow 
+                    label="Efetivo" 
+                    value={formatCurrency(item.actual)} 
+                    valueClassName="font-bold text-lg text-text-primary" 
+                />
+                <DetailRow 
+                    label="Previsto" 
+                    value={formatCurrency(item.planned)} 
+                    valueClassName="text-sm text-text-secondary" 
+                />
+                <DetailRow 
+                    label="Diferença" 
+                    value={formatCurrency(difference)} 
+                    valueClassName={`text-sm font-medium ${differenceColor}`} 
+                />
+            </div>
+
+            <div className="border-t border-border-color !mt-3 !mb-2"></div>
+
+            {/* Rodapé do Cartão */}
+            <div className="flex justify-between items-center text-sm">
+                <div className="text-text-secondary">
+                    <span>{type === 'expense' ? 'Pago em' : 'Recebido em'}: </span>
+                    <span className="font-medium text-text-primary">{formatShortDate(item.paymentDate)}</span>
+                </div>
+                 <button
+                    onClick={() => onTogglePaid(item.id, item.paid || false)}
+                    className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={isClosed}
+                >
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${item.paid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                         {item.paid ? <CheckCircle className="w-4 h-4 mr-1"/> : <XCircle className="w-4 h-4 mr-1"/>}
+                         {item.paid ? 'Sim' : 'Não'}
+                    </span>
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
 const ActionMenu: React.FC<{
     item: Transaction;
     onEdit: (transaction: Transaction) => void;
@@ -72,8 +158,8 @@ interface TransactionTableProps {
   sortConfig?: SortConfig | null;
 }
 
-export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data, type, isClosed, onEdit, onDelete, requestSort, onTogglePaid, onUpdateField, sortConfig }) => {
-    
+export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
+    const { title, data, type, isClosed, requestSort, sortConfig, ...rest } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
 
     const getSortIndicator = (key: keyof Transaction) => {
@@ -94,7 +180,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
         <Card>
             <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
             <CardContent>
-                <div className="w-full overflow-x-auto">
+                {/* Vista de Cartões para mobile */}
+                <div className="md:hidden">
+                    {data.length > 0 && data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} {...rest} />)}
+                    {data.length > 0 && (
+                        <div className="flex justify-between font-bold text-text-primary bg-background p-4 rounded-lg mt-4">
+                            <span>TOTAL</span>
+                            <span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Vista de Tabela para telas maiores */}
+                <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-text-primary uppercase bg-background">
                             <tr>
@@ -111,7 +209,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border-color">
+                       {data.length > 0 && (
+                         <tbody className="divide-y divide-border-color">
                             {data.map(item => {
                                 const difference = item.actual - item.planned;
                                 let differenceColor = 'text-text-secondary';
@@ -129,7 +228,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                                     <Repeat size={12} className="text-accent flex-shrink-0"/>
                                                 </span>
                                             )}
-                                            <EditableCell value={item.description} onSave={(newValue) => onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed} />
+                                            <EditableCell value={item.description} onSave={(newValue) => props.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed} />
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 align-middle">
@@ -140,12 +239,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                                     defaultValue={item.paymentDate}
                                                     autoFocus
                                                     onBlur={(e) => {
-                                                        onUpdateField(item.id, 'paymentDate', e.target.value);
+                                                        props.onUpdateField(item.id, 'paymentDate', e.target.value);
                                                         setEditingDateId(null);
                                                     }}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
-                                                            onUpdateField(item.id, 'paymentDate', e.currentTarget.value);
+                                                            props.onUpdateField(item.id, 'paymentDate', e.currentTarget.value);
                                                             setEditingDateId(null);
                                                         }
                                                         if (e.key === 'Escape') {
@@ -167,10 +266,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                         )}
                                     </td>
                                     <td className="px-4 py-3 align-middle">
-                                        <EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed}/>
+                                        <EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => props.onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed}/>
                                     </td>
                                     <td className="px-4 py-3 align-middle">
-                                        <EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed}/>
+                                        <EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => props.onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed}/>
                                     </td>
 
                                     <td className={`px-4 py-3 text-right font-bold align-middle ${differenceColor}`}>
@@ -178,7 +277,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                     </td>
                                     <td className="px-4 py-3 text-center align-middle">
                                         <button 
-                                            onClick={() => onTogglePaid(item.id, item.paid || false)}
+                                            onClick={() => props.onTogglePaid(item.id, item.paid || false)}
                                             className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70"
                                             disabled={isClosed}
                                         >
@@ -189,12 +288,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                         </button>
                                     </td>
                                     <td className="px-4 py-3 text-center align-middle">
-                                        {!isClosed && <ActionMenu item={item} onEdit={onEdit} onDelete={onDelete} />}
+                                        {!isClosed && <ActionMenu item={item} onEdit={props.onEdit} onDelete={props.onDelete} />}
                                     </td>
                                 </tr>
                                 )})}
                         </tbody>
-                        <tfoot className="font-bold text-text-primary bg-background">
+                       )}
+                       {data.length > 0 && (
+                         <tfoot className="font-bold text-text-primary bg-background">
                             <tr>
                                 <td className="px-4 py-3">TOTAL</td>
                                 <td className="px-4 py-3"></td>
@@ -203,8 +304,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({ title, data,
                                 <td colSpan={3}></td>
                             </tr>
                         </tfoot>
+                       )}
                     </table>
                 </div>
+                {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
             </CardContent>
         </Card>
     );

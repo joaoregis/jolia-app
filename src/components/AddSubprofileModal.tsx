@@ -34,7 +34,6 @@ const ThemeSelector: React.FC<{ selectedThemeId: string, onSelect: (themeId: str
 
 export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, onClose, onSave }) => {
     const [name, setName] = useState('');
-    // CORREÇÃO: O tema inicial agora é o 'default' (escuro)
     const [selectedThemeId, setSelectedThemeId] = useState('default');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -42,7 +41,6 @@ export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, 
         if (name.trim()) {
             onSave(name.trim(), selectedThemeId);
             setName('');
-            // CORREÇÃO: Reseta para o novo tema padrão
             setSelectedThemeId('default');
             onClose();
         }
@@ -50,27 +48,27 @@ export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, 
 
     if (!isOpen) return null;
 
-    // CORREÇÃO: O tema de fallback agora é o 'default'
     const previewTheme = themes[selectedThemeId] || themes.default;
-
-    const modalStyle = {
-      ...previewTheme.variables as React.CSSProperties
-    };
+    const modalStyle = { ...previewTheme.variables as React.CSSProperties };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div 
                 onClick={(e) => e.stopPropagation()}
-                className="bg-card rounded-lg shadow-xl w-full max-w-md"
+                // CORREÇÃO: Estrutura flexível com altura máxima
+                className="bg-card rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[90vh]"
                 style={modalStyle}
             >
-                <div className="flex justify-between items-center p-4 border-b border-border-color">
+                {/* Cabeçalho Fixo */}
+                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border-color">
                     <h3 className="text-xl font-semibold text-text-primary">Adicionar Novo Subperfil</h3>
                     <button onClick={onClose} className="text-text-secondary hover:opacity-75">
                         <X size={24} />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+                {/* Formulário com conteúdo rolável */}
+                <form onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-6 space-y-6">
                     <div>
                         <label htmlFor="subprofileName" className="block text-sm font-medium text-text-secondary">
                             Nome do Subperfil
@@ -85,18 +83,18 @@ export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, 
                             placeholder="ex: Júlia"
                         />
                     </div>
-
                     <ThemeSelector selectedThemeId={selectedThemeId} onSelect={setSelectedThemeId} />
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-border-color">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80">
-                            Cancelar
-                        </button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg flex items-center gap-2 bg-accent hover:bg-accent-hover">
-                            <Check size={16} /> Salvar
-                        </button>
-                    </div>
                 </form>
+
+                {/* Rodapé Fixo */}
+                <div className="flex-shrink-0 flex justify-end gap-3 p-4 border-t border-border-color">
+                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80">
+                        Cancelar
+                    </button>
+                    <button type="submit" onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white rounded-lg flex items-center gap-2 bg-accent hover:bg-accent-hover">
+                        <Check size={16} /> Salvar
+                    </button>
+                </div>
             </div>
         </div>
     );

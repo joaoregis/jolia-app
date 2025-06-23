@@ -52,10 +52,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <button
                         type="button"
                         className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
-                        onClick={() => {
-                            onConfirm();
-                            onClose();
-                        }}
+                        onClick={onConfirm} // CORREÇÃO: Apenas chama onConfirm. A lógica de fechar o modal fica na função que é passada para onConfirm.
                     >
                         Confirmar
                     </button>

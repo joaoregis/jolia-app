@@ -1,12 +1,20 @@
 // src/screens/DashboardScreen.tsx
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, QuerySnapshot, DocumentData, addDoc, updateDoc, deleteDoc, doc, writeBatch, orderBy } from 'firebase/firestore';
+import { addDoc, updateDoc, deleteDoc, doc, writeBatch, collection } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
+import { AppData, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
 
+// Hooks
+import { useProfile } from '../hooks/useProfile';
+import { useTransactions } from '../hooks/useTransactions';
+import { useAvailableMonths } from '../hooks/useAvailableMonths';
+
+// Componentes
+import { DashboardHeader } from '../components/DashboardHeader';
+import { SummaryCards } from '../components/SummaryCards';
 import { TransactionTable } from '../components/TransactionTable';
 import { TransactionModal } from '../components/TransactionModal';
 import { TransactionForm } from '../components/TransactionForm';
@@ -16,147 +24,86 @@ import { EditSubprofileModal } from '../components/EditSubprofileModal';
 import { ImportModal } from '../components/ImportModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { ExportModal } from '../components/ExportModal';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
+import { Plus } from 'lucide-react';
 
-import { formatCurrency } from '../lib/utils';
-import { PlusCircle, Plus, Upload, Download, ChevronLeft, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
+const LoadingScreen: React.FC = () => (
+    <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
+        A carregar dados do perfil...
+    </div>
+);
 
 export const DashboardScreen: React.FC = () => {
     const { profileId, '*': subprofileId } = useParams<{ profileId: string; '*': string }>();
     const navigate = useNavigate();
 
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Hooks de Dados
+    const { profile, loading: profileLoading } = useProfile(profileId);
+    const { availableMonths, loading: monthsLoading } = useAvailableMonths(profileId);
+    const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+    const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
+
+    // Estado da UI
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [isSubprofileModalOpen, setIsSubprofileModalOpen] = useState(false);
-    const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
+    
     const [modalInitialValues, setModalInitialValues] = useState<Partial<Transaction> | null>(null);
     const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
     const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
+    const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
+
     const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'descending' });
-    const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-    const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
-    
-    const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-    const [monthsLoading, setMonthsLoading] = useState(true);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
-    
+
     const activeTab = subprofileId || 'geral';
 
-    const handleTabClick = useCallback((tabId: string) => {
-        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
-        navigate(path);
-    }, [profileId, navigate]);
-    
-    const handleContextMenu = (event: React.MouseEvent, subprofile: Subprofile) => {
-        event.preventDefault();
-        setContextMenu({
-            x: event.pageX,
-            y: event.pageY,
-            subprofile: subprofile,
-        });
-    };
-
-    useEffect(() => {
-        if (!profileId) return;
-        const profileDocRef = doc(db, 'profiles', profileId);
-        const unsubscribe = onSnapshot(profileDocRef, (doc) => {
-            if (doc.exists()) setProfile({ id: doc.id, ...doc.data() } as Profile);
-            else { console.error("Perfil não encontrado!"); navigate('/'); }
-        });
-        return () => unsubscribe();
-    }, [profileId, navigate]);
-
-    useEffect(() => {
-        if (!profile) return;
-
-        setMonthsLoading(true);
-        const q = query(collection(db, "transactions"), where("profileId", "==", profile.id), orderBy("date"));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const months = new Set<string>();
-            snapshot.forEach(doc => {
-                const transactionDate = doc.data().date;
-                if (transactionDate && typeof transactionDate === 'string') {
-                    months.add(transactionDate.substring(0, 7));
-                }
-            });
-            
-            const sortedMonths = Array.from(months).sort();
-            setAvailableMonths(sortedMonths);
-            setMonthsLoading(false);
-        }, (error) => {
-            console.error("Erro ao buscar meses disponíveis:", error);
-            setMonthsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [profile]);
-    
+    // Efeito para definir o mês inicial assim que os dados estiverem disponíveis
     useEffect(() => {
         if (monthsLoading || !profile) return;
 
         const closedMonthsSet = new Set(profile.closedMonths || []);
         
+        // Prioriza o primeiro mês aberto disponível
         const firstOpenMonthStr = availableMonths.find(month => !closedMonthsSet.has(month));
+
+        let initialDate: Date;
 
         if (firstOpenMonthStr) {
             const [year, month] = firstOpenMonthStr.split('-').map(Number);
-            setCurrentMonth(new Date(year, month - 1, 1));
+            initialDate = new Date(year, month - 1, 1);
         } else if (availableMonths.length > 0) {
-             const lastMonthStr = availableMonths[availableMonths.length - 1];
-             const [year, month] = lastMonthStr.split('-').map(Number);
-             setCurrentMonth(new Date(year, month, 1));
+            // Se não houver meses abertos, vai para o último mês com dados
+            const lastMonthStr = availableMonths[availableMonths.length - 1];
+            const [year, month] = lastMonthStr.split('-').map(Number);
+            initialDate = new Date(year, month - 1, 1);
+        } else {
+            // Se não houver dados, usa a data atual
+            initialDate = new Date();
         }
-        else {
-            setCurrentMonth(new Date());
-        }
+        setCurrentMonth(initialDate);
 
     }, [monthsLoading, availableMonths, profile]);
 
 
-    useEffect(() => {
-        if (!profile || !currentMonth) return;
-        setLoading(true);
-        const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-        const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
-        const q = query(collection(db, "transactions"), where("profileId", "==", profile.id), where("date", ">=", startOfMonth), where("date", "<=", endOfMonth));
-        const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-            setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
-            setLoading(false);
-        }, (error) => {
-            console.error("Erro ao buscar transações: ", error);
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, [profile, currentMonth]);
-    
+    const handleTabClick = useCallback((tabId: string) => {
+        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
+        navigate(path);
+    }, [profileId, navigate]);
+
     const activeTheme = useMemo(() => {
-        if (activeTab === 'geral' || !profile) {
-            return themes.default;
-        }
+        if (!profile) return themes.default;
         const activeSub = profile.subprofiles.find(s => s.id === activeTab);
         return themes[activeSub?.themeId || 'default'] || themes.default;
     }, [activeTab, profile]);
-    
+
     useEffect(() => {
         const root = document.documentElement;
-        const body = document.body;
-        if (activeTheme && activeTheme.variables) {
-            Object.entries(activeTheme.variables).forEach(([key, value]) => {
-                root.style.setProperty(key, value);
-            });
-            body.style.backgroundColor = activeTheme.variables['--background'];
-        }
+        Object.entries(activeTheme.variables).forEach(([key, value]) => root.style.setProperty(key, value));
         return () => {
-            Object.keys(themes.default.variables).forEach(key => {
-                root.style.removeProperty(key);
-            });
-            body.style.backgroundColor = '';
+            Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
         };
     }, [activeTheme]);
 
@@ -180,7 +127,7 @@ export const DashboardScreen: React.FC = () => {
                 const bVal = b[sortConfig.key];
                 if (aVal == null) return 1;
                 if (bVal == null) return -1;
-                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                 if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
                     if (aVal === bVal) return 0;
                     return (sortConfig.direction === 'ascending' ? (aVal ? -1 : 1) : (aVal ? 1 : -1));
                 }
@@ -193,21 +140,11 @@ export const DashboardScreen: React.FC = () => {
         }
         return { receitas: sortedReceitas, despesas: sortedDespesas };
     }, [filteredData, sortConfig]);
-    
-    const currentMonthString = useMemo(() => {
-        if(!currentMonth) return '';
-        return `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
-    }, [currentMonth]);
-    
-    const isCurrentMonthClosed = useMemo(() => {
-        return profile?.closedMonths?.includes(currentMonthString) || false;
-    }, [profile, currentMonthString]);
 
-    const allTransactionsPaid = useMemo(() => {
-        if (allTransactions.length === 0) return true;
-        return allTransactions.every(t => t.paid === true);
-    }, [allTransactions]);
-
+    const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
+    const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
+    const allTransactionsPaid = useMemo(() => allTransactions.every(t => t.paid), [allTransactions]);
+    
     const canCloseMonth = useMemo(() => {
         if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) {
             return false;
@@ -215,15 +152,16 @@ export const DashboardScreen: React.FC = () => {
 
         const closedMonthsSet = new Set(profile.closedMonths || []);
         const firstMonthWithData = availableMonths[0];
-
-        const getYearMonth = (dateStr: string) => ({ year: parseInt(dateStr.substring(0, 4)), month: parseInt(dateStr.substring(5, 7)) - 1 });
+        
+        // Permite fechar o primeiro mês com dados se todos os anteriores (que não têm dados) estiverem "implicitamente" fechados
+        const getYearMonth = (dateStr: string) => ({ year: parseInt(dateStr.substring(0, 4), 10), month: parseInt(dateStr.substring(5, 7), 10) - 1 });
         const start = new Date(getYearMonth(firstMonthWithData).year, getYearMonth(firstMonthWithData).month, 1);
         const current = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
 
         let d = new Date(start);
         while (d.getTime() < current.getTime()) {
             const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            if (!closedMonthsSet.has(monthStr)) {
+            if (availableMonths.includes(monthStr) && !closedMonthsSet.has(monthStr)) {
                 return false;
             }
             d.setMonth(d.getMonth() + 1);
@@ -231,94 +169,9 @@ export const DashboardScreen: React.FC = () => {
         
         return true;
     }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
-    
-    const canGoToPreviousMonth = useMemo(() => {
-        if (monthsLoading || availableMonths.length === 0) return false;
-        return currentMonthString > availableMonths[0];
-    }, [currentMonthString, availableMonths, monthsLoading]);
 
-    const canGoToNextMonth = useMemo(() => {
-        if (monthsLoading || availableMonths.length === 0) return false;
-        return currentMonthString < availableMonths[availableMonths.length - 1];
-    }, [currentMonthString, availableMonths, monthsLoading]);
-    
-    const requestSort = useCallback((key: keyof Transaction) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    }, [sortConfig]);
-    
-    const handleOpenModalForNew = useCallback(() => {
-        if (isCurrentMonthClosed || !currentMonth) return;
-        const date = new Date(currentMonth);
-        date.setDate(1);
-        const dateString = date.toISOString().split('T')[0];
-
-        if (activeTab === 'geral') {
-            setModalInitialValues({ type: 'expense', isShared: true, paid: false, isRecurring: true, date: dateString });
-        } else {
-            setModalInitialValues({ subprofileId: activeTab, isShared: false, paid: false, type: 'expense', date: dateString });
-        }
-        setIsTransactionModalOpen(true);
-    }, [activeTab, isCurrentMonthClosed, currentMonth]);
-
-    const handleOpenModalForEdit = useCallback((t: Transaction) => {
-        if(isCurrentMonthClosed) return;
-        setModalInitialValues(t);
-        setIsTransactionModalOpen(true);
-    }, [isCurrentMonthClosed]);
-    
-    const handleSaveTransaction = async (d: TransactionFormState, id?: string) => {
-        if (!profile) return;
-        const dataToSave: Partial<Transaction> = { ...d, profileId: profile.id };
-        if (dataToSave.isShared) { 
-            dataToSave.subprofileId = undefined; 
-        } else if (!id) { 
-            dataToSave.subprofileId = activeTab; 
-        }
-        
-        try {
-            if (id) { 
-                await updateDoc(doc(db, "transactions", id), dataToSave); 
-            } else { 
-                await addDoc(collection(db, "transactions"), dataToSave as DocumentData); 
-            }
-            setIsTransactionModalOpen(false);
-        } catch (error) {
-            console.error("Erro ao salvar transação: ", error);
-            alert("Ocorreu um erro ao salvar a transação.");
-        }
-    };
-
-    const handleFieldUpdate = async (transactionId: string, field: keyof Transaction, value: any) => {
-        const transactionRef = doc(db, 'transactions', transactionId);
-        try {
-            await updateDoc(transactionRef, { [field]: value });
-        } catch(error) {
-            console.error("Erro ao atualizar campo:", error);
-        }
-    }
-    
-    const handleTogglePaidStatus = async (id: string, currentStatus: boolean) => {
-        if (isCurrentMonthClosed) return;
-        const transactionRef = doc(db, 'transactions', id);
-        try {
-            await updateDoc(transactionRef, { paid: !currentStatus });
-        } catch (error) {
-            console.error("Erro ao atualizar o status:", error);
-        }
-    };
-    
-    const handleDelete = useCallback((id: string) => { 
-        if (isCurrentMonthClosed) return;
-        setTransactionToDelete(id); 
-    }, [isCurrentMonthClosed]);
-    
     const changeMonth = useCallback((amount: number) => {
         setCurrentMonth(prev => {
-            if (!prev) return new Date();
             const newDate = new Date(prev);
             newDate.setDate(1);
             newDate.setMonth(newDate.getMonth() + amount);
@@ -326,24 +179,63 @@ export const DashboardScreen: React.FC = () => {
         });
     }, []);
 
-    const handleCloseMonthAttempt = useCallback(() => {
-        if (isCurrentMonthClosed) {
-            alert('Este mês já foi fechado.');
-            return;
+    const requestSort = useCallback((key: keyof Transaction) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig?.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
         }
-        if (!allTransactionsPaid) {
-            alert('É necessário que todas as transações estejam pagas/recebidas.');
-            return;
-        }
-        if (!canCloseMonth) {
-            alert('Feche os meses anteriores primeiro para poder fechar este.');
-            return;
-        }
-        setIsCloseMonthModalOpen(true);
-    }, [canCloseMonth, isCurrentMonthClosed, allTransactionsPaid]);
+        setSortConfig({ key, direction });
+    }, [sortConfig]);
+    
+    const handleOpenModalForNew = useCallback(() => {
+        if (isCurrentMonthClosed) return;
+        const dateString = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
+        const baseData = { paid: false, date: dateString };
+        setModalInitialValues(activeTab === 'geral'
+            ? { ...baseData, type: 'expense', isShared: true, isRecurring: true }
+            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' }
+        );
+        setIsTransactionModalOpen(true);
+    }, [activeTab, isCurrentMonthClosed, currentMonth]);
 
-    const performCloseMonth = async () => {
+    const handleOpenModalForEdit = useCallback((t: Transaction) => {
+        if (isCurrentMonthClosed) return;
+        setModalInitialValues(t);
+        setIsTransactionModalOpen(true);
+    }, [isCurrentMonthClosed]);
+    
+    const handleSaveTransaction = async (data: TransactionFormState, id?: string) => {
         if (!profile) return;
+        const dataToSave: Partial<Transaction> = { ...data, profileId: profile.id };
+        if (dataToSave.isShared) dataToSave.subprofileId = undefined;
+        else if(!id) dataToSave.subprofileId = activeTab;
+        
+        try {
+            id ? await updateDoc(doc(db, "transactions", id), dataToSave) : await addDoc(collection(db, "transactions"), dataToSave);
+            setIsTransactionModalOpen(false);
+        } catch (error) { console.error("Erro ao salvar transação: ", error); }
+    };
+
+    const handleFieldUpdate = async (id: string, field: keyof Transaction, value: any) => {
+        await updateDoc(doc(db, 'transactions', id), { [field]: value });
+    };
+
+    const performDelete = async () => {
+        if (transactionToDelete) {
+            try {
+                await deleteDoc(doc(db, "transactions", transactionToDelete));
+            } catch (error) {
+                console.error("Erro ao excluir transação:", error);
+            } finally {
+                setTransactionToDelete(null);
+            }
+        }
+    };
+    
+    const performCloseMonth = async () => {
+        if (!profile || !canCloseMonth) return;
+        setIsCloseMonthModalOpen(false);
+
         const recurringTransactions = allTransactions.filter(t => t.isRecurring);
         if (recurringTransactions.length > 0) {
             const batch = writeBatch(db);
@@ -388,12 +280,23 @@ export const DashboardScreen: React.FC = () => {
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
     };
 
-    const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string) => {
+     const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string) => {
         if (!profile) return;
         const updatedSubprofiles = profile.subprofiles.map(sub =>
             sub.id === id ? { ...sub, name: newName, themeId: newThemeId } : sub
         );
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
+    };
+    
+     const handleBulkSave = async (transactions: TransactionFormState[]) => {
+        if (!profile) return;
+        const batch = writeBatch(db);
+        const transactionsRef = collection(db, 'transactions');
+        transactions.forEach(transaction => {
+            const docRef = doc(transactionsRef);
+            batch.set(docRef, { ...transaction, profileId: profile.id });
+        });
+        await batch.commit();
     };
 
     const handleArchiveSubprofile = async () => {
@@ -405,134 +308,45 @@ export const DashboardScreen: React.FC = () => {
         handleTabClick('geral');
         setSubprofileToArchive(null);
     };
-    
-    const handleBulkSave = async (transactions: TransactionFormState[]) => {
-        if (!profile) return;
-        const batch = writeBatch(db);
-        const transactionsRef = collection(db, 'transactions');
-        transactions.forEach(transaction => {
-            const docRef = doc(transactionsRef);
-            batch.set(docRef, { ...transaction, profileId: profile.id });
-        });
-        await batch.commit();
-    };
-    
-    const performDelete = async () => { 
-        if(transactionToDelete) {
-            await deleteDoc(doc(db, "transactions", transactionToDelete));
-            setTransactionToDelete(null);
-        }
-    };
-    
-    if (loading || !profile || monthsLoading) return <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-500">A carregar dados do perfil...</div>;
 
+    if (profileLoading || monthsLoading) return <LoadingScreen />;
+    if (!profile) return <div>Perfil não encontrado.</div>;
+
+    const formattedMonth = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-    const canAddSubprofile = activeSubprofiles.length < 10;
-    
-    const totalReceitaPrevisto = filteredData.receitas.reduce((acc, r) => acc + r.planned, 0);
-    const totalReceitaEfetivo = filteredData.receitas.reduce((acc, r) => acc + r.actual, 0);
-    const totalDespesaPrevisto = filteredData.despesas.reduce((acc, d) => acc + d.planned, 0);
-    const totalDespesaEfetivo = filteredData.despesas.reduce((acc, d) => acc + d.actual, 0);
-    const saldoPrevisto = totalReceitaPrevisto - totalDespesaPrevisto;
-    const saldoEfetivo = totalReceitaEfetivo - totalDespesaEfetivo;
-    const formattedMonth = currentMonth ? currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase()) : '...';
-    const currentSubprofileName = profile.subprofiles.find(s => s.id === activeTab)?.name;
-
-    let closeMonthTitle = 'Fechar o mês e criar recorrências';
-    if (!allTransactionsPaid) closeMonthTitle = 'Pague todas as contas antes de fechar o mês';
-    else if (!canCloseMonth) closeMonthTitle = 'Feche os meses anteriores primeiro';
 
     return (
-        <div className="p-6 lg:p-10 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-                        Dashboard: {profile.name}
-                        {activeTab !== 'geral' && (
-                            <>
-                                <span className="mx-2 font-light text-text-secondary">/</span>
-                                <span className="font-semibold">{currentSubprofileName}</span>
-                            </>
-                        )}
-                    </h2>
-                    <div className="flex items-center gap-2 mt-1 whitespace-nowrap">
-                        <button 
-                            onClick={() => changeMonth(-1)} 
-                            className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                            disabled={!canGoToPreviousMonth}
-                            title={!canGoToPreviousMonth ? "Não há registos em meses anteriores" : "Mês anterior"}
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
-                        <span className="font-semibold text-center min-w-[150px] text-text-secondary">
-                            {formattedMonth}
-                        </span>
-                        <button 
-                            onClick={() => changeMonth(1)} 
-                            className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                            disabled={!canGoToNextMonth}
-                            title={!canGoToNextMonth ? "Não há registos em meses futuros" : "Mês seguinte"}
-                        >
-                            <ChevronRight size={20} />
-                        </button>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    {isCurrentMonthClosed ? (
-                        <span className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                            <ShieldCheck size={16}/> Mês Fechado
-                        </span>
-                    ) : (
-                        <button 
-                            onClick={handleCloseMonthAttempt}
-                            disabled={!canCloseMonth}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                            title={closeMonthTitle}
-                        >
-                            <Lock size={16}/> Fechar Mês
-                        </button>
-                    )}
-                    <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-card text-text-primary hover:opacity-80 border border-border-color">
-                        <Download size={16}/> Exportar
-                    </button>
-                    {activeTab !== 'geral' && (
-                        <button 
-                            onClick={() => setIsImportModalOpen(true)} 
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-card text-text-primary hover:opacity-80 border border-border-color disabled:opacity-50"
-                            disabled={isCurrentMonthClosed}
-                        >
-                            <Upload size={16}/> Importar
-                        </button>
-                    )}
-                    <button 
-                        onClick={handleOpenModalForNew} 
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50"
-                        disabled={isCurrentMonthClosed}
-                    >
-                        <PlusCircle size={16}/> Nova Transação
-                    </button>
-                </div>
-            </div>
+        <div className="p-4 md:p-6 lg:p-10 space-y-6">
+            <DashboardHeader
+                profile={profile}
+                activeTab={activeTab}
+                currentMonth={currentMonth}
+                formattedMonth={formattedMonth}
+                isCurrentMonthClosed={isCurrentMonthClosed}
+                canCloseMonth={canCloseMonth}
+                allTransactionsPaid={allTransactionsPaid}
+                canGoToPreviousMonth={availableMonths.length > 0 && currentMonthString > availableMonths[0]}
+                canGoToNextMonth={availableMonths.length > 0 && currentMonthString < availableMonths[availableMonths.length - 1]}
+                changeMonth={changeMonth}
+                handleCloseMonthAttempt={() => canCloseMonth && setIsCloseMonthModalOpen(true)}
+                onExport={() => setIsExportModalOpen(true)}
+                onImport={() => setIsImportModalOpen(true)}
+                onNewTransaction={handleOpenModalForNew}
+            />
             
-            <div className="border-b border-border-color">
-                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}>
+             <div className="border-b border-border-color">
+                <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto" aria-label="Tabs">
+                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}>
                         Visão Geral
                     </button>
-                    {activeSubprofiles.map(sub => {
-                        const isActive = activeTab === sub.id;
-                        return (
-                            <div key={sub.id} onContextMenu={(e) => handleContextMenu(e, sub)} className="relative group flex items-center">
-                                <button 
-                                    onClick={() => handleTabClick(sub.id)} 
-                                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${isActive ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'}`}
-                                >
-                                    {sub.name}
-                                </button>
-                            </div>
-                        )
-                    })}
-                    {canAddSubprofile && (
+                    {activeSubprofiles.map(sub => (
+                        <div key={sub.id} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.pageX, y: e.pageY, subprofile: sub }); }} className="relative group">
+                            <button onClick={() => handleTabClick(sub.id)} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === sub.id ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'}`}>
+                                {sub.name}
+                            </button>
+                        </div>
+                    ))}
+                    {activeSubprofiles.length < 10 && (
                         <button onClick={() => setIsSubprofileModalOpen(true)} className="py-4 px-2 text-text-secondary hover:text-accent">
                             <Plus size={16} />
                         </button>
@@ -540,67 +354,36 @@ export const DashboardScreen: React.FC = () => {
                 </nav>
             </div>
             
-            {contextMenu && (
-                <SubprofileContextMenu
-                    subprofile={contextMenu.subprofile}
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    onClose={() => setContextMenu(null)}
-                    onEdit={(sub) => {
-                        setSubprofileToEdit(sub);
-                        setContextMenu(null);
-                    }}
-                    onArchive={(sub) => {
-                        setSubprofileToArchive(sub);
-                        setContextMenu(null);
-                    }}
-                />
+            {transactionsLoading ? (
+                <div className="text-center py-10 text-text-secondary">A carregar transações...</div>
+            ) : (
+                <>
+                    <SummaryCards data={filteredData} activeTab={activeTab} />
+                    <div className="grid grid-cols-1 gap-6">
+                        <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={setTransactionToDelete} requestSort={requestSort} onTogglePaid={(id, status) => handleFieldUpdate(id, 'paid', !status)} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
+                        <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" onEdit={handleOpenModalForEdit} onDelete={setTransactionToDelete} requestSort={requestSort} onTogglePaid={(id, status) => handleFieldUpdate(id, 'paid', !status)} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
+                    </div>
+                </>
             )}
-            
-            <div className="grid gap-6">
-                {activeTab === 'geral' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader>
-                            {/* CORREÇÃO: Adicionada a classe text-text-primary para garantir a cor correta do tema */}
-                            <CardContent><div className="text-2xl font-bold text-text-primary">{formatCurrency(totalDespesaPrevisto)}</div></CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader>
-                            <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent>
-                        </Card>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-                        <Card><CardHeader><CardTitle>Receitas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-green-600">{formatCurrency(totalReceitaEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalReceitaPrevisto)}</p></CardContent></Card>
-                        <Card><CardHeader><CardTitle>Despesas</CardTitle></CardHeader><CardContent><div className="text-xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalDespesaPrevisto)}</p></CardContent></Card>
-                        <Card><CardHeader><CardTitle>Balanço</CardTitle></CardHeader><CardContent><div className={`text-xl font-bold ${saldoEfetivo >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(saldoEfetivo)}</div><p className="text-xs text-text-secondary">Previsto: {formatCurrency(saldoPrevisto)}</p></CardContent></Card>
-                    </div>
-                )}
-            </div>
-            
-            <div className="grid grid-cols-1 gap-6">
-                <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
-                <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" onEdit={handleOpenModalForEdit} onDelete={handleDelete} requestSort={requestSort} onTogglePaid={handleTogglePaidStatus} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />
-            </div>
-            
+
+            {/* Modais */}
             <TransactionModal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={modalInitialValues?.id ? 'Editar Transação' : 'Nova Transação'}>
                 <TransactionForm onClose={() => setIsTransactionModalOpen(false)} onSave={handleSaveTransaction} initialValues={modalInitialValues} />
             </TransactionModal>
-            <AddSubprofileModal isOpen={isSubprofileModalOpen} onClose={() => setIsSubprofileModalOpen(false)} onSave={handleCreateSubprofile} />
+             <AddSubprofileModal isOpen={isSubprofileModalOpen} onClose={() => setIsSubprofileModalOpen(false)} onSave={handleCreateSubprofile} />
             <EditSubprofileModal 
                 isOpen={!!subprofileToEdit}
                 onClose={() => setSubprofileToEdit(null)}
                 onSave={handleUpdateSubprofile}
                 subprofile={subprofileToEdit}
             />
-            <DeleteConfirmationModal 
+             <DeleteConfirmationModal 
                 isOpen={!!subprofileToArchive}
                 onClose={() => setSubprofileToArchive(null)}
                 onConfirm={handleArchiveSubprofile}
                 itemName={subprofileToArchive?.name || ''}
                 title={`Arquivar "${subprofileToArchive?.name}"`}
-                message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-white">{subprofileToArchive?.name}</strong>.</p>}
+                message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-text-primary">{subprofileToArchive?.name}</strong>.</p>}
                 confirmButtonText='Arquivar'
             />
             <ConfirmationModal 
@@ -618,15 +401,23 @@ export const DashboardScreen: React.FC = () => {
                 message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita."
             />
             <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSave={handleBulkSave} activeSubprofileId={activeTab} />
-            {profile && 
-                <ExportModal 
-                    isOpen={isExportModalOpen} 
-                    onClose={() => setIsExportModalOpen(false)}
-                    profile={profile}
-                    activeSubprofileId={activeTab}
-                    allTransactions={allTransactions}
+            <ExportModal 
+                isOpen={isExportModalOpen} 
+                onClose={() => setIsExportModalOpen(false)}
+                profile={profile}
+                activeSubprofileId={activeTab}
+                allTransactions={allTransactions}
+            />
+            {contextMenu && (
+                <SubprofileContextMenu
+                    subprofile={contextMenu.subprofile}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    onEdit={(sub) => { setSubprofileToEdit(sub); setContextMenu(null); }}
+                    onArchive={(sub) => { setSubprofileToArchive(sub); setContextMenu(null); }}
                 />
-            }
+            )}
         </div>
     );
 };

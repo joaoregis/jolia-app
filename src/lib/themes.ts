@@ -18,7 +18,21 @@ export interface ThemePalette {
 }
 
 export const themes: ThemePalette = {
-  default_light: {
+  // CORREÇÃO: "Noite Estrelada" agora é o tema 'default'
+  default: {
+    name: 'Padrão Escuro',
+    variables: {
+      '--background': '#0f172a', // slate-900
+      '--card': '#1e293b',       // slate-800
+      '--text-primary': '#f8fafc', // slate-50
+      '--text-secondary': '#94a3b8', // slate-400
+      '--accent': '#3b82f6',      // blue-500
+      '--accent-hover': '#60a5fa', // blue-400
+      '--border-color': '#334155', // slate-700
+    }
+  },
+  // CORREÇÃO: O antigo tema 'default_light' agora é uma opção selecionável
+  padrao_claro: {
     name: 'Padrão Claro',
     variables: {
       '--background': '#f1f5f9', // slate-100
@@ -28,18 +42,6 @@ export const themes: ThemePalette = {
       '--accent': '#2563eb',      // blue-600
       '--accent-hover': '#1d4ed8', // blue-700
       '--border-color': '#e5e7eb', // gray-200
-    }
-  },
-  noite_estrelada: {
-    name: 'Noite Estrelada',
-    variables: {
-      '--background': '#0f172a', // slate-900
-      '--card': '#1e293b',       // slate-800
-      '--text-primary': '#f8fafc', // slate-50
-      '--text-secondary': '#94a3b8', // slate-400
-      '--accent': '#3b82f6',      // blue-500
-      '--accent-hover': '#60a5fa', // blue-400
-      '--border-color': '#334155', // slate-700
     }
   },
   floresta_sombria: {

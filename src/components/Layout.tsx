@@ -55,7 +55,8 @@ export const Layout: React.FC<LayoutProps> = ({ user, children }) => {
                     </div>
                 </div>
             </aside>
-            <main className="flex-1 overflow-y-auto bg-background">
+            {/* CORREÇÃO: Adicionado um ID ao elemento main para ser alvo do script do modal */}
+            <main id="main-content" className="flex-1 overflow-y-auto bg-background">
                 {children}
             </main>
         </div>

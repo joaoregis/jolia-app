@@ -1,6 +1,6 @@
 // src/components/TransactionModal.tsx
 
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface TransactionModalProps {
@@ -11,28 +11,43 @@ interface TransactionModalProps {
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, children, title }) => {
-    useEffect(() => {
+    // Utiliza-se o useLayoutEffect para prevenir o "piscar" da interface,
+    // executando as alterações do DOM de forma síncrona.
+    useLayoutEffect(() => {
         const body = document.body;
+        const mainContent = document.getElementById('main-content');
+
         if (isOpen) {
-            // Impede o scroll da página de fundo quando o modal está aberto
+            // Guarda os estilos originais para os restaurar na limpeza
+            const originalBodyOverflow = window.getComputedStyle(body).overflow;
+            const originalMainContentPaddingRight = mainContent ? window.getComputedStyle(mainContent).paddingRight : '';
+            
+            // Calcula a largura da barra de rolagem a partir do contentor principal
+            const scrollbarWidth = mainContent ? mainContent.offsetWidth - mainContent.clientWidth : 0;
+            
+            // Aplica os estilos para bloquear a rolagem e prevenir a mudança de layout
             body.style.overflow = 'hidden';
-        }
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
+            if (mainContent && scrollbarWidth > 0) {
+                mainContent.style.paddingRight = `${scrollbarWidth}px`;
             }
-        };
 
-        if (isOpen) {
+            // Adiciona o listener de teclado para a tecla 'Escape'
+            const handleKeyDown = (event: KeyboardEvent) => {
+                if (event.key === 'Escape') {
+                    onClose();
+                }
+            };
             document.addEventListener('keydown', handleKeyDown);
-        }
 
-        // Função de limpeza que restaura o scroll quando o modal é fechado
-        return () => {
-            body.style.overflow = 'unset';
-            document.removeEventListener('keydown', handleKeyDown);
-        };
+            // Função de limpeza para restaurar os estilos originais e remover o listener
+            return () => {
+                body.style.overflow = originalBodyOverflow;
+                if (mainContent) {
+                    mainContent.style.paddingRight = originalMainContentPaddingRight;
+                }
+                document.removeEventListener('keydown', handleKeyDown);
+            };
+        }
     }, [isOpen, onClose]);
 
 
@@ -53,7 +68,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                         <X size={24} />
                     </button>
                 </div>
-                {/* O corpo do modal agora usa a cor de fundo do tema */}
                 <div className="p-6 bg-background rounded-b-lg">
                     {children}
                 </div>

@@ -12,10 +12,12 @@ import { TransactionModal } from '../components/TransactionModal';
 import { TransactionForm } from '../components/TransactionForm';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { AddSubprofileModal } from '../components/AddSubprofileModal';
+import { EditSubprofileModal } from '../components/EditSubprofileModal';
 import { ImportModal } from '../components/ImportModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { ExportModal } from '../components/ExportModal';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
+import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 
 import { formatCurrency } from '../lib/utils';
 import { PlusCircle, Plus, Upload, Trash2, Download, ChevronLeft, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
@@ -29,6 +31,7 @@ export const DashboardScreen: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
     const [isSubprofileModalOpen, setIsSubprofileModalOpen] = useState(false);
+    const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [modalInitialValues, setModalInitialValues] = useState<Partial<Transaction> | null>(null);
@@ -40,6 +43,7 @@ export const DashboardScreen: React.FC = () => {
     
     const [availableMonths, setAvailableMonths] = useState<string[]>([]);
     const [monthsLoading, setMonthsLoading] = useState(true);
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
     
     const activeTab = subprofileId || 'geral';
 
@@ -47,6 +51,15 @@ export const DashboardScreen: React.FC = () => {
         const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
         navigate(path);
     }, [profileId, navigate]);
+    
+    const handleContextMenu = (event: React.MouseEvent, subprofile: Subprofile) => {
+        event.preventDefault();
+        setContextMenu({
+            x: event.pageX,
+            y: event.pageY,
+            subprofile: subprofile,
+        });
+    };
 
     useEffect(() => {
         if (!profileId) return;
@@ -132,15 +145,18 @@ export const DashboardScreen: React.FC = () => {
     
     useEffect(() => {
         const root = document.documentElement;
+        const body = document.body;
         if (activeTheme) {
             Object.entries(activeTheme.variables).forEach(([key, value]) => {
                 root.style.setProperty(key, value);
             });
+            body.style.backgroundColor = activeTheme.variables['--background'];
         }
         return () => {
             Object.keys(themes.default_light.variables).forEach(key => {
                 root.style.removeProperty(key);
             });
+            body.style.backgroundColor = '';
         };
     }, [activeTheme]);
 
@@ -372,6 +388,14 @@ export const DashboardScreen: React.FC = () => {
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
     };
 
+    const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string) => {
+        if (!profile) return;
+        const updatedSubprofiles = profile.subprofiles.map(sub =>
+            sub.id === id ? { ...sub, name: newName, themeId: newThemeId } : sub
+        );
+        await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
+    };
+
     const handleArchiveSubprofile = async () => {
         if (!profile || !subprofileToArchive) return;
         const updatedSubprofiles = profile.subprofiles.map(sub => 
@@ -498,15 +522,12 @@ export const DashboardScreen: React.FC = () => {
                     {activeSubprofiles.map(sub => {
                         const isActive = activeTab === sub.id;
                         return (
-                            <div key={sub.id} className="relative group flex items-center">
+                            <div key={sub.id} onContextMenu={(e) => handleContextMenu(e, sub)} className="relative group flex items-center">
                                 <button 
                                     onClick={() => handleTabClick(sub.id)} 
                                     className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${isActive ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'}`}
                                 >
                                     {sub.name}
-                                </button>
-                                <button onClick={() => setSubprofileToArchive(sub)} className="absolute -right-2 -top-1 p-1 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity">
-                                    <Trash2 size={12}/>
                                 </button>
                             </div>
                         )
@@ -518,6 +539,23 @@ export const DashboardScreen: React.FC = () => {
                     )}
                 </nav>
             </div>
+            
+            {contextMenu && (
+                <SubprofileContextMenu
+                    subprofile={contextMenu.subprofile}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    onEdit={(sub) => {
+                        setSubprofileToEdit(sub);
+                        setContextMenu(null);
+                    }}
+                    onArchive={(sub) => {
+                        setSubprofileToArchive(sub);
+                        setContextMenu(null);
+                    }}
+                />
+            )}
             
             <div className="grid gap-6">
                 {activeTab === 'geral' ? (
@@ -543,6 +581,12 @@ export const DashboardScreen: React.FC = () => {
                 <TransactionForm onClose={() => setIsTransactionModalOpen(false)} onSave={handleSaveTransaction} initialValues={modalInitialValues} />
             </TransactionModal>
             <AddSubprofileModal isOpen={isSubprofileModalOpen} onClose={() => setIsSubprofileModalOpen(false)} onSave={handleCreateSubprofile} />
+            <EditSubprofileModal 
+                isOpen={!!subprofileToEdit}
+                onClose={() => setSubprofileToEdit(null)}
+                onSave={handleUpdateSubprofile}
+                subprofile={subprofileToEdit}
+            />
             <DeleteConfirmationModal 
                 isOpen={!!subprofileToArchive}
                 onClose={() => setSubprofileToArchive(null)}

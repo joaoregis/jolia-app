@@ -61,6 +61,9 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
     -   Guardar a última configuração de ordenação do utilizador (ex: `{ key: 'paymentDate', direction: 'ascending' }`) no `localStorage` do navegador.
     -   Ao montar o `DashboardScreen`, verificar se existe uma configuração salva no `localStorage` e aplicá-la ao estado `sortConfig`.
 
+-   [ ] **Persistência do menu lateral:**
+    - Salvar status do menu lateral no localStorage
+ 
 ### 🎨 Indicadores Visuais de Balanço
 
 **Objetivo:** Dar feedback visual imediato sobre a saúde financeira do balanço (saldo) do mês.

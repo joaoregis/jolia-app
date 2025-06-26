@@ -43,7 +43,8 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 -   [ ] **Visualização do Rateio:**
     -   Na tabela de "Despesas da Casa", adicionar uma tooltip ou uma secção que mostre o valor que cabe a cada subperfil. (Ex: Conta de Luz R$100 -> João paga R$60, Julia paga R$40).
-    -   **Importante:** Decidir se esta divisão gera transações individuais ou se é apenas uma visualização informativa para auxiliar no acerto de contas manual. A segunda opção é mais simples de implementar inicialmente.
+    -   **Importante:** Esta divisão gera transações individuais para cada subprofile. Estas transações individuais não podem ser editadas pelos subprofiles, somente a transação "Pai", que quando editada, reflete nas transações individuais. Também deve ser removida a opção de "transação da casa" do modal de transactions quando estiver no subprofile, podendo só criar transações "da casa" quando estiver na visão geral/da casa.
+    -   Deve haver um indicador na tabela de despesas se uma receita é de origem da casa, ou seja, rateio.
 
 ---
 

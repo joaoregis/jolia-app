@@ -10,28 +10,37 @@ interface TransactionFormProps {
     onClose: () => void;
     onSave: (transactionData: TransactionFormState, id?: string) => void;
     initialValues?: Partial<Transaction> | null;
+    isSubprofileView: boolean;
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, initialValues }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, initialValues, isSubprofileView }) => {
     const [formData, setFormData] = useState<TransactionFormState>({
-        description: initialValues?.description || '',
-        type: initialValues?.type || 'expense',
-        planned: initialValues?.planned || 0,
-        actual: initialValues?.actual || 0,
-        date: initialValues?.date || new Date().toISOString().split('T')[0],
-        paymentDate: initialValues?.paymentDate || undefined,
-        paid: initialValues?.paid || false,
-        isShared: initialValues?.isShared || false,
-        isRecurring: initialValues?.isRecurring || false,
-        subprofileId: initialValues?.subprofileId || undefined,
+        description: '',
+        type: 'expense',
+        planned: 0,
+        actual: 0,
+        date: new Date().toISOString().split('T')[0],
+        paymentDate: new Date().toISOString().split('T')[0],
+        paid: false,
+        isShared: false,
+        isRecurring: false,
+        subprofileId: undefined,
+        ...initialValues
     });
 
     useEffect(() => {
-        if (!initialValues?.id && !formData.paymentDate) {
+        if (!initialValues?.id) {
             setFormData(prev => ({ ...prev, paymentDate: prev.date }));
         }
     }, [formData.date, initialValues?.id]);
 
+    useEffect(() => {
+        setFormData({
+            description: '', type: 'expense', planned: 0, actual: 0, date: new Date().toISOString().split('T')[0],
+            paymentDate: new Date().toISOString().split('T')[0], paid: false, isShared: false, isRecurring: false,
+            subprofileId: undefined, ...initialValues
+        });
+    }, [initialValues]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -63,50 +72,32 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Valor Previsto</label>
-                    <CurrencyInput
-                        value={formData.planned}
-                        onValueChange={(newValue) => handleValueChange('planned', newValue)}
-                    />
+                    <CurrencyInput value={formData.planned} onValueChange={(newValue) => handleValueChange('planned', newValue)} />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Valor Efetivo</label>
-                    <CurrencyInput
-                        value={formData.actual}
-                        onValueChange={(newValue) => handleValueChange('actual', newValue)}
-                    />
+                    <CurrencyInput value={formData.actual} onValueChange={(newValue) => handleValueChange('actual', newValue)} />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
-                    <select name="type" value={formData.type} onChange={handleChange} disabled={!!initialValues?.isShared} className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent disabled:opacity-50 p-3">
+                    {/* CORREÇÃO: Desabilitado apenas na visão geral (quando NÃO é visão de subperfil) */}
+                    <select name="type" value={formData.type} onChange={handleChange} disabled={!isSubprofileView} className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent disabled:opacity-50 p-3">
                         <option value="expense">Despesa</option>
                         <option value="income">Receita</option>
                     </select>
                 </div>
                  <div>
                     <label htmlFor="date" className="block text-sm font-medium text-text-secondary mb-1">Data de Lançamento</label>
-                    <DateInput
-                        id="date"
-                        name="date"
-                        value={formData.date}
-                        onChange={handleChange}
-                        required
-                    />
+                    <DateInput id="date" name="date" value={formData.date} onChange={handleChange} required />
                 </div>
             </div>
             
             <div>
-                <label htmlFor="paymentDate" className="block text-sm font-medium text-text-secondary mb-1">
-                    {formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}
-                </label>
-                <DateInput
-                    id="paymentDate"
-                    name="paymentDate"
-                    value={formData.paymentDate || ''}
-                    onChange={handleChange}
-                />
+                <label htmlFor="paymentDate" className="block text-sm font-medium text-text-secondary mb-1">{formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}</label>
+                <DateInput id="paymentDate" name="paymentDate" value={formData.paymentDate || ''} onChange={handleChange} />
             </div>
             
             <fieldset className="border border-border-color rounded-lg p-4">
@@ -117,10 +108,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                         <ToggleSwitch id="paid" name="paid" checked={formData.paid} onChange={handleChange} />
                     </div>
 
-                    {formData.type === 'expense' && (
+                    {/* CORREÇÃO: "Da Casa" só aparece na Visão Geral (quando NÃO é visão de subperfil) e fica sempre travado */}
+                    {!isSubprofileView && (
                         <div className="flex items-center justify-between sm:justify-start sm:gap-4">
                             <label htmlFor="isShared" className="block text-sm font-medium text-text-primary">Da Casa</label>
-                            <ToggleSwitch id="isShared" name="isShared" checked={formData.isShared} onChange={handleChange} disabled={!!initialValues?.id} />
+                            <ToggleSwitch id="isShared" name="isShared" checked={formData.isShared} onChange={handleChange} disabled={true} />
                         </div>
                     )}
                     <div className="flex items-center justify-between sm:justify-start sm:gap-4">
@@ -131,12 +123,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             </fieldset>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border-color mt-6">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80 border border-border-color">
-                    Cancelar
-                </button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-accent hover:bg-accent-hover">
-                    Salvar
-                </button>
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80 border border-border-color">Cancelar</button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-accent hover:bg-accent-hover">Salvar</button>
             </div>
         </form>
     );

@@ -4,16 +4,17 @@ export interface Subprofile {
     id: string;
     name: string;
     status: 'active' | 'archived';
-    themeId?: string; 
+    themeId?: string;
 }
 
 export interface Profile {
     id:string;
     name: string;
-    icon: string; 
+    icon: string;
     subprofiles: Subprofile[];
     status: 'active' | 'archived';
     closedMonths?: string[];
+    apportionmentMethod?: 'proportional' | 'manual'; // NOVO: Método de rateio
 }
 
 export interface Transaction {
@@ -24,12 +25,14 @@ export interface Transaction {
   actual: number;
   paid?: boolean;
   isShared?: boolean;
-  isRecurring?: boolean; 
+  isRecurring?: boolean;
   subprofileId?: string;
   date: string;
   paymentDate?: string;
   profileId: string;
-  createdAt?: string;
+  createdAt?: any; // Alterado para 'any' para ser compatível com serverTimestamp
+  parentId?: string; // NOVO: ID da transação "pai"
+  isApportioned?: boolean; // NOVO: Indica se é uma transação gerada por rateio
 }
 
 export interface AppData {

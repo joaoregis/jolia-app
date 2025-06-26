@@ -4,6 +4,10 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
+Lógica para skipar uma despesa ou receita em um mes especifico, somente receitas recorrentes podem ser skipadas, e o valor dela não entra nos cálculos e vai pra uma tabela de receitas/despesas skipadas naquele mes, sendo reativadas no próximo mes apos o fechamento. 
+
+---
+
 ## 🎯 Funcionalidades Principais (Core Features)
 
 ### 💳 Sistema de Parcelamento e Fatura de Cartão
@@ -29,22 +33,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 -   [ ] **Categorização de Gastos:**
     -   Adicionar um campo `category` aos `creditCardPurchases` e também às `transactions` normais.
     -   Criar uma UI para adicionar/gerir categorias (ex: Alimentação, Transporte, Lazer).
-
-### ➗ Rateio Automático de Contas da Casa
-
-**Objetivo:** Dividir automaticamente as despesas compartilhadas (`isShared: true`) entre os subperfis com base na proporção das suas receitas.
-
--   [ ] **Configuração do Rateio:**
-    -   Adicionar uma opção nas configurações do Perfil para definir o método de rateio: "Manual" ou "Proporcional à Receita".
-
--   [ ] **Cálculo da Proporção:**
-    -   Na "Visão Geral" do dashboard, calcular a receita efetiva total de cada subperfil no mês corrente.
-    -   Calcular o percentual que a receita de cada um representa do total de receitas. (Ex: João R$6000, Julia R$4000. Total R$10000. João = 60%, Julia = 40%).
-
--   [ ] **Visualização do Rateio:**
-    -   Na tabela de "Despesas da Casa", adicionar uma tooltip ou uma secção que mostre o valor que cabe a cada subperfil. (Ex: Conta de Luz R$100 -> João paga R$60, Julia paga R$40).
-    -   **Importante:** Esta divisão gera transações individuais para cada subprofile. Estas transações individuais não podem ser editadas pelos subprofiles, somente a transação "Pai", que quando editada, reflete nas transações individuais. Também deve ser removida a opção de "transação da casa" do modal de transactions quando estiver no subprofile, podendo só criar transações "da casa" quando estiver na visão geral/da casa.
-    -   Deve haver um indicador na tabela de despesas se uma receita é de origem da casa, ou seja, rateio.
 
 ---
 

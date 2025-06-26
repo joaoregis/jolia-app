@@ -29,6 +29,7 @@ export interface Transaction {
   date: string;
   paymentDate?: string;
   profileId: string;
+  createdAt?: string;
 }
 
 export interface AppData {
@@ -36,7 +37,7 @@ export interface AppData {
   despesas: Transaction[];
 }
 
-export type TransactionFormState = Omit<Transaction, 'id' | 'profileId'>;
+export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt'>;
 
 export interface SortConfig {
     key: keyof Transaction;

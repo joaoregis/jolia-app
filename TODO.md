@@ -47,41 +47,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
-## 💅 Melhorias de UI/UX
-
-### 📊 Ordenação Persistente e Estável
-
-**Objetivo:** Melhorar a experiência de ordenação da tabela, tornando-a mais previsível e personalizável.
-
--   [ ] **Índice de Criação:**
-    -   Adicionar um campo `createdAt: Timestamp` a todas as novas `Transaction`.
-    -   Definir a ordenação padrão da tabela por `createdAt` em ordem descendente, para que novos itens apareçam sempre no topo ou no fundo da lista de forma consistente.
-
--   [ ] **Persistência da Ordenação:**
-    -   Guardar a última configuração de ordenação do utilizador (ex: `{ key: 'paymentDate', direction: 'ascending' }`) no `localStorage` do navegador.
-    -   Ao montar o `DashboardScreen`, verificar se existe uma configuração salva no `localStorage` e aplicá-la ao estado `sortConfig`.
-
--   [ ] **Persistência do menu lateral:**
-    - Salvar status do menu lateral no localStorage
- 
-### 🎨 Indicadores Visuais de Balanço
-
-**Objetivo:** Dar feedback visual imediato sobre a saúde financeira do balanço (saldo) do mês.
-
--   [ ] **Definir Limites e Estilos:**
-    -   Mapear intervalos de valores do saldo para estilos visuais (cores e ícones).
-        -   **Negativo:** Vermelho (`AlertCircle`)
-        -   **Baixo (ex: 0 a 20% da receita):** Laranja/Amarelo (`TriangleAlert`)
-        -   **Médio (ex: 20% a 50%):** Azul (`Info`)
-        -   **Alto (> 50%):** Verde (`CheckCircle`)
-
--   [ ] **Componente de Indicador:**
-    -   Criar um componente `BalanceIndicator` que recebe o valor do saldo e as receitas como props.
-    -   O componente implementa a lógica de seleção de cor/ícone e renderiza o resultado.
-    -   Substituir o texto do saldo no `Card` do Balanço por este novo componente.
-
----
-
 ## 🔒 Melhorias de Segurança
 
 ### 🛡️ Autenticação de Dois Fatores (2FA)

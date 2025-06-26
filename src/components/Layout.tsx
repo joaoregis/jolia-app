@@ -1,6 +1,6 @@
 // src/components/Layout.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { Briefcase, Home, Settings, LogOut, ChevronLeft } from 'lucide-react';
@@ -11,6 +11,8 @@ interface LayoutProps {
     children: React.ReactNode;
 }
 
+const COLLAPSED_STATE_STORAGE_KEY = 'jolia_sidebar_collapsed'; // Chave para o localStorage
+
 export const Layout: React.FC<LayoutProps> = ({ user, children }) => {
     const navigate = useNavigate();
     const { profileId } = useParams<{ profileId: string }>();
@@ -18,8 +20,28 @@ export const Layout: React.FC<LayoutProps> = ({ user, children }) => {
 
     // Estado para controlar a visibilidade do menu em telas móveis
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    
     // Estado para controlar se o menu está colapsado em telas grandes
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Inicializa a partir do localStorage ou com o padrão false
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        try {
+            const savedState = localStorage.getItem(COLLAPSED_STATE_STORAGE_KEY);
+            return savedState ? JSON.parse(savedState) : false;
+        } catch (error) {
+            console.error("Erro ao carregar estado do menu do localStorage:", error);
+            return false; // Fallback para false em caso de erro
+        }
+    });
+
+    // Efeito para salvar o estado do menu no localStorage sempre que ele muda
+    useEffect(() => {
+        try {
+            localStorage.setItem(COLLAPSED_STATE_STORAGE_KEY, JSON.stringify(isCollapsed));
+        } catch (error) {
+            console.error("Erro ao salvar estado do menu no localStorage:", error);
+        }
+    }, [isCollapsed]);
+
 
     const navItems = [
         { href: `/profile/${profileId}`, icon: Home, label: 'Dashboard', path: `/profile/${profileId}` },

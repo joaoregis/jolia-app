@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { addDoc, updateDoc, deleteDoc, doc, writeBatch, collection } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, serverTimestamp } from '../lib/firebase';
 import { AppData, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
 
@@ -33,6 +33,8 @@ const LoadingScreen: React.FC = () => (
     </div>
 );
 
+const SORT_CONFIG_STORAGE_KEY = 'jolia_sort_config'; // Chave para o localStorage
+
 export const DashboardScreen: React.FC = () => {
     const { profileId, '*': subprofileId } = useParams<{ profileId: string; '*': string }>();
     const navigate = useNavigate();
@@ -55,10 +57,38 @@ export const DashboardScreen: React.FC = () => {
     const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
     const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
 
-    const [sortConfig, setSortConfig] = useState<SortConfig | null>({ key: 'date', direction: 'descending' });
+    // Estado para a configuração de ordenação
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
 
     const activeTab = subprofileId || 'geral';
+
+    // Efeito para carregar a configuração de ordenação do localStorage ao montar
+    useEffect(() => {
+        try {
+            const savedSortConfig = localStorage.getItem(SORT_CONFIG_STORAGE_KEY);
+            if (savedSortConfig) {
+                setSortConfig(JSON.parse(savedSortConfig));
+            } else {
+                setSortConfig({ key: 'createdAt', direction: 'descending' }); // Padrão se nada estiver salvo
+            }
+        } catch (error) {
+            console.error("Erro ao carregar sortConfig do localStorage:", error);
+            setSortConfig({ key: 'createdAt', direction: 'descending' }); // Fallback em caso de erro
+        }
+    }, []); // Executa apenas uma vez ao montar
+
+    // Efeito para salvar a configuração de ordenação no localStorage quando ela muda
+    useEffect(() => {
+        if (sortConfig) {
+            try {
+                localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
+            } catch (error) {
+                console.error("Erro ao salvar sortConfig no localStorage:", error);
+            }
+        }
+    }, [sortConfig]); // Executa sempre que sortConfig muda
+
 
     // Efeito para definir o mês inicial assim que os dados estiverem disponíveis
     useEffect(() => {
@@ -104,6 +134,12 @@ export const DashboardScreen: React.FC = () => {
         Object.entries(activeTheme.variables).forEach(([key, value]) => root.style.setProperty(key, value));
         return () => {
             Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
+            // Adicionado: Remover variáveis dos temas no cleanup
+            Object.keys(themes).forEach(themeKey => {
+                Object.keys(themes[themeKey].variables).forEach(cssVar => {
+                    root.style.removeProperty(cssVar);
+                });
+            });
         };
     }, [activeTheme]);
 
@@ -125,12 +161,29 @@ export const DashboardScreen: React.FC = () => {
             const sortFn = (a: Transaction, b: Transaction) => {
                 const aVal = a[sortConfig.key];
                 const bVal = b[sortConfig.key];
-                if (aVal == null) return 1;
-                if (bVal == null) return -1;
-                 if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                
+                // Tratar valores nulos/indefinidos para evitar erros de comparação e garantir que apareçam por último ou primeiro.
+                // Aqui, null/undefined são tratados como menores, para que fiquem no final em ordem ascendente e no início em descendente
+                if (aVal == null && bVal == null) return 0;
+                if (aVal == null) return sortConfig.direction === 'ascending' ? 1 : -1; // null vem depois em asc
+                if (bVal == null) return sortConfig.direction === 'ascending' ? -1 : 1; // null vem antes em desc
+
+                // Comparação de datas (strings ISO 8601)
+                if (sortConfig.key === 'date' || sortConfig.key === 'paymentDate' || sortConfig.key === 'createdAt') {
+                    const dateA = new Date(aVal as string);
+                    const dateB = new Date(bVal as string);
+                    if (dateA < dateB) return sortConfig.direction === 'ascending' ? -1 : 1;
+                    if (dateA > dateB) return sortConfig.direction === 'ascending' ? 1 : -1;
+                    return 0;
+                }
+                
+                // Comparação booleana
+                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
                     if (aVal === bVal) return 0;
                     return (sortConfig.direction === 'ascending' ? (aVal ? -1 : 1) : (aVal ? 1 : -1));
                 }
+
+                // Comparação numérica ou de string padrão
                 if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
                 if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
                 return 0;
@@ -180,12 +233,14 @@ export const DashboardScreen: React.FC = () => {
     }, []);
 
     const requestSort = useCallback((key: keyof Transaction) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig?.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    }, [sortConfig]);
+        setSortConfig(prevSortConfig => {
+            let direction: 'ascending' | 'descending' = 'ascending';
+            if (prevSortConfig?.key === key && prevSortConfig.direction === 'ascending') {
+                direction = 'descending';
+            }
+            return { key, direction };
+        });
+    }, []);
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
@@ -207,6 +262,9 @@ export const DashboardScreen: React.FC = () => {
     const handleSaveTransaction = async (data: TransactionFormState, id?: string) => {
         if (!profile) return;
         const dataToSave: Partial<Transaction> = { ...data, profileId: profile.id };
+        if (!id) {
+            dataToSave.createdAt = serverTimestamp() as any;
+        }
         if (dataToSave.isShared) dataToSave.subprofileId = undefined;
         else if(!id) dataToSave.subprofileId = activeTab;
         
@@ -256,6 +314,7 @@ export const DashboardScreen: React.FC = () => {
                 }
                 
                 newTransactionData.paid = false;
+                newTransactionData.createdAt = serverTimestamp() as any;
                 
                 const docRef = doc(transactionsRef);
                 batch.set(docRef, newTransactionData);
@@ -294,7 +353,7 @@ export const DashboardScreen: React.FC = () => {
         const transactionsRef = collection(db, 'transactions');
         transactions.forEach(transaction => {
             const docRef = doc(transactionsRef);
-            batch.set(docRef, { ...transaction, profileId: profile.id });
+            batch.set(docRef, { ...transaction, profileId: profile.id, createdAt: serverTimestamp() });
         });
         await batch.commit();
     };
@@ -314,6 +373,10 @@ export const DashboardScreen: React.FC = () => {
 
     const formattedMonth = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
+
+    // Renderiza o Dashboard apenas depois que sortConfig for inicializado
+    if (!sortConfig) return <LoadingScreen />;
+
 
     return (
         <div className="p-4 md:p-6 lg:p-10 space-y-6">

@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { AppData } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { BalanceIndicator } from './BalanceIndicator'; // Importar o novo componente
 
 interface SummaryCardsProps {
     data: AppData;
@@ -61,7 +62,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ data, activeTab }) =
             <Card>
                 <CardHeader><CardTitle>Balanço</CardTitle></CardHeader>
                 <CardContent>
-                    <div className={`text-xl font-bold ${saldoEfetivo >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(saldoEfetivo)}</div>
+                    <BalanceIndicator effectiveBalance={saldoEfetivo} effectiveTotalIncome={totalReceitaEfetivo} />
                     <p className="text-xs text-text-secondary">Previsto: {formatCurrency(saldoPrevisto)}</p>
                 </CardContent>
             </Card>

@@ -17,7 +17,7 @@ interface DashboardHeaderProps {
     onExport: () => void;
     onImport: () => void;
     onNewTransaction: () => void;
-    onOpenSettings: () => void; // NOVO
+    onOpenSettings?: () => void; // MODIFICADO: Tornar opcional
 }
 
 // Menu de ações para telas menores
@@ -80,8 +80,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
                     <h2 className="text-3xl font-bold tracking-tight text-text-primary">
                         {profileName}
                     </h2>
-                    {/* NOVO: Botão de Configurações */}
-                    <button onClick={onOpenSettings} className="text-text-secondary hover:text-accent transition-colors" title="Configurações do Perfil">
+                    {/* Botão de Configurações */}
+                    <button 
+                        onClick={onOpenSettings} 
+                        className="text-text-secondary hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed" // Adicionado disabled style
+                        title="Configurações do Perfil"
+                        disabled={!onOpenSettings} // Desabilita se a prop não for fornecida
+                    >
                         <Settings size={20} />
                     </button>
                 </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
+import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
 import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
@@ -15,7 +15,7 @@ import { useAvailableMonths } from '../hooks/useAvailableMonths';
 // Componentes
 import { DashboardHeader } from '../components/DashboardHeader';
 import { SummaryCards } from '../components/SummaryCards';
-import { TransactionTable } from '../components/TransactionTable';
+import { TransactionTable, IgnoredTransactionsTable } from '../components/TransactionTable';
 import { TransactionModal } from '../components/TransactionModal';
 import { TransactionForm } from '../components/TransactionForm';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -63,6 +63,8 @@ export const DashboardScreen: React.FC = () => {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
 
     const activeTab = subprofileId || 'geral';
+    const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
+
 
     useEffect(() => {
         try {
@@ -139,7 +141,9 @@ export const DashboardScreen: React.FC = () => {
         const subprofileIncomes = new Map<string, number>();
         activeSubprofiles.forEach(sub => subprofileIncomes.set(sub.id, 0));
 
-        allTransactions.forEach(t => {
+        allTransactions
+            .filter(t => !(t.skippedInMonths || []).includes(currentMonthString)) // Exclui transações puladas
+            .forEach(t => {
             if (t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId)) {
                 const currentIncome = subprofileIncomes.get(t.subprofileId) || 0;
                 subprofileIncomes.set(t.subprofileId, currentIncome + t.actual);
@@ -160,18 +164,24 @@ export const DashboardScreen: React.FC = () => {
             });
         }
         return proportions;
-    }, [allTransactions, profile]);
+    }, [allTransactions, profile, currentMonthString]);
 
     const filteredData = useMemo<AppData>(() => {
         let result: AppData = { receitas: [], despesas: [] };
+        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString)); // Filtra transações puladas
+        
         if (activeTab === 'geral') {
-            result.despesas = allTransactions.filter(t => t.type === 'expense' && t.isShared);
+            result.despesas = activeTransactions.filter(t => t.type === 'expense' && t.isShared);
         } else {
-            result.receitas = allTransactions.filter(t => t.type === 'income' && t.subprofileId === activeTab);
-            result.despesas = allTransactions.filter(t => t.type === 'expense' && t.subprofileId === activeTab);
+            result.receitas = activeTransactions.filter(t => t.type === 'income' && t.subprofileId === activeTab);
+            result.despesas = activeTransactions.filter(t => t.type === 'expense' && t.subprofileId === activeTab);
         }
         return result;
-    }, [allTransactions, activeTab]);
+    }, [allTransactions, activeTab, currentMonthString]);
+
+    const ignoredTransactions = useMemo(() => {
+        return allTransactions.filter(t => (t.skippedInMonths || []).includes(currentMonthString));
+    }, [allTransactions, currentMonthString]);
 
     const sortedData = useMemo(() => {
         let sortedReceitas = [...filteredData.receitas];
@@ -204,7 +214,7 @@ export const DashboardScreen: React.FC = () => {
         return { receitas: sortedReceitas, despesas: sortedDespesas };
     }, [filteredData, sortConfig]);
 
-    const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
+    
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
     const allTransactionsPaid = useMemo(() => allTransactions.every(t => t.paid), [allTransactions]);
     
@@ -431,8 +441,15 @@ export const DashboardScreen: React.FC = () => {
             const batch = writeBatch(db);
             const transactionsRef = collection(db, 'transactions');
             recurringTransactions.forEach(t => {
+                // Se a transação recorrente foi pulada no mês atual, ela não deve ser criada novamente para o mês atual.
+                // Mas a próxima recorrência deve ser criada normalmente para o próximo mês.
+                // A lógica de pular é apenas para o mês atual.
+                
                 const newTransactionData: Omit<Transaction, 'id'> = { ...t };
                 delete (newTransactionData as Partial<Transaction>).id;
+                // Remove the skippedInMonths flag for the new transaction, as it's for the next month
+                delete newTransactionData.skippedInMonths; 
+
                 const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00');
                 nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
                 newTransactionData.date = nextLaunchDate.toISOString().split('T')[0];
@@ -541,6 +558,25 @@ export const DashboardScreen: React.FC = () => {
         setIsSettingsModalOpen(false);
     };
 
+    // NOVO: Função para marcar transação como pulada
+    const handleSkipTransaction = async (transaction: Transaction) => {
+        if (!transaction.id) return;
+        const transactionRef = doc(db, 'transactions', transaction.id);
+        await updateDoc(transactionRef, {
+            skippedInMonths: arrayUnion(currentMonthString)
+        });
+    };
+
+    // NOVO: Função para remover transação da lista de puladas
+    const handleUnskipTransaction = async (transaction: Transaction) => {
+        if (!transaction.id) return;
+        const transactionRef = doc(db, 'transactions', transaction.id);
+        await updateDoc(transactionRef, {
+            skippedInMonths: arrayRemove(currentMonthString)
+        });
+    };
+
+
     if (profileLoading || monthsLoading) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;
 
@@ -559,13 +595,13 @@ export const DashboardScreen: React.FC = () => {
                 canCloseMonth={canCloseMonth}
                 allTransactionsPaid={allTransactionsPaid}
                 canGoToPreviousMonth={availableMonths.length > 0 && currentMonthString > availableMonths[0]}
-                canGoToNextMonth={availableMonths.length > 0 && currentMonthString < availableMonths[availableMonths.length - 1]}
+                canGoToNextMonth={availableMonths.length > 0 && availableMonths.some(month => month > currentMonthString)} 
                 changeMonth={changeMonth}
                 handleCloseMonthAttempt={() => canCloseMonth && setIsCloseMonthModalOpen(true)}
                 onExport={() => setIsExportModalOpen(true)}
                 onImport={() => setIsImportModalOpen(true)}
                 onNewTransaction={handleOpenModalForNew}
-                onOpenSettings={() => setIsSettingsModalOpen(true)}
+                onOpenSettings={() => setIsSettingsModalOpen(true)} // MODIFICADO: Chamada direta sem condicional
             />
             
              <div className="border-b border-border-color">
@@ -594,7 +630,22 @@ export const DashboardScreen: React.FC = () => {
                 <>
                     <SummaryCards data={filteredData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
-                        {activeTab !== 'geral' && <TransactionTable title="Receitas" data={sortedData.receitas} type="income" onEdit={handleOpenModalForEdit} onDelete={setTransactionToDelete} requestSort={requestSort} onTogglePaid={handleTogglePaid} onUpdateField={handleFieldUpdate} sortConfig={sortConfig} isClosed={isCurrentMonthClosed} />}
+                        {activeTab !== 'geral' && (
+                            <TransactionTable 
+                                title="Receitas" 
+                                data={sortedData.receitas} 
+                                type="income" 
+                                onEdit={handleOpenModalForEdit} 
+                                onDelete={setTransactionToDelete} 
+                                requestSort={requestSort} 
+                                onTogglePaid={handleTogglePaid} 
+                                onUpdateField={handleFieldUpdate} 
+                                sortConfig={sortConfig} 
+                                isClosed={isCurrentMonthClosed} 
+                                onSkip={handleSkipTransaction} 
+                                onUnskip={handleUnskipTransaction} // Passar para o TransactionTable
+                            />
+                        )}
                         <TransactionTable 
                             title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} 
                             data={sortedData.despesas} 
@@ -609,7 +660,16 @@ export const DashboardScreen: React.FC = () => {
                             subprofileRevenueProportions={subprofileRevenueProportions}
                             subprofiles={profile.subprofiles}
                             apportionmentMethod={profile.apportionmentMethod}
+                            onSkip={handleSkipTransaction} 
+                            onUnskip={handleUnskipTransaction} // Passar para o TransactionTable
                         />
+                        {ignoredTransactions.length > 0 && (
+                            <IgnoredTransactionsTable 
+                                data={ignoredTransactions}
+                                onUnskip={handleUnskipTransaction}
+                                currentMonthString={currentMonthString}
+                            />
+                        )}
                     </div>
                 </>
             )}

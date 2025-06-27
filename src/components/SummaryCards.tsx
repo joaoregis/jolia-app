@@ -19,6 +19,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ data, activeTab }) =
         saldoPrevisto,
         saldoEfetivo
     } = useMemo(() => {
+        // A data já vem filtrada do DashboardScreen para não incluir transações puladas
         const totalReceitaPrevisto = data.receitas.reduce((acc, r) => acc + r.planned, 0);
         const totalReceitaEfetivo = data.receitas.reduce((acc, r) => acc + r.actual, 0);
         const totalDespesaPrevisto = data.despesas.reduce((acc, d) => acc + d.planned, 0);

@@ -30,42 +30,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
     -   Adicionar um campo `category` aos `creditCardPurchases` e também às `transactions` normais.
     -   Criar uma UI para adicionar/gerir categorias (ex: Alimentação, Transporte, Lazer).
 
-### ➗ Rateio Automático de Contas da Casa
-
-**Objetivo:** Dividir automaticamente as despesas compartilhadas (`isShared: true`) entre os subperfis com base na proporção das suas receitas.
-
--   [x] **Configuração do Rateio:**
-    -   Adicionada uma opção nas configurações do Perfil para definir o método de rateio: "Manual" ou "Proporcional à Receita".
-
--   [x] **Cálculo da Proporção:**
-    -   Na "Visão Geral" do dashboard, é calculada a receita efetiva total de cada subperfil no mês corrente.
-    -   O sistema calcula o percentual que a receita de cada um representa do total de receitas.
-
--   [x] **Visualização e Gestão do Rateio:**
-    -   Na tabela de "Despesas da Casa", uma tooltip mostra o valor que cabe a cada subperfil.
-    -   A divisão gera transações individuais para cada subperfil, que não podem ser editadas diretamente, sendo controladas pela transação "Pai".
-    -   Um indicador visual foi adicionado para identificar despesas originadas de rateio.
-    -   O sistema reage a mudanças no método de rateio e a alterações nas receitas, recalculando as proporções e transações automaticamente.
-
-### ⏭️ Ignorar Transação Recorrente (Skip)
-
-**Objetivo:** Permitir que o usuário "pule" uma receita ou despesa recorrente em um mês específico, sem afetar a recorrência nos meses seguintes.
-
--   [ ] **Modelagem de Dados:**
-    -   Adicionar um novo campo à `Transaction`: `skippedInMonths: array` (ex: `['2025-07', '2025-09']`). Este array guardará os meses em que a transação foi pulada.
-
--   [ ] **Interface de Utilizador:**
-    -   No menu de ações (`...`) de cada transação **recorrente** (`isRecurring: true`), adicionar uma nova opção: "Ignorar neste mês".
-    -   Criar uma nova tabela no dashboard chamada "Receitas e Despesas Ignoradas neste Mês".
-    -   Esta tabela só deve ser renderizada se houver pelo menos uma transação ignorada no mês corrente.
-    -   Na tabela de ignorados, cada item deve ter um botão "Reativar" para remover a marcação de "ignorado" e trazê-lo de volta para a tabela principal.
-
--   [ ] **Lógica de Negócio:**
-    -   Quando uma transação é marcada como "ignorada", seu `id` e o `currentMonthString` ('YYYY-MM') são adicionados ao array `skippedInMonths` do documento da transação no Firestore.
-    -   A lógica que filtra os dados para as tabelas principais (`TransactionTable`) deve ser atualizada para **excluir** qualquer transação que tenha o mês corrente no seu array `skippedInMonths`.
-    -   Os totais e balanços do `SummaryCards` não devem incluir os valores de transações ignoradas.
-    -   **Importante:** Ao fechar o mês, a lógica de criação de transações recorrentes (`performCloseMonth`) deve continuar funcionando normalmente para a transação ignorada, criando-a para o mês seguinte. A marcação de "ignorado" é válida apenas para o mês em que foi aplicada.
-
 ---
 
 ## 🔒 Melhorias de Segurança

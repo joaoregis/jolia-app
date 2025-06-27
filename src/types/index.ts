@@ -33,6 +33,7 @@ export interface Transaction {
   createdAt?: any; // Alterado para 'any' para ser compatível com serverTimestamp
   parentId?: string; // NOVO: ID da transação "pai"
   isApportioned?: boolean; // NOVO: Indica se é uma transação gerada por rateio
+  skippedInMonths?: string[]; // NOVO: Array de meses (YYYY-MM) em que a transação foi pulada
 }
 
 export interface AppData {
@@ -40,7 +41,7 @@ export interface AppData {
   despesas: Transaction[];
 }
 
-export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt'>;
+export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths'>;
 
 export interface SortConfig {
     key: keyof Transaction;

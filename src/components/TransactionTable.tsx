@@ -1,29 +1,103 @@
 // src/components/TransactionTable.tsx
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'; // Adicionado useMemo
-import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw } from 'lucide-react'; // Adicionado RotateCw
+import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom';
+import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft } from 'lucide-react';
 import { Transaction, SortConfig, Subprofile } from '../types';
 import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 
-// Componente Tooltip
+// Tooltip com Portal
 const Tooltip: React.FC<{ content: React.ReactNode, children: React.ReactNode }> = ({ content, children }) => {
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const [isVisible, setIsVisible] = useState(false);
+
+    useLayoutEffect(() => {
+        if (isVisible && triggerRef.current && tooltipRef.current) {
+            const { top, left, width } = triggerRef.current.getBoundingClientRect();
+            const { width: tooltipWidth, height: tooltipHeight } = tooltipRef.current.getBoundingClientRect();
+            
+            tooltipRef.current.style.left = `${left + window.scrollX + width / 2 - tooltipWidth / 2}px`;
+            tooltipRef.current.style.top = `${top + window.scrollY - tooltipHeight - 8}px`; // 8px de margem
+        }
+    }, [isVisible]);
+
+    const showTooltip = () => setIsVisible(true);
+    const hideTooltip = () => setIsVisible(false);
+
     return (
-        <div className="relative flex items-center group">
+        <div ref={triggerRef} onMouseEnter={showTooltip} onMouseLeave={hideTooltip} className="relative flex items-center">
             {children}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-900 text-white text-xs rounded py-1 px-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                {content}
-                <svg className="absolute text-slate-900 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255">
-                    <polygon className="fill-current" points="0,0 127.5,127.5 255,0"/>
-                </svg>
-            </div>
+            {isVisible && ReactDOM.createPortal(
+                <div ref={tooltipRef} className="fixed bg-slate-900 text-white text-xs rounded py-1 px-2 z-50 transition-opacity duration-300 pointer-events-none animate-fade-in">
+                    {content}
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
 
+// ActionMenu com Portal
+const ActionMenu: React.FC<{
+    item: Transaction;
+    onEdit: (transaction: Transaction) => void;
+    onDelete: (transaction: Transaction) => void;
+    onSkip: (transaction: Transaction) => void;
+    onTransfer: (transaction: Transaction) => void;
+}> = ({ item, onEdit, onDelete, onSkip, onTransfer }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
-// Subcomponente para renderizar cada linha de detalhe no cartão mobile
+    useLayoutEffect(() => {
+        if (isOpen && buttonRef.current && menuRef.current) {
+            const { top, left, height, width } = buttonRef.current.getBoundingClientRect();
+            const menuHeight = menuRef.current.offsetHeight;
+            const windowHeight = window.innerHeight;
+
+            let topPos = top + height + window.scrollY;
+            if (topPos + menuHeight > windowHeight) {
+                topPos = top - menuHeight + window.scrollY;
+            }
+
+            menuRef.current.style.top = `${topPos}px`;
+            menuRef.current.style.left = `${left + window.scrollX + width - menuRef.current.offsetWidth}px`;
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node) && !buttonRef.current?.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
+    return (
+        <>
+            <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full text-text-secondary hover:bg-background"><MoreVertical size={18}/></button>
+            {isOpen && ReactDOM.createPortal(
+                <div ref={menuRef} className="fixed w-48 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-50 border border-border-color animate-fade-in">
+                    <div className="py-1">
+                        <button onClick={() => { onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><Edit size={16} /> Editar</button>
+                        <button onClick={() => { onTransfer(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><ArrowRightLeft size={16} /> Transferir</button>
+                        {item.isRecurring && (
+                            <button onClick={() => { onSkip(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><SkipForward size={16} /> Ignorar neste mês</button>
+                        )}
+                        <button onClick={() => { onDelete(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-background"><Trash2 size={16} /> Excluir</button>
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
+    );
+};
+
 const DetailRow: React.FC<{ label: string; value: React.ReactNode; valueClassName?: string }> = ({ label, value, valueClassName }) => (
     <div className="flex justify-between items-baseline text-sm">
         <span className="text-text-secondary">{label}</span>
@@ -31,20 +105,19 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode; valueClassNam
     </div>
 );
 
-
-// Componente interno para renderizar cada transação como um cartão no mobile
 const TransactionItem: React.FC<{
     item: Transaction;
     type: 'income' | 'expense';
     isClosed: boolean;
-    isIgnoredTable: boolean; // NOVO: Flag para indicar se está na tabela de ignorados
+    isIgnoredTable: boolean;
     onEdit: (transaction: Transaction) => void;
     onDelete: (transaction: Transaction) => void;
     onTogglePaid: (transaction: Transaction) => void;
     onUpdateField: (transactionId: string, field: keyof Transaction, value: any) => void;
-    onSkip: (transaction: Transaction) => void; // NOVO
-    onUnskip: (transaction: Transaction) => void; // NOVO
-}> = ({ item, type, isClosed, isIgnoredTable, onEdit, onDelete, onTogglePaid, onUpdateField, onSkip, onUnskip }) => {
+    onSkip: (transaction: Transaction) => void;
+    onUnskip: (transaction: Transaction) => void;
+    onTransfer: (transaction: Transaction) => void;
+}> = ({ item, type, isClosed, isIgnoredTable, onEdit, onDelete, onTogglePaid, onUpdateField, onSkip, onUnskip, onTransfer }) => {
     const difference = item.actual - item.planned;
     let differenceColor = 'text-text-secondary';
     if (difference !== 0) {
@@ -61,24 +134,21 @@ const TransactionItem: React.FC<{
                      {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
                      <EditableCell value={item.description} onSave={(v) => onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable} />
                 </div>
-                 {!isClosed && !isApportioned && !isIgnoredTable && ( // Não mostrar menu de ações na tabela de ignorados ou para transações rateadas
-                    <ActionMenu item={item} onEdit={onEdit} onDelete={onDelete} onSkip={onSkip} />
+                 {!isClosed && !isApportioned && !isIgnoredTable && (
+                    <ActionMenu item={item} onEdit={onEdit} onDelete={onDelete} onSkip={onSkip} onTransfer={onTransfer} />
                 )}
-                 {isIgnoredTable && ( // Botão Reativar na tabela de ignorados
+                 {isIgnoredTable && (
                     <button onClick={() => onUnskip(item)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1">
                         <RotateCw size={14} /> Reativar
                     </button>
                 )}
             </div>
-
             <div className="space-y-2">
                 <DetailRow label="Efetivo" value={formatCurrency(item.actual)} valueClassName="font-bold text-lg text-text-primary" />
                 <DetailRow label="Previsto" value={formatCurrency(item.planned)} valueClassName="text-sm text-text-secondary" />
                 <DetailRow label="Diferença" value={formatCurrency(difference)} valueClassName={`text-sm font-medium ${differenceColor}`} />
             </div>
-
             <div className="border-t border-border-color !mt-3 !mb-2"></div>
-
             <div className="flex justify-between items-center text-sm">
                 <div className="text-text-secondary">
                     <span>{type === 'expense' ? 'Pago em' : 'Recebido em'}: </span>
@@ -91,55 +161,6 @@ const TransactionItem: React.FC<{
                     </span>
                 </button>
             </div>
-        </div>
-    );
-};
-
-
-const ActionMenu: React.FC<{
-    item: Transaction;
-    onEdit: (transaction: Transaction) => void;
-    onDelete: (transaction: Transaction) => void;
-    onSkip: (transaction: Transaction) => void; // NOVO
-}> = ({ item, onEdit, onDelete, onSkip }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement | null>(null);
-    const [position, setPosition] = useState('origin-top-right top-full mt-2');
-
-    const handleToggle = () => {
-        if (!isOpen && menuRef.current) {
-            const rect = menuRef.current.getBoundingClientRect();
-            if (window.innerHeight - rect.bottom < 100) {
-                setPosition('origin-bottom-right bottom-full mb-1');
-            } else {
-                setPosition('origin-top-right top-full mt-2');
-            }
-        }
-        setIsOpen(!isOpen);
-    };
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsOpen(false);
-        };
-        if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen]);
-
-    return (
-        <div className="relative inline-block text-left" ref={menuRef}>
-            <button onClick={handleToggle} className="p-2 rounded-full text-text-secondary hover:bg-background"><MoreVertical size={18}/></button>
-            {isOpen && (
-                <div className={`${position} absolute right-0 w-40 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-20 border border-border-color`}>
-                    <div className="py-1">
-                        <button onClick={() => { onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><Edit size={16} /> Editar</button>
-                        {item.isRecurring && ( // Exibir opção "Ignorar" apenas para transações recorrentes
-                            <button onClick={() => { onSkip(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><SkipForward size={16} /> Ignorar neste mês</button>
-                        )}
-                        <button onClick={() => { onDelete(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-background"><Trash2 size={16} /> Excluir</button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
@@ -158,13 +179,14 @@ interface TransactionTableProps {
   subprofileRevenueProportions?: Map<string, number>;
   subprofiles?: Subprofile[];
   apportionmentMethod?: 'proportional' | 'manual';
-  onSkip?: (transaction: Transaction) => void; // NOVO: Para pular transações recorrentes
-  onUnskip?: (transaction: Transaction) => void; // NOVO: Para reativar transações puladas
-  isIgnoredTable?: boolean; // NOVO: Flag para a tabela de transações ignoradas
+  onSkip?: (transaction: Transaction) => void;
+  onUnskip?: (transaction: Transaction) => void;
+  onTransfer: (transaction: Transaction) => void;
+  isIgnoredTable?: boolean;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, onSkip, onUnskip, isIgnoredTable = false, ...rest } = props;
+    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, onSkip, onUnskip, isIgnoredTable = false, onTransfer, ...rest } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
 
     const getSortIndicator = (key: keyof Transaction) => {
@@ -181,9 +203,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
     
     const getApportionmentTooltipContent = (transaction: Transaction) => {
         if (!subprofiles || !subprofileRevenueProportions) return null;
-
         const activeSubprofiles = subprofiles.filter(s => s.status === 'active');
-        
         if (apportionmentMethod === 'proportional' && subprofileRevenueProportions.size > 0) {
             return (
                 <div className="p-1 space-y-1">
@@ -208,7 +228,15 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
         <Card>
             <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
             <CardContent>
-                {/* Mobile View */}
+                 <style>{`
+                    @keyframes fade-in {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    .animate-fade-in {
+                        animation: fade-in 0.2s ease-out forwards;
+                    }
+                `}</style>
                 <div className="md:hidden">
                     {data.length > 0 && data.map(item => (
                         <TransactionItem 
@@ -223,6 +251,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                             onUpdateField={rest.onUpdateField}
                             onSkip={onSkip!}
                             onUnskip={onUnskip!}
+                            onTransfer={onTransfer}
                         />
                     ))}
                     {data.length > 0 && (
@@ -232,8 +261,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                         </div>
                     )}
                 </div>
-
-                {/* Desktop View */}
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-text-primary uppercase bg-background">
@@ -256,9 +283,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                     const isNegative = type === 'expense' ? difference > 0 : difference < 0;
                                     differenceColor = isNegative ? 'text-red-500' : 'text-green-500';
                                 }
-                                
                                 const isApportioned = item.isApportioned === true;
-                                
                                 return (
                                 <tr key={item.id} className={`bg-card ${!isApportioned && !isIgnoredTable && 'hover:bg-background'}`}>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
@@ -270,7 +295,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                             )}
                                             {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0"/></span>}
                                             {isApportioned && (
-                                                <Tooltip content="Esta despesa é um rateio da Visão Geral e não pode ser editada aqui.">
+                                                <Tooltip content={<>Esta despesa é um rateio da Visão Geral<br />e não pode ser editada aqui.</>}>
                                                     <Info size={14} className="text-teal-400 flex-shrink-0 cursor-help" />
                                                 </Tooltip>
                                             )}
@@ -327,7 +352,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                         </button>
                                     </td>
                                     <td className="px-4 py-3 text-center align-middle">
-                                        {!isClosed && !isApportioned && !isIgnoredTable && <ActionMenu item={item} onEdit={props.onEdit} onDelete={props.onDelete} onSkip={onSkip!} />}
+                                        {!isClosed && !isApportioned && !isIgnoredTable && <ActionMenu item={item} onEdit={props.onEdit} onDelete={props.onDelete} onSkip={onSkip!} onTransfer={onTransfer} />}
                                         {isIgnoredTable && (
                                             <button onClick={() => onUnskip!(item)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1 mx-auto">
                                                 <RotateCw size={14} /> Reativar
@@ -356,18 +381,22 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
     );
 };
 
-
-// NOVO: Componente para a tabela de Transações Ignoradas
 interface IgnoredTransactionsTableProps {
     data: Transaction[];
     onUnskip: (transaction: Transaction) => void;
     currentMonthString: string;
+    activeTab: string;
 }
 
-export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> = ({ data, onUnskip, currentMonthString }) => {
+export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> = ({ data, onUnskip, currentMonthString, activeTab }) => {
     const filteredData = useMemo(() => {
-        return data.filter((t: Transaction) => (t.skippedInMonths || []).includes(currentMonthString)); // Tipagem explícita para 't'
-    }, [data, currentMonthString]);
+        const ignoredInCurrentMonth = data.filter((t: Transaction) => (t.skippedInMonths || []).includes(currentMonthString));
+        if (activeTab === 'geral') {
+            return ignoredInCurrentMonth.filter(t => t.isShared);
+        } else {
+            return ignoredInCurrentMonth.filter(t => t.subprofileId === activeTab);
+        }
+    }, [data, currentMonthString, activeTab]);
 
     if (filteredData.length === 0) return null;
 
@@ -375,25 +404,24 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
         <Card>
             <CardHeader><CardTitle>Receitas e Despesas Ignoradas neste Mês</CardTitle></CardHeader>
             <CardContent>
-                {/* Mobile View */}
                 <div className="md:hidden">
-                    {filteredData.map((item: Transaction) => ( // Tipagem explícita para 'item'
+                    {filteredData.map((item: Transaction) => (
                         <TransactionItem 
                             key={item.id} 
                             item={item} 
                             type={item.type} 
                             isClosed={false} 
                             isIgnoredTable={true}
-                            onTogglePaid={() => {}} // No-op for ignored table
-                            onEdit={() => {}} // No-op for ignored table
-                            onDelete={() => {}} // No-op for ignored table
-                            onUpdateField={() => {}} // No-op for ignored table
-                            onSkip={() => {}} // No-op
+                            onTogglePaid={() => {}}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                            onUpdateField={() => {}}
+                            onSkip={() => {}}
                             onUnskip={onUnskip}
+                            onTransfer={() => {}}
                         />
                     ))}
                 </div>
-                {/* Desktop View */}
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-text-primary uppercase bg-background">
@@ -405,7 +433,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border-color">
-                            {filteredData.map((item: Transaction) => ( // Tipagem explícita para 'item'
+                            {filteredData.map((item: Transaction) => (
                                 <tr key={item.id} className="bg-card hover:bg-background">
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
                                         <div className="flex items-center gap-2">

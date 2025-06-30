@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove, getDoc, deleteField } from 'firebase/firestore'; // NOVO: Importa deleteField
 import { db, serverTimestamp } from '../lib/firebase';
 import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
@@ -27,6 +27,7 @@ import { ExportModal } from '../components/ExportModal';
 import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 import { Plus } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
+import { TransferTransactionModal } from '../components/TransactionTransferModal';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -53,9 +54,11 @@ export const DashboardScreen: React.FC = () => {
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
     const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
     const [modalInitialValues, setModalInitialValues] = useState<Partial<Transaction> | null>(null);
     const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+    const [transactionToTransfer, setTransactionToTransfer] = useState<Transaction | null>(null);
     const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
     const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
 
@@ -320,6 +323,88 @@ export const DashboardScreen: React.FC = () => {
         setModalInitialValues(t);
         setIsTransactionModalOpen(true);
     }, [isCurrentMonthClosed]);
+    
+    const handleOpenTransferModal = useCallback((transaction: Transaction) => {
+        if (isCurrentMonthClosed) {
+            alert("Não pode transferir transações de um mês fechado.");
+            return;
+        }
+        if (transaction.isApportioned) {
+            alert("Esta é uma transação gerada automaticamente por rateio e não pode ser transferida.");
+            return;
+        }
+        setTransactionToTransfer(transaction);
+        setIsTransferModalOpen(true);
+    }, [isCurrentMonthClosed]);
+
+    const handleConfirmTransfer = async (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
+        if (!profile) return;
+        
+        const transactionRef = doc(db, "transactions", transactionId);
+        const batch = writeBatch(db);
+
+        try {
+            const transactionDoc = await getDoc(transactionRef);
+            if (!transactionDoc.exists()) {
+                console.error("Transação não encontrada para transferência.");
+                return;
+            }
+            const originalTransaction = transactionDoc.data() as Transaction;
+            const wasShared = originalTransaction.isShared;
+
+            if (destination.type === 'main') {
+                // CORREÇÃO: Usa deleteField() para remover o campo em vez de atribuir 'undefined'.
+                batch.update(transactionRef, { 
+                    subprofileId: deleteField(), 
+                    isShared: true 
+                });
+
+                if (profile.apportionmentMethod === 'proportional') {
+                    const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
+                    const newParentData = { ...originalTransaction, isShared: true, subprofileId: undefined };
+                    
+                    subprofileRevenueProportions.forEach((proportion, subId) => {
+                        if (activeSubprofiles.some(s => s.id === subId)) {
+                             const childDocRef = doc(collection(db, "transactions"));
+                             const childData = { ...newParentData };
+                             delete (childData as Partial<Transaction>).id;
+
+                             batch.set(childDocRef, {
+                                ...childData,
+                                description: `[Rateio] ${childData.description}`,
+                                planned: childData.planned * proportion,
+                                actual: childData.actual * proportion,
+                                isShared: false,
+                                isApportioned: true,
+                                parentId: transactionId,
+                                subprofileId: subId,
+                                createdAt: serverTimestamp()
+                             });
+                        }
+                    });
+                }
+            } 
+            else if (destination.type === 'subprofile' && destination.id) {
+                batch.update(transactionRef, { 
+                    subprofileId: destination.id, 
+                    isShared: false 
+                });
+
+                if (wasShared) {
+                    const q = query(collection(db, 'transactions'), where('parentId', '==', transactionId));
+                    const childrenSnapshot = await getDocs(q);
+                    childrenSnapshot.forEach(doc => batch.delete(doc.ref));
+                }
+            }
+
+            await batch.commit();
+        } catch (error) {
+            console.error("Erro ao transferir transação:", error);
+        } finally {
+            setIsTransferModalOpen(false);
+            setTransactionToTransfer(null);
+        }
+    };
 
     const handleSaveTransaction = async (data: TransactionFormState, id?: string) => {
         if (!profile) return;
@@ -398,11 +483,9 @@ export const DashboardScreen: React.FC = () => {
         const newPaidStatus = !transaction.paid;
         const batch = writeBatch(db);
 
-        // Atualiza a transação principal (seja ela pai ou não)
         const mainDocRef = doc(db, "transactions", transaction.id);
         batch.update(mainDocRef, { paid: newPaidStatus });
 
-        // Se for uma transação da casa (pai), atualiza as filhas
         if (transaction.isShared && profile?.apportionmentMethod === 'proportional') {
             const q = query(collection(db, 'transactions'), where('parentId', '==', transaction.id));
             const childrenSnapshot = await getDocs(q);
@@ -441,13 +524,8 @@ export const DashboardScreen: React.FC = () => {
             const batch = writeBatch(db);
             const transactionsRef = collection(db, 'transactions');
             recurringTransactions.forEach(t => {
-                // Se a transação recorrente foi pulada no mês atual, ela não deve ser criada novamente para o mês atual.
-                // Mas a próxima recorrência deve ser criada normalmente para o próximo mês.
-                // A lógica de pular é apenas para o mês atual.
-                
                 const newTransactionData: Omit<Transaction, 'id'> = { ...t };
                 delete (newTransactionData as Partial<Transaction>).id;
-                // Remove the skippedInMonths flag for the new transaction, as it's for the next month
                 delete newTransactionData.skippedInMonths; 
 
                 const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00');
@@ -558,7 +636,6 @@ export const DashboardScreen: React.FC = () => {
         setIsSettingsModalOpen(false);
     };
 
-    // NOVO: Função para marcar transação como pulada
     const handleSkipTransaction = async (transaction: Transaction) => {
         if (!transaction.id) return;
         const transactionRef = doc(db, 'transactions', transaction.id);
@@ -567,7 +644,6 @@ export const DashboardScreen: React.FC = () => {
         });
     };
 
-    // NOVO: Função para remover transação da lista de puladas
     const handleUnskipTransaction = async (transaction: Transaction) => {
         if (!transaction.id) return;
         const transactionRef = doc(db, 'transactions', transaction.id);
@@ -601,7 +677,7 @@ export const DashboardScreen: React.FC = () => {
                 onExport={() => setIsExportModalOpen(true)}
                 onImport={() => setIsImportModalOpen(true)}
                 onNewTransaction={handleOpenModalForNew}
-                onOpenSettings={() => setIsSettingsModalOpen(true)} // MODIFICADO: Chamada direta sem condicional
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
             />
             
              <div className="border-b border-border-color">
@@ -643,7 +719,8 @@ export const DashboardScreen: React.FC = () => {
                                 sortConfig={sortConfig} 
                                 isClosed={isCurrentMonthClosed} 
                                 onSkip={handleSkipTransaction} 
-                                onUnskip={handleUnskipTransaction} // Passar para o TransactionTable
+                                onUnskip={handleUnskipTransaction}
+                                onTransfer={handleOpenTransferModal}
                             />
                         )}
                         <TransactionTable 
@@ -661,13 +738,15 @@ export const DashboardScreen: React.FC = () => {
                             subprofiles={profile.subprofiles}
                             apportionmentMethod={profile.apportionmentMethod}
                             onSkip={handleSkipTransaction} 
-                            onUnskip={handleUnskipTransaction} // Passar para o TransactionTable
+                            onUnskip={handleUnskipTransaction}
+                            onTransfer={handleOpenTransferModal}
                         />
                         {ignoredTransactions.length > 0 && (
                             <IgnoredTransactionsTable 
                                 data={ignoredTransactions}
                                 onUnskip={handleUnskipTransaction}
                                 currentMonthString={currentMonthString}
+                                activeTab={activeTab} // Adicionada a prop
                             />
                         )}
                     </div>
@@ -687,6 +766,14 @@ export const DashboardScreen: React.FC = () => {
             <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} profile={profile} activeSubprofileId={activeTab} allTransactions={allTransactions} />
             {contextMenu && <SubprofileContextMenu subprofile={contextMenu.subprofile} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onEdit={(sub) => { setSubprofileToEdit(sub); setContextMenu(null); }} onArchive={(sub) => { setSubprofileToArchive(sub); setContextMenu(null); }} />}
             <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} onSave={handleSaveSettings} profile={profile} />
+            
+            <TransferTransactionModal
+                isOpen={isTransferModalOpen}
+                onClose={() => {setIsTransferModalOpen(false); setTransactionToTransfer(null);}}
+                transaction={transactionToTransfer}
+                subprofiles={activeSubprofiles}
+                onConfirmTransfer={handleConfirmTransfer}
+            />
         </div>
     );
 };

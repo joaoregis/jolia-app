@@ -2,9 +2,9 @@
 
 import React from 'react';
 
-// --- MELHORIA: Usa as classes de tema do Tailwind ---
+// --- CORREÇÃO: Removida a classe "overflow-hidden" ---
 export const Card: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
-    <div className={`bg-card rounded-xl shadow-md overflow-hidden ${className}`}>
+    <div className={`bg-card rounded-xl shadow-md ${className}`}>
         {children}
     </div>
 );

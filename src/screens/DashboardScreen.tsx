@@ -68,6 +68,12 @@ export const DashboardScreen: React.FC = () => {
     const activeTab = subprofileId || 'geral';
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
 
+    // BUG FIX: A verificação de transações pagas agora ignora as transações "puladas".
+    const allTransactionsPaid = useMemo(() => {
+        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
+        return activeTransactions.every(t => t.paid);
+    }, [allTransactions, currentMonthString]);
+
 
     useEffect(() => {
         try {
@@ -219,7 +225,6 @@ export const DashboardScreen: React.FC = () => {
 
     
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
-    const allTransactionsPaid = useMemo(() => allTransactions.every(t => t.paid), [allTransactions]);
     
     const canCloseMonth = useMemo(() => {
         if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;

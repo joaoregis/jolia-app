@@ -4,6 +4,11 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
+- Observações/Notas igual no Flo
+- Seletor de linhas pra calcular somatório
+
+---
+
 ## 🎯 Funcionalidades Principais (Core Features)
 
 ### 💳 Sistema de Parcelamento e Fatura de Cartão

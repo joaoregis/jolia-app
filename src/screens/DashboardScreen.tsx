@@ -57,15 +57,33 @@ export const DashboardScreen: React.FC = () => {
 
     // Estado da UI
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-    
+    const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
+
     const activeTab = subprofileId || 'geral';
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
+    
+    useEffect(() => {
+        setIsInitialMonthSet(false);
+    }, [profileId]);
 
-    const allTransactionsPaid = useMemo(() => {
-        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
-        return activeTransactions.every(t => t.paid);
-    }, [allTransactions, currentMonthString]);
+    useEffect(() => {
+        if (isInitialMonthSet || monthsLoading || !profile) return;
 
+        const closedMonthsSet = new Set(profile.closedMonths || []);
+        const openMonths = availableMonths.filter(month => !closedMonthsSet.has(month));
+        const latestMonth = availableMonths[availableMonths.length - 1];
+        const firstOpenMonthStr = openMonths[0] || latestMonth;
+        
+        if (firstOpenMonthStr) {
+            const [year, month] = firstOpenMonthStr.split('-');
+            setCurrentMonth(new Date(Number(year), Number(month) - 1, 1));
+        } else {
+            setCurrentMonth(new Date());
+        }
+        
+        setIsInitialMonthSet(true); 
+    }, [isInitialMonthSet, monthsLoading, availableMonths, profile]);
+    
     useEffect(() => {
         try {
             const savedSortConfig = localStorage.getItem(SORT_CONFIG_STORAGE_KEY);
@@ -80,18 +98,10 @@ export const DashboardScreen: React.FC = () => {
         if (sortConfig) localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
     }, [sortConfig]);
 
-    useEffect(() => {
-        if (monthsLoading || !profile) return;
-        const closedMonthsSet = new Set(profile.closedMonths || []);
-        const openMonths = availableMonths.filter(month => !closedMonthsSet.has(month));
-        const firstOpenMonthStr = openMonths[0] || availableMonths[availableMonths.length - 1];
-        if (firstOpenMonthStr) {
-            const [year, month] = firstOpenMonthStr.split('-');
-            setCurrentMonth(new Date(Number(year), Number(month) - 1, 1));
-        } else {
-            setCurrentMonth(new Date());
-        }
-    }, [monthsLoading, availableMonths, profile]);
+    const allTransactionsPaid = useMemo(() => {
+        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
+        return activeTransactions.every(t => t.paid);
+    }, [allTransactions, currentMonthString]);
 
     const handleTabClick = useCallback((tabId: string) => {
         const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
@@ -214,6 +224,7 @@ export const DashboardScreen: React.FC = () => {
     
     const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
     const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
+    const handleMonthSelect = (year: number, month: number) => setCurrentMonth(new Date(year, month, 1));
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
@@ -234,7 +245,6 @@ export const DashboardScreen: React.FC = () => {
         modals.transfer.open(t);
     }, [isCurrentMonthClosed, modals.transfer]);
 
-    // Handlers que chamam os hooks
     const handleConfirmTransferWrapper = (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
         transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions).then(modals.transfer.close);
     };
@@ -345,11 +355,14 @@ export const DashboardScreen: React.FC = () => {
                 canGoToPreviousMonth={availableMonths.length > 0 && currentMonthString > availableMonths[0]}
                 canGoToNextMonth={availableMonths.length > 0 && availableMonths.some(m => m > currentMonthString)}
                 changeMonth={changeMonth}
-                handleCloseMonthAttempt={modals.closeMonth.open}
+                handleCloseMonthAttempt={() => canCloseMonth && modals.closeMonth.open()}
                 onExport={modals.export.open}
                 onImport={modals.import.open}
                 onNewTransaction={handleOpenModalForNew}
                 onOpenSettings={modals.settings.open}
+                availableMonths={availableMonths}
+                closedMonths={profile.closedMonths || []}
+                onMonthSelect={handleMonthSelect}
             />
             
             <div className="border-b border-border-color">

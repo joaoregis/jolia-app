@@ -1,6 +1,7 @@
 // src/components/DashboardHeader.tsx
 import React from 'react';
 import { ChevronLeft, ChevronRight, Lock, ShieldCheck, Download, Upload, PlusCircle, MoreVertical, Settings } from 'lucide-react';
+import { MonthSelector } from './MonthSelector';
 
 interface DashboardHeaderProps {
     profileName: string;
@@ -17,10 +18,12 @@ interface DashboardHeaderProps {
     onExport: () => void;
     onImport: () => void;
     onNewTransaction: () => void;
-    onOpenSettings?: () => void; // MODIFICADO: Tornar opcional
+    onOpenSettings?: () => void;
+    availableMonths: string[];
+    closedMonths: string[];
+    onMonthSelect: (year: number, month: number) => void;
 }
 
-// Menu de ações para telas menores
 const ActionMenu: React.FC<Pick<DashboardHeaderProps, 'onExport' | 'onImport' | 'isCurrentMonthClosed' | 'activeTab'>> =
 ({ onExport, onImport, isCurrentMonthClosed, activeTab }) => {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -53,69 +56,65 @@ const ActionMenu: React.FC<Pick<DashboardHeaderProps, 'onExport' | 'onImport' | 
     )
 }
 
-
 export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
     const {
         profileName,
-        formattedMonth,
-        isCurrentMonthClosed,
-        canCloseMonth,
-        canGoToPreviousMonth,
-        canGoToNextMonth,
         changeMonth,
-        handleCloseMonthAttempt,
         onNewTransaction,
-        onOpenSettings, // NOVO
+        onOpenSettings,
         ...rest
     } = props;
 
     let closeMonthTitle = 'Fechar o mês e criar recorrências';
     if (!props.allTransactionsPaid) closeMonthTitle = 'Pague todas as contas antes de fechar o mês';
-    else if (!canCloseMonth) closeMonthTitle = 'Feche os meses anteriores primeiro';
+    else if (!props.canCloseMonth) closeMonthTitle = 'Feche os meses anteriores primeiro';
 
     return (
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
                 <div className="flex items-center gap-3">
-                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-                        {profileName}
-                    </h2>
-                    {/* Botão de Configurações */}
-                    <button 
-                        onClick={onOpenSettings} 
-                        className="text-text-secondary hover:text-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed" // Adicionado disabled style
-                        title="Configurações do Perfil"
-                        disabled={!onOpenSettings} // Desabilita se a prop não for fornecida
-                    >
+                    <h2 className="text-3xl font-bold tracking-tight text-text-primary">{profileName}</h2>
+                    <button onClick={onOpenSettings} className="text-text-secondary hover:text-accent transition-colors disabled:opacity-30" title="Configurações do Perfil" disabled={!onOpenSettings}>
                         <Settings size={20} />
                     </button>
                 </div>
-                <div className="flex items-center gap-2 mt-2 md:mt-1 whitespace-nowrap">
-                    <button onClick={() => changeMonth(-1)} className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed" disabled={!canGoToPreviousMonth} title={!canGoToPreviousMonth ? "Não há registos em meses anteriores" : "Mês anterior"}>
+
+                {/* CORREÇÃO: Trocado para grid para garantir o alinhamento central */}
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 mt-2 md:mt-1">
+                    <button onClick={() => changeMonth(-1)} className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed" disabled={!props.canGoToPreviousMonth} title="Mês anterior">
                         <ChevronLeft size={20} />
                     </button>
-                    <span className="font-semibold text-center min-w-[150px] text-text-secondary">{formattedMonth}</span>
-                    <button onClick={() => changeMonth(1)} className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed" disabled={!canGoToNextMonth} title={!canGoToNextMonth ? "Não há registos em meses futuros" : "Mês seguinte"}>
+                    
+                    <div className="flex justify-center">
+                        <MonthSelector 
+                            currentMonth={props.currentMonth}
+                            availableMonths={props.availableMonths}
+                            closedMonths={props.closedMonths}
+                            onMonthSelect={props.onMonthSelect}
+                        />
+                    </div>
+
+                    <button onClick={() => changeMonth(1)} className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed" disabled={!props.canGoToNextMonth} title="Mês seguinte">
                         <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
-                 {isCurrentMonthClosed ? (
+                 {props.isCurrentMonthClosed ? (
                     <span className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-secondary border border-border-color"><ShieldCheck size={16}/> Mês Fechado</span>
                 ) : (
-                    <button onClick={handleCloseMonthAttempt} disabled={!canCloseMonth} className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed" title={closeMonthTitle}>
+                    <button onClick={props.handleCloseMonthAttempt} disabled={!props.canCloseMonth} className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed" title={closeMonthTitle}>
                         <Lock size={16}/> Fechar Mês
                     </button>
                 )}
                  <div className="hidden md:flex items-center gap-2">
-                     <ActionMenu {...rest} isCurrentMonthClosed={isCurrentMonthClosed} />
+                     <ActionMenu {...rest} isCurrentMonthClosed={props.isCurrentMonthClosed} />
                  </div>
                  <div className="md:hidden">
-                    <ActionMenu {...rest} isCurrentMonthClosed={isCurrentMonthClosed} />
+                    <ActionMenu {...rest} isCurrentMonthClosed={props.isCurrentMonthClosed} />
                  </div>
-                <button onClick={onNewTransaction} className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50" disabled={isCurrentMonthClosed}>
+                <button onClick={onNewTransaction} className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50" disabled={props.isCurrentMonthClosed}>
                     <PlusCircle size={16}/>
                     <span className="hidden lg:inline">Nova Transação</span>
                 </button>

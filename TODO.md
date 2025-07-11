@@ -32,40 +32,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
-### 📝 Observações/Notas em Transações
-
-**Objetivo:** Permitir que o usuário adicione notas de texto a cada transação, de forma similar à funcionalidade do aplicativo "Flo".
-
-**Requisitos Funcionais:**
-
-1.  **Armazenamento:**
-    * [ ] Adicionar um campo opcional `notes` (string) à interface `Transaction` no arquivo `src/types/index.ts`.
-
-2.  **Formulário de Transação (`TransactionForm`):**
-    * [ ] Incluir um campo de `textarea` no formulário de criação e edição de transações para que o usuário possa inserir ou modificar a nota.
-    * [ ] O campo deve ser opcional.
-
-3.  **Exibição na Tabela (`TransactionTable`):**
-    * [ ] Na tabela de transações, uma nova coluna deve exibir um ícone (ex: `FileText` ou `MessageSquare`) ao lado da descrição da transação.
-    * [ ] O ícone **só deve aparecer** se a transação contiver uma nota (`notes` não é nulo ou vazio).
-    * [ ] Se o texto da nota for apagado e salvo, o ícone deve desaparecer da tabela.
-
-4.  **Modal de Notas (`NoteModal`):**
-    * [ ] Criar um novo componente de modal (`NoteModal.tsx`) que será aberto ao clicar no ícone de nota na tabela.
-    * [ ] O modal deve exibir o conteúdo completo da nota em um `textarea` e permitir a edição.
-    * [ ] O modal deve ter botões para "Salvar" e "Cancelar".
-    * [ ] Ao salvar, a nota da transação deve ser atualizada no Firestore.
-
-**Fluxo de Implementação:**
-
--   **Backend/Tipagem:** Alterar a interface `Transaction`.
--   **Componente (Formulário):** Adicionar o `textarea` em `TransactionForm.tsx`.
--   **Componente (Tabela):** Adicionar a lógica de exibição condicional do ícone e o evento `onClick` em `TransactionTable.tsx`.
--   **Componente (Modal):** Criar o `NoteModal.tsx` para edição rápida.
--   **Lógica Principal:** Implementar a função de atualização da nota no `DashboardScreen.tsx` e passá-la como prop para o modal.
-
----
-
 ### ✅ Seletor de Linhas para Cálculos
 
 **Objetivo:** Implementar uma funcionalidade que permita ao usuário selecionar múltiplas linhas na tabela de transações para calcular a **soma** e a **média** dos valores previstos e efetivos.

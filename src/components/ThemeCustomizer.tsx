@@ -11,12 +11,14 @@ interface ThemeCustomizerProps {
 
 const colorVariables: Array<{ key: keyof Theme['variables'], label: string }> = [
     { key: '--background', label: 'Fundo Principal' },
+    { key: '--sidebar', label: 'Fundo do Layout' },
     { key: '--card', label: 'Fundo do Card' },
+    { key: '--table-header', label: 'Fundo Tabela' },
     { key: '--text-primary', label: 'Texto Principal' },
     { key: '--text-secondary', label: 'Texto Secundário' },
     { key: '--accent', label: 'Cor de Destaque' },
     { key: '--accent-hover', label: 'Destaque (Hover)' },
-    { key: '--border-color', label: 'Cor da Borda' },
+    { key: '--border', label: 'Cor da Borda' },
 ];
 
 export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, onThemeChange }) => {
@@ -50,7 +52,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
 
             <div>
                 <h4 className="text-lg font-medium text-text-primary mb-3">Pré-visualização</h4>
-                <div style={{ ...customTheme as React.CSSProperties, transition: 'background-color 0.3s, color 0.3s' }} className="p-4 rounded-lg border border-border-color">
+                <div style={{ ...customTheme as React.CSSProperties, transition: 'background-color 0.3s, color 0.3s', backgroundColor: 'var(--background)' }} className="p-4 rounded-lg border border-border">
                      <Card className="shadow-lg">
                         <CardHeader>
                             <CardTitle>Exemplo de Card</CardTitle>
@@ -68,9 +70,9 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                                  <button
                                     className="px-4 py-2 text-sm font-medium rounded-lg"
                                     style={{
-                                        backgroundColor: customTheme['--background'],
+                                        backgroundColor: customTheme['--card'],
                                         color: customTheme['--text-primary'],
-                                        border: `1px solid ${customTheme['--border-color']}`
+                                        border: `1px solid ${customTheme['--border']}`
                                     }}
                                 >
                                     Botão Secundário

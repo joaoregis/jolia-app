@@ -39,7 +39,7 @@ const Checkbox: React.FC<{ checked: boolean; onChange: (e: React.ChangeEvent<HTM
             title={title}
             checked={checked}
             onChange={onChange}
-            className="h-4 w-4 rounded border-border-color text-accent bg-background focus:ring-accent"
+            className="h-4 w-4 rounded border-border text-accent bg-background focus:ring-accent"
         />
     );
 };
@@ -99,7 +99,7 @@ const ActionMenu: React.FC<{ item: Transaction; actions: Pick<TransactionActions
         <>
             <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full text-text-secondary hover:bg-background"><MoreVertical size={18}/></button>
             {isOpen && ReactDOM.createPortal(
-                <div ref={menuRef} className="fixed w-48 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-50 border border-border-color animate-fade-in">
+                <div ref={menuRef} className="fixed w-48 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-50 border border-border animate-fade-in">
                     <div className="py-1">
                         <button onClick={() => { actions.onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><Edit size={16} /> Editar</button>
                         <button onClick={() => { actions.onTransfer(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><ArrowRightLeft size={16} /> Transferir</button>
@@ -126,7 +126,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
     const isApportioned = item.isApportioned === true;
 
     return (
-        <div className={`border border-border-color rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
+        <div className={`border border-border rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
             <div className="flex justify-between items-start">
                  <div className="font-medium text-text-primary flex items-center gap-2 pr-2 overflow-hidden">
                      {!isIgnoredTable && <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />}
@@ -144,7 +144,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
                 <DetailRow label="Diferença" value={formatCurrency(difference)} valueClassName={`text-sm font-medium ${differenceColor}`} />
                 {type === 'expense' && item.dueDate && <DetailRow label="Vencimento" value={formatShortDate(item.dueDate)} />}
             </div>
-            <div className="border-t border-border-color !mt-3 !mb-2"></div>
+            <div className="border-t border-border !mt-3 !mb-2"></div>
             <div className="flex justify-between items-center text-sm">
                 <div className="text-text-secondary">
                     <span>{type === 'expense' ? 'Pago em' : 'Recebido em'}: </span>
@@ -250,11 +250,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                  <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
                 <div className="md:hidden">
                     {data.length > 0 ? data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} />) : null}
-                    {data.length > 0 && <div className="flex justify-between font-bold text-text-primary bg-background p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
+                    {data.length > 0 && <div className="flex justify-between font-bold text-text-primary bg-table-header p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
                 </div>
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
-                        <thead className="text-xs text-text-primary uppercase bg-background">
+                        <thead className="text-xs text-text-primary uppercase bg-table-header">
                             <tr>
                                 <th className="px-4 py-3 w-px">
                                     <Checkbox
@@ -275,7 +275,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                             </tr>
                         </thead>
                        {data.length > 0 && (
-                         <tbody className="divide-y divide-border-color">
+                         <tbody className="divide-y divide-border">
                             {data.map(item => {
                                 const difference = item.actual - item.planned;
                                 const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
@@ -333,7 +333,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                         </tbody>
                        )}
                        {data.length > 0 && (
-                         <tfoot className="font-bold text-text-primary bg-background">
+                         <tfoot className="font-bold text-text-primary bg-table-header">
                             <tr>
                                 <td colSpan={2} className="px-4 py-3">TOTAL</td>
                                 <td colSpan={2} />
@@ -382,7 +382,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
             <CardContent>
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
-                        <thead className="text-xs text-text-primary uppercase bg-background">
+                        <thead className="text-xs text-text-primary uppercase bg-table-header">
                             <tr>
                                 <th scope="col" className="px-4 py-3 w-[40%]">Descrição</th>
                                 <th scope="col" className="px-4 py-3 w-[20%]">Tipo</th>
@@ -390,7 +390,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                                 <th scope="col" className="px-4 py-3 w-[20%] text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border-color">
+                        <tbody className="divide-y divide-border">
                             {filteredData.map((item) => (
                                 <tr key={item.id} className="bg-card hover:bg-background">
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">

@@ -69,7 +69,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                 )}
 
                 <aside className={`
-                    absolute lg:relative inset-y-0 left-0 z-40 bg-card p-4 flex flex-col justify-between transition-transform duration-300 ease-in-out 
+                    absolute lg:relative inset-y-0 left-0 z-40 bg-sidebar p-4 flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-border
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                     ${isCollapsed ? 'w-20' : 'w-64'}
@@ -100,7 +100,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                         </nav>
                     </div>
                     
-                    <div className="space-y-2 border-t border-border-color pt-4">
+                    <div className="space-y-2 border-t border-border pt-4">
                         <NavLink 
                             href="#"
                             icon={Settings}

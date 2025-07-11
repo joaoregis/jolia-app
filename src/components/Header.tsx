@@ -3,8 +3,7 @@
 import React from 'react';
 import { Menu, User as UserIcon } from 'lucide-react';
 import { User } from 'firebase/auth';
-import { useParams } from 'react-router-dom';
-import { useProfile } from '../hooks/useProfile';
+import { useProfileContext } from '../contexts/ProfileContext';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -12,11 +11,10 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick, user }) => {
-    const { profileId } = useParams<{ profileId: string }>();
-    const { profile } = useProfile(profileId); // Usamos o hook para obter o nome do perfil
+    const { profile } = useProfileContext();
 
     return (
-        <header className="flex-shrink-0 bg-card border-b border-border-color">
+        <header className="flex-shrink-0 bg-sidebar border-b border-border">
             <div className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-4">
                     {/* Botão do Menu Hambúrguer para mobile */}

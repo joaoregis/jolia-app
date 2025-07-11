@@ -2,20 +2,23 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove, getDoc, deleteField } from 'firebase/firestore';
+import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
-import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
+import { Profile, SortConfig, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
 
 // Hooks
 import { useProfile } from '../hooks/useProfile';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAvailableMonths } from '../hooks/useAvailableMonths';
+import { useTransactionMutations } from '../hooks/useTransactionMutations';
+import { useSubprofileManager } from '../hooks/useSubprofileManager';
+import { useDashboardState } from '../hooks/useDashboardState';
 
 // Componentes
 import { DashboardHeader } from '../components/DashboardHeader';
 import { SummaryCards } from '../components/SummaryCards';
-import { TransactionTable, IgnoredTransactionsTable } from '../components/TransactionTable';
+import { TransactionTable, IgnoredTransactionsTable, TransactionActions } from '../components/TransactionTable';
 import { TransactionModal } from '../components/TransactionModal';
 import { TransactionForm } from '../components/TransactionForm';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -28,7 +31,6 @@ import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 import { Plus } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
-// NoteModal já é importado e renderizado dentro de TransactionTable, não precisa importar aqui.
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -48,24 +50,14 @@ export const DashboardScreen: React.FC = () => {
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
 
+    // Hooks de Lógica de Negócio
+    const transactionMutations = useTransactionMutations(profile);
+    const subprofileManager = useSubprofileManager(profile);
+    const { modals, contextMenu } = useDashboardState();
+
     // Estado da UI
-    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-    const [isSubprofileModalOpen, setIsSubprofileModalOpen] = useState(false);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-    const [isCloseMonthModalOpen, setIsCloseMonthModalOpen] = useState(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-
-    const [modalInitialValues, setModalInitialValues] = useState<Partial<Transaction> | null>(null);
-    const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-    const [transactionToTransfer, setTransactionToTransfer] = useState<Transaction | null>(null);
-    const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
-    const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
-
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
-
+    
     const activeTab = subprofileId || 'geral';
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
 
@@ -74,47 +66,31 @@ export const DashboardScreen: React.FC = () => {
         return activeTransactions.every(t => t.paid);
     }, [allTransactions, currentMonthString]);
 
-
     useEffect(() => {
         try {
             const savedSortConfig = localStorage.getItem(SORT_CONFIG_STORAGE_KEY);
-            if (savedSortConfig) {
-                setSortConfig(JSON.parse(savedSortConfig));
-            } else {
-                setSortConfig({ key: 'createdAt', direction: 'descending' });
-            }
-        } catch (error) {
-            console.error("Erro ao carregar sortConfig do localStorage:", error);
+            if (savedSortConfig) setSortConfig(JSON.parse(savedSortConfig));
+            else setSortConfig({ key: 'createdAt', direction: 'descending' });
+        } catch {
             setSortConfig({ key: 'createdAt', direction: 'descending' });
         }
     }, []);
 
     useEffect(() => {
-        if (sortConfig) {
-            try {
-                localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
-            } catch (error) {
-                console.error("Erro ao salvar sortConfig no localStorage:", error);
-            }
-        }
+        if (sortConfig) localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
     }, [sortConfig]);
 
     useEffect(() => {
         if (monthsLoading || !profile) return;
         const closedMonthsSet = new Set(profile.closedMonths || []);
-        const firstOpenMonthStr = availableMonths.find(month => !closedMonthsSet.has(month));
-        let initialDate: Date;
+        const openMonths = availableMonths.filter(month => !closedMonthsSet.has(month));
+        const firstOpenMonthStr = openMonths[0] || availableMonths[availableMonths.length - 1];
         if (firstOpenMonthStr) {
-            const [year, month] = firstOpenMonthStr.split('-').map(Number);
-            initialDate = new Date(year, month - 1, 1);
-        } else if (availableMonths.length > 0) {
-            const lastMonthStr = availableMonths[availableMonths.length - 1];
-            const [year, month] = lastMonthStr.split('-').map(Number);
-            initialDate = new Date(year, month - 1, 1);
+            const [year, month] = firstOpenMonthStr.split('-');
+            setCurrentMonth(new Date(Number(year), Number(month) - 1, 1));
         } else {
-            initialDate = new Date();
+            setCurrentMonth(new Date());
         }
-        setCurrentMonth(initialDate);
     }, [monthsLoading, availableMonths, profile]);
 
     const handleTabClick = useCallback((tabId: string) => {
@@ -131,547 +107,230 @@ export const DashboardScreen: React.FC = () => {
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(activeTheme.variables).forEach(([key, value]) => root.style.setProperty(key, value));
-        return () => {
-            Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
-            Object.keys(themes).forEach(themeKey => {
-                Object.keys(themes[themeKey].variables).forEach(cssVar => {
-                    root.style.removeProperty(cssVar);
-                });
-            });
-        };
+        return () => Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
     }, [activeTheme]);
-    
+
     const subprofileRevenueProportions = useMemo(() => {
         if (!profile) return new Map<string, number>();
-
         const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
         if (activeSubprofiles.length === 0) return new Map<string, number>();
-
-        const subprofileIncomes = new Map<string, number>();
-        activeSubprofiles.forEach(sub => subprofileIncomes.set(sub.id, 0));
-
+        const subprofileIncomes = new Map<string, number>(activeSubprofiles.map(s => [s.id, 0]));
         allTransactions
-            .filter(t => !(t.skippedInMonths || []).includes(currentMonthString)) // Exclui transações puladas
+            .filter(t => !(t.skippedInMonths || []).includes(currentMonthString) && t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId))
             .forEach(t => {
-            if (t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId)) {
-                const currentIncome = subprofileIncomes.get(t.subprofileId) || 0;
-                subprofileIncomes.set(t.subprofileId, currentIncome + t.actual);
-            }
-        });
-
+                subprofileIncomes.set(t.subprofileId!, (subprofileIncomes.get(t.subprofileId!) || 0) + t.actual);
+            });
         const totalIncome = Array.from(subprofileIncomes.values()).reduce((acc, income) => acc + income, 0);
         const proportions = new Map<string, number>();
-
         if (totalIncome > 0) {
-            subprofileIncomes.forEach((income, subId) => {
-                proportions.set(subId, income / totalIncome);
-            });
+            subprofileIncomes.forEach((income, subId) => proportions.set(subId, income / totalIncome));
         } else {
             const equalShare = 1 / activeSubprofiles.length;
-            activeSubprofiles.forEach(sub => {
-                proportions.set(sub.id, equalShare);
-            });
+            activeSubprofiles.forEach(sub => proportions.set(sub.id, equalShare));
         }
         return proportions;
     }, [allTransactions, profile, currentMonthString]);
-
-    const filteredData = useMemo<AppData>(() => {
-        let result: AppData = { receitas: [], despesas: [] };
-        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString)); // Filtra transações puladas
+    
+    const { filteredData, ignoredTransactions } = useMemo(() => {
+        const active = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
+        const ignored = allTransactions.filter(t => (t.skippedInMonths || []).includes(currentMonthString));
         
-        if (activeTab === 'geral') {
-            result.despesas = activeTransactions.filter(t => t.type === 'expense' && t.isShared);
-        } else {
-            result.receitas = activeTransactions.filter(t => t.type === 'income' && t.subprofileId === activeTab);
-            result.despesas = activeTransactions.filter(t => t.type === 'expense' && t.subprofileId === activeTab);
-        }
-        return result;
+        let receitas = (activeTab === 'geral') ? [] : active.filter(t => t.type === 'income' && t.subprofileId === activeTab);
+        let despesas = (activeTab === 'geral') 
+            ? active.filter(t => t.type === 'expense' && t.isShared)
+            : active.filter(t => t.type === 'expense' && t.subprofileId === activeTab);
+            
+        return { filteredData: { receitas, despesas }, ignoredTransactions: ignored };
     }, [allTransactions, activeTab, currentMonthString]);
 
-    const ignoredTransactions = useMemo(() => {
-        return allTransactions.filter(t => (t.skippedInMonths || []).includes(currentMonthString));
-    }, [allTransactions, currentMonthString]);
-
     const sortedData = useMemo(() => {
-        let sortedReceitas = [...filteredData.receitas];
-        let sortedDespesas = [...filteredData.despesas];
-        if (sortConfig) {
-            const sortFn = (a: Transaction, b: Transaction) => {
-                const aVal = a[sortConfig.key];
-                const bVal = b[sortConfig.key];
-                if (aVal == null && bVal == null) return 0;
-                if (aVal == null) return sortConfig.direction === 'ascending' ? 1 : -1;
-                if (bVal == null) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (sortConfig.key === 'date' || sortConfig.key === 'paymentDate' || sortConfig.key === 'createdAt') {
-                    const dateA = new Date(aVal as string);
-                    const dateB = new Date(bVal as string);
-                    if (dateA < dateB) return sortConfig.direction === 'ascending' ? -1 : 1;
-                    if (dateA > dateB) return sortConfig.direction === 'ascending' ? 1 : -1;
-                    return 0;
-                }
-                if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
-                    if (aVal === bVal) return 0;
-                    return (sortConfig.direction === 'ascending' ? (aVal ? -1 : 1) : (aVal ? 1 : -1));
-                }
-                if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
-                return 0;
-            };
-            sortedReceitas.sort(sortFn);
-            sortedDespesas.sort(sortFn);
-        }
-        return { receitas: sortedReceitas, despesas: sortedDespesas };
+        const sortFn = (a: Transaction, b: Transaction) => {
+            if (!sortConfig) return 0;
+            const aVal = a[sortConfig.key];
+            const bVal = b[sortConfig.key];
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return sortConfig.direction === 'ascending' ? 1 : -1;
+            if (bVal == null) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+                return (sortConfig.direction === 'ascending' ? (aVal ? -1 : 1) : (aVal ? 1 : -1));
+            }
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
+            }
+            return sortConfig.direction === 'ascending' 
+                ? String(aVal).localeCompare(String(bVal)) 
+                : String(bVal).localeCompare(String(aVal));
+        };
+        return {
+            receitas: [...filteredData.receitas].sort(sortFn),
+            despesas: [...filteredData.despesas].sort(sortFn)
+        };
     }, [filteredData, sortConfig]);
 
-    
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
     
     const canCloseMonth = useMemo(() => {
         if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;
         const closedMonthsSet = new Set(profile.closedMonths || []);
         const firstMonthWithData = availableMonths[0];
-        const getYearMonth = (dateStr: string) => ({ year: parseInt(dateStr.substring(0, 4), 10), month: parseInt(dateStr.substring(5, 7), 10) - 1 });
-        const start = new Date(getYearMonth(firstMonthWithData).year, getYearMonth(firstMonthWithData).month, 1);
+        const start = new Date(Number(firstMonthWithData.substring(0, 4)), Number(firstMonthWithData.substring(5, 7)) - 1, 1);
         const current = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-        let d = new Date(start);
-        while (d.getTime() < current.getTime()) {
+        for (let d = start; d < current; d.setMonth(d.getMonth() + 1)) {
             const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             if (availableMonths.includes(monthStr) && !closedMonthsSet.has(monthStr)) return false;
-            d.setMonth(d.getMonth() + 1);
         }
         return true;
     }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
-    
+
     useEffect(() => {
-        if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) {
-            return;
-        }
-    
+        if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) return;
         const recalculateApportionedExpenses = async () => {
             const batch = writeBatch(db);
-            let hasChanges = false;
-    
-            const parentExpenses = allTransactions.filter(t => t.isShared);
-            const childExpenses = allTransactions.filter(t => t.isApportioned);
-    
-            const childrenByParentId = new Map<string, Transaction[]>();
-            childExpenses.forEach(c => {
-                if(c.parentId) {
-                    const children = childrenByParentId.get(c.parentId) || [];
-                    children.push(c);
-                    childrenByParentId.set(c.parentId, children);
-                }
-            });
+            const parentExpenses = allTransactions.filter(t => t.isShared && !t.isApportioned);
+            const childrenByParentId = allTransactions.filter(t => t.isApportioned && t.parentId).reduce((acc, c) => {
+                acc.set(c.parentId!, [...(acc.get(c.parentId!) || []), c]);
+                return acc;
+            }, new Map<string, Transaction[]>());
 
+            let hasChanges = false;
             parentExpenses.forEach(parent => {
                 subprofileRevenueProportions.forEach((proportion, subId) => {
-                    const newPlannedValue = parent.planned * proportion;
-                    const newActualValue = parent.actual * proportion;
-    
+                    const newPlanned = parent.planned * proportion;
+                    const newActual = parent.actual * proportion;
                     const existingChild = childrenByParentId.get(parent.id)?.find(c => c.subprofileId === subId);
-    
-                    if (existingChild) {
-                        if (existingChild.planned !== newPlannedValue || existingChild.actual !== newActualValue) {
-                            const childRef = doc(db, "transactions", existingChild.id);
-                            batch.update(childRef, {
-                                planned: newPlannedValue,
-                                actual: newActualValue
-                            });
-                            hasChanges = true;
-                        }
+                    if (existingChild && (existingChild.planned !== newPlanned || existingChild.actual !== newActual)) {
+                        batch.update(doc(db, "transactions", existingChild.id), { planned: newPlanned, actual: newActual });
+                        hasChanges = true;
                     }
                 });
             });
-    
             if (hasChanges) {
-                console.log("Recalculando despesas rateadas devido à alteração nas receitas...");
+                console.log("Recalculando despesas rateadas...");
                 await batch.commit();
             }
         };
-    
         recalculateApportionedExpenses();
-    
     }, [allTransactions, profile?.apportionmentMethod, subprofileRevenueProportions, transactionsLoading]);
-
-    const changeMonth = useCallback((amount: number) => {
-        setCurrentMonth(prev => {
-            const newDate = new Date(prev);
-            newDate.setDate(1);
-            newDate.setMonth(newDate.getMonth() + amount);
-            return newDate;
-        });
-    }, []);
-
-    const requestSort = useCallback((key: keyof Transaction) => {
-        setSortConfig(prevSortConfig => {
-            let direction: 'ascending' | 'descending' = 'ascending';
-            if (prevSortConfig?.key === key && prevSortConfig.direction === 'ascending') {
-                direction = 'descending';
-            }
-            return { key, direction };
-        });
-    }, []);
+    
+    const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
+    const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
-        const dateString = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), new Date().getDate()).toISOString().split('T')[0];
-        const baseData = { paid: false, date: dateString, notes: '' };
-        setModalInitialValues(activeTab === 'geral'
-            ? { ...baseData, type: 'expense', isShared: true, isRecurring: false }
-            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' }
-        );
-        setIsTransactionModalOpen(true);
-    }, [activeTab, isCurrentMonthClosed, currentMonth]);
+        const baseData = { paid: false, date: new Date().toISOString().split('T')[0], notes: '' };
+        const initialValues = activeTab === 'geral' 
+            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false } 
+            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false };
+        modals.transaction.open(initialValues);
+    }, [activeTab, isCurrentMonthClosed, modals.transaction]);
 
     const handleOpenModalForEdit = useCallback((t: Transaction) => {
         if (isCurrentMonthClosed || t.isApportioned) return;
-        setModalInitialValues(t);
-        setIsTransactionModalOpen(true);
-    }, [isCurrentMonthClosed]);
+        modals.transaction.open(t);
+    }, [isCurrentMonthClosed, modals.transaction]);
     
-    const handleOpenTransferModal = useCallback((transaction: Transaction) => {
-        if (isCurrentMonthClosed) {
-            alert("Não pode transferir transações de um mês fechado.");
-            return;
-        }
-        if (transaction.isApportioned) {
-            alert("Esta é uma transação gerada automaticamente por rateio e não pode ser transferida.");
-            return;
-        }
-        setTransactionToTransfer(transaction);
-        setIsTransferModalOpen(true);
-    }, [isCurrentMonthClosed]);
+    const handleOpenTransferModal = useCallback((t: Transaction) => {
+        if (isCurrentMonthClosed || t.isApportioned) return;
+        modals.transfer.open(t);
+    }, [isCurrentMonthClosed, modals.transfer]);
 
-    const handleConfirmTransfer = async (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
-        if (!profile) return;
-        
-        const transactionRef = doc(db, "transactions", transactionId);
-        const batch = writeBatch(db);
-
-        try {
-            const transactionDoc = await getDoc(transactionRef);
-            if (!transactionDoc.exists()) {
-                console.error("Transação não encontrada para transferência.");
-                return;
-            }
-            const originalTransaction = transactionDoc.data() as Transaction;
-            const wasShared = originalTransaction.isShared;
-
-            if (destination.type === 'main') {
-                batch.update(transactionRef, { 
-                    subprofileId: deleteField(), 
-                    isShared: true 
-                });
-
-                if (profile.apportionmentMethod === 'proportional') {
-                    const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-                    const newParentData = { ...originalTransaction, isShared: true, subprofileId: undefined };
-                    
-                    subprofileRevenueProportions.forEach((proportion, subId) => {
-                        if (activeSubprofiles.some(s => s.id === subId)) {
-                             const childDocRef = doc(collection(db, "transactions"));
-                             const childData = { ...newParentData };
-                             delete (childData as Partial<Transaction>).id;
-
-                             batch.set(childDocRef, {
-                                ...childData,
-                                description: `[Rateio] ${childData.description}`,
-                                planned: childData.planned * proportion,
-                                actual: childData.actual * proportion,
-                                isShared: false,
-                                isApportioned: true,
-                                parentId: transactionId,
-                                subprofileId: subId,
-                                createdAt: serverTimestamp()
-                             });
-                        }
-                    });
-                }
-            } 
-            else if (destination.type === 'subprofile' && destination.id) {
-                batch.update(transactionRef, { 
-                    subprofileId: destination.id, 
-                    isShared: false 
-                });
-
-                if (wasShared) {
-                    const q = query(collection(db, 'transactions'), where('parentId', '==', transactionId));
-                    const childrenSnapshot = await getDocs(q);
-                    childrenSnapshot.forEach(doc => batch.delete(doc.ref));
-                }
-            }
-
-            await batch.commit();
-        } catch (error) {
-            console.error("Erro ao transferir transação:", error);
-        } finally {
-            setIsTransferModalOpen(false);
-            setTransactionToTransfer(null);
-        }
+    // Handlers que chamam os hooks
+    const handleConfirmTransferWrapper = (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
+        transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions).then(modals.transfer.close);
     };
 
-    const handleSaveTransaction = async (data: TransactionFormState, id?: string) => {
-        if (!profile) return;
-    
-        const batch = writeBatch(db);
-        const transactionsRef = collection(db, "transactions");
-    
-        const isProportional = profile.apportionmentMethod === 'proportional';
-        const isEditingSharedExpense = id && data.isShared;
-    
-        try {
-            if (data.isShared && isProportional) {
-                const parentDocRef = id ? doc(db, "transactions", id) : doc(transactionsRef);
-                const parentId = parentDocRef.id;
-    
-                const parentData: Partial<Transaction> = { ...data, profileId: profile.id };
-                delete parentData.subprofileId; 
-                if (!id) parentData.createdAt = serverTimestamp();
-    
-                if (id) batch.update(parentDocRef, parentData);
-                else batch.set(parentDocRef, parentData);
-    
-                if (isEditingSharedExpense) {
-                    const q = query(transactionsRef, where("parentId", "==", id));
-                    const oldChildrenSnapshot = await getDocs(q);
-                    oldChildrenSnapshot.forEach(doc => batch.delete(doc.ref));
-                }
-    
-                if(subprofileRevenueProportions.size > 0) {
-                    subprofileRevenueProportions.forEach((proportion, subId) => {
-                        const childDocRef = doc(transactionsRef);
-                        const childData: Omit<Transaction, 'id'> = {
-                            ...(data as Omit<Transaction, 'id' | 'createdAt'>),
-                            profileId: profile.id,
-                            description: `[Rateio] ${data.description}`,
-                            planned: data.planned * proportion,
-                            actual: data.actual * proportion,
-                            isShared: false,
-                            isApportioned: true,
-                            parentId: parentId,
-                            subprofileId: subId,
-                            createdAt: serverTimestamp()
-                        };
-                        batch.set(childDocRef, childData);
-                    });
-                }
-            } else {
-                const dataToSave: Partial<Transaction> = { ...data, profileId: profile.id };
-                
-                if (data.isShared) {
-                    delete dataToSave.subprofileId;
-                } else if(!id) {
-                    dataToSave.subprofileId = activeTab;
-                }
-
-                if (id) {
-                    batch.update(doc(db, "transactions", id), dataToSave);
-                } else {
-                    dataToSave.createdAt = serverTimestamp();
-                    batch.set(doc(transactionsRef), dataToSave);
-                }
-            }
-    
-            await batch.commit();
-            setIsTransactionModalOpen(false);
-        } catch (error) {
-            console.error("Erro ao salvar transação: ", error);
-        }
+    const handleSaveTransactionWrapper = (data: TransactionFormState, id?: string) => {
+        transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab).then(modals.transaction.close);
     };
 
-    const handleFieldUpdate = async (id: string, field: keyof Transaction, value: any) => {
-        await updateDoc(doc(db, 'transactions', id), { [field]: value });
-    };
-
-    const handleTogglePaid = async (transaction: Transaction) => {
-        const newPaidStatus = !transaction.paid;
-        const batch = writeBatch(db);
-
-        const mainDocRef = doc(db, "transactions", transaction.id);
-        batch.update(mainDocRef, { paid: newPaidStatus });
-
-        if (transaction.isShared && profile?.apportionmentMethod === 'proportional') {
-            const q = query(collection(db, 'transactions'), where('parentId', '==', transaction.id));
-            const childrenSnapshot = await getDocs(q);
-            childrenSnapshot.forEach(doc => {
-                batch.update(doc.ref, { paid: newPaidStatus });
-            });
-        }
-
-        await batch.commit();
-    };
-
-    const performDelete = async () => {
-        if (transactionToDelete) {
-            const batch = writeBatch(db);
-            try {
-                if (transactionToDelete.isShared) {
-                    const q = query(collection(db, 'transactions'), where('parentId', '==', transactionToDelete.id));
-                    const childrenSnapshot = await getDocs(q);
-                    childrenSnapshot.forEach(doc => batch.delete(doc.ref));
-                }
-                batch.delete(doc(db, "transactions", transactionToDelete.id));
-                await batch.commit();
-            } catch (error) {
-                console.error("Erro ao excluir transação:", error);
-            } finally {
-                setTransactionToDelete(null);
-            }
+    const performDeleteWrapper = () => {
+        if (modals.deleteTransaction.transactionToDelete) {
+            transactionMutations.performDelete(modals.deleteTransaction.transactionToDelete).then(modals.deleteTransaction.close);
         }
     };
     
     const performCloseMonth = async () => {
         if (!profile || !canCloseMonth) return;
-        setIsCloseMonthModalOpen(false);
+        modals.closeMonth.close();
         const recurringTransactions = allTransactions.filter(t => t.isRecurring);
         if (recurringTransactions.length > 0) {
             const batch = writeBatch(db);
-            const transactionsRef = collection(db, 'transactions');
             recurringTransactions.forEach(t => {
-                const newTransactionData: Omit<Transaction, 'id'> = { ...t };
+                const newTransactionData = { ...t };
                 delete (newTransactionData as Partial<Transaction>).id;
-                delete newTransactionData.skippedInMonths; 
-
-                const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00');
-                nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
+                delete newTransactionData.skippedInMonths;
+                const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
                 newTransactionData.date = nextLaunchDate.toISOString().split('T')[0];
                 if (newTransactionData.paymentDate) {
-                    const nextPaymentDate = new Date(newTransactionData.paymentDate + 'T00:00:00');
-                    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                    const nextPaymentDate = new Date(newTransactionData.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
                     newTransactionData.paymentDate = nextPaymentDate.toISOString().split('T')[0];
                 }
                 newTransactionData.paid = false;
-                newTransactionData.createdAt = serverTimestamp() as any;
-                const docRef = doc(transactionsRef);
-                batch.set(docRef, newTransactionData);
+                newTransactionData.createdAt = serverTimestamp();
+                batch.set(doc(collection(db, 'transactions')), newTransactionData);
             });
             await batch.commit();
         }
-        const updatedClosedMonths = [...(profile.closedMonths || []), currentMonthString];
-        await updateDoc(doc(db, "profiles", profile.id), { closedMonths: updatedClosedMonths });
+        await updateDoc(doc(db, "profiles", profile.id), { closedMonths: [...(profile.closedMonths || []), currentMonthString] });
         changeMonth(1);
     };
 
-    const handleCreateSubprofile = async (name: string, themeId: string) => {
-        if (!profile) return;
-        const newSubprofile: Subprofile = {
-            id: name.trim().toLowerCase().replace(/\s+/g, '-'),
-            name: name.trim(),
-            status: 'active',
-            themeId: themeId
-        };
-        const updatedSubprofiles = [...profile.subprofiles, newSubprofile];
-        await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
+    const handleArchiveSubprofileWrapper = () => {
+        if (modals.archiveSubprofile.subprofileToArchive) {
+            subprofileManager.handleArchiveSubprofile(modals.archiveSubprofile.subprofileToArchive).then(() => {
+                modals.archiveSubprofile.close();
+                handleTabClick('geral');
+            });
+        }
     };
 
-     const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string) => {
-        if (!profile) return;
-        const updatedSubprofiles = profile.subprofiles.map(sub =>
-            sub.id === id ? { ...sub, name: newName, themeId: newThemeId } : sub
-        );
-        await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
-    };
-    
-     const handleBulkSave = async (transactions: TransactionFormState[]) => {
+    const handleBulkSave = async (transactions: TransactionFormState[]) => {
         if (!profile) return;
         const batch = writeBatch(db);
-        const transactionsRef = collection(db, 'transactions');
-        transactions.forEach(transaction => {
-            const docRef = doc(transactionsRef);
-            batch.set(docRef, { ...transaction, profileId: profile.id, createdAt: serverTimestamp() });
-        });
+        transactions.forEach(t => batch.set(doc(collection(db, 'transactions')), { ...t, profileId: profile.id, createdAt: serverTimestamp() }));
         await batch.commit();
-    };
-
-    const handleArchiveSubprofile = async () => {
-        if (!profile || !subprofileToArchive) return;
-        const updatedSubprofiles = profile.subprofiles.map(sub => 
-            sub.id === subprofileToArchive.id ? { ...sub, status: 'archived' } : sub
-        );
-        await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
-        handleTabClick('geral');
-        setSubprofileToArchive(null);
     };
 
     const handleSaveSettings = async (newSettings: Partial<Profile>) => {
         if (!profile || !profileId) return;
-
-        const oldMethod = profile.apportionmentMethod;
-        const newMethod = newSettings.apportionmentMethod;
-
+        const { apportionmentMethod: oldMethod } = profile;
+        const { apportionmentMethod: newMethod } = newSettings;
         await updateDoc(doc(db, "profiles", profileId), newSettings);
-        
-        const batch = writeBatch(db);
-        const transactionsRef = collection(db, 'transactions');
-        
-        if (newMethod === 'proportional' && oldMethod !== 'proportional') {
-            const sharedExpenses = allTransactions.filter(t => t.isShared && !t.isApportioned);
-            
-            if (subprofileRevenueProportions.size > 0 && sharedExpenses.length > 0) {
-                sharedExpenses.forEach(parent => {
+        if (newMethod !== oldMethod) {
+            const batch = writeBatch(db);
+            if (newMethod === 'proportional') {
+                allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
                     subprofileRevenueProportions.forEach((proportion, subId) => {
-                        const childDocRef = doc(transactionsRef);
-                        const childData: Omit<Transaction, 'id'> = {
-                            ...(parent as Omit<Transaction, 'id' | 'createdAt'>),
-                            profileId: profile.id,
-                            description: `[Rateio] ${parent.description}`,
-                            planned: parent.planned * proportion,
-                            actual: parent.actual * proportion,
-                            isShared: false,
-                            isApportioned: true,
-                            parentId: parent.id,
-                            subprofileId: subId,
-                            createdAt: serverTimestamp()
-                        };
-                        batch.set(childDocRef, childData);
+                        const childData = { ...parent };
+                        delete (childData as Partial<Transaction>).id;
+                        batch.set(doc(collection(db, 'transactions')), { ...childData, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
                     });
                 });
+            } else if (oldMethod === 'proportional') {
+                const childrenQuery = query(collection(db, 'transactions'), where('profileId', '==', profileId), where('isApportioned', '==', true));
+                const childrenSnapshot = await getDocs(childrenQuery);
+                childrenSnapshot.forEach(doc => batch.delete(doc.ref));
             }
-        } 
-        else if (newMethod === 'manual' && oldMethod === 'proportional') {
-            const apportionedChildren = allTransactions.filter(t => t.isApportioned);
-            apportionedChildren.forEach(child => {
-                const docRef = doc(db, 'transactions', child.id);
-                batch.delete(docRef);
-            });
+            await batch.commit();
         }
+        modals.settings.close();
+    };
     
-        await batch.commit();
-        setIsSettingsModalOpen(false);
+    const transactionActions: TransactionActions = {
+        onEdit: handleOpenModalForEdit,
+        onDelete: modals.deleteTransaction.open,
+        onTogglePaid: transactionMutations.handleTogglePaid,
+        onUpdateField: transactionMutations.handleFieldUpdate,
+        onSkip: (t) => transactionMutations.handleSkipTransaction(t, currentMonthString),
+        onUnskip: (t) => transactionMutations.handleUnskipTransaction(t, currentMonthString),
+        onTransfer: handleOpenTransferModal,
+        onSaveNote: transactionMutations.handleSaveNote,
     };
 
-    const handleSkipTransaction = async (transaction: Transaction) => {
-        if (!transaction.id) return;
-        const transactionRef = doc(db, 'transactions', transaction.id);
-        await updateDoc(transactionRef, {
-            skippedInMonths: arrayUnion(currentMonthString)
-        });
-    };
-
-    const handleUnskipTransaction = async (transaction: Transaction) => {
-        if (!transaction.id) return;
-        const transactionRef = doc(db, 'transactions', transaction.id);
-        await updateDoc(transactionRef, {
-            skippedInMonths: arrayRemove(currentMonthString)
-        });
-    };
-
-    const handleSaveNote = async (transactionId: string, note: string) => {
-        const transactionRef = doc(db, 'transactions', transactionId);
-        if (!note.trim()) {
-            await updateDoc(transactionRef, { notes: deleteField() });
-        } else {
-            await updateDoc(transactionRef, { notes: note });
-        }
-    };
-
-
-    if (profileLoading || monthsLoading) return <LoadingScreen />;
+    if (profileLoading || monthsLoading || !sortConfig) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;
 
-    const formattedMonth = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-    if (!sortConfig) return <LoadingScreen />;
 
     return (
         <div className="p-4 md:p-6 lg:p-10 space-y-6">
@@ -679,116 +338,57 @@ export const DashboardScreen: React.FC = () => {
                 profileName={profile.name}
                 activeTab={activeTab}
                 currentMonth={currentMonth}
-                formattedMonth={formattedMonth}
+                formattedMonth={currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 isCurrentMonthClosed={isCurrentMonthClosed}
                 canCloseMonth={canCloseMonth}
                 allTransactionsPaid={allTransactionsPaid}
                 canGoToPreviousMonth={availableMonths.length > 0 && currentMonthString > availableMonths[0]}
-                canGoToNextMonth={availableMonths.length > 0 && availableMonths.some(month => month > currentMonthString)} 
+                canGoToNextMonth={availableMonths.length > 0 && availableMonths.some(m => m > currentMonthString)}
                 changeMonth={changeMonth}
-                handleCloseMonthAttempt={() => canCloseMonth && setIsCloseMonthModalOpen(true)}
-                onExport={() => setIsExportModalOpen(true)}
-                onImport={() => setIsImportModalOpen(true)}
+                handleCloseMonthAttempt={modals.closeMonth.open}
+                onExport={modals.export.open}
+                onImport={modals.import.open}
                 onNewTransaction={handleOpenModalForNew}
-                onOpenSettings={() => setIsSettingsModalOpen(true)}
+                onOpenSettings={modals.settings.open}
             />
             
-             <div className="border-b border-border-color">
-                <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto" aria-label="Tabs">
-                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-text-secondary'}`}>
-                        Visão Geral
-                    </button>
+            <div className="border-b border-border-color">
+                <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto">
+                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>Visão Geral</button>
                     {activeSubprofiles.map(sub => (
-                        <div key={sub.id} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.pageX, y: e.pageY, subprofile: sub }); }} className="relative group">
-                            <button onClick={() => handleTabClick(sub.id)} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === sub.id ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-gray-300'}`}>
-                                {sub.name}
-                            </button>
+                        <div key={sub.id} onContextMenu={(e) => { e.preventDefault(); contextMenu.open(e.pageX, e.pageY, sub); }}>
+                            <button onClick={() => handleTabClick(sub.id)} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === sub.id ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>{sub.name}</button>
                         </div>
                     ))}
-                    {activeSubprofiles.length < 10 && (
-                        <button onClick={() => setIsSubprofileModalOpen(true)} className="py-4 px-2 text-text-secondary hover:text-accent">
-                            <Plus size={16} />
-                        </button>
-                    )}
+                    {activeSubprofiles.length < 10 && <button onClick={modals.addSubprofile.open} className="py-4 px-2 text-text-secondary hover:text-accent"><Plus size={16} /></button>}
                 </nav>
             </div>
             
-            {transactionsLoading ? (
-                <div className="text-center py-10 text-text-secondary">A carregar transações...</div>
-            ) : (
+            {transactionsLoading ? <div className="text-center py-10 text-text-secondary">A carregar transações...</div> : (
                 <>
-                    <SummaryCards data={filteredData} activeTab={activeTab} />
+                    <SummaryCards data={sortedData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
-                        {activeTab !== 'geral' && (
-                            <TransactionTable 
-                                title="Receitas" 
-                                data={sortedData.receitas} 
-                                type="income" 
-                                onEdit={handleOpenModalForEdit} 
-                                onDelete={setTransactionToDelete} 
-                                requestSort={requestSort} 
-                                onTogglePaid={handleTogglePaid} 
-                                onUpdateField={handleFieldUpdate} 
-                                sortConfig={sortConfig} 
-                                isClosed={isCurrentMonthClosed} 
-                                onSkip={handleSkipTransaction} 
-                                onUnskip={handleUnskipTransaction}
-                                onTransfer={handleOpenTransferModal}
-                                onSaveNote={handleSaveNote}
-                            />
-                        )}
-                        <TransactionTable 
-                            title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} 
-                            data={sortedData.despesas} 
-                            type="expense" 
-                            onEdit={handleOpenModalForEdit} 
-                            onDelete={setTransactionToDelete} 
-                            requestSort={requestSort} 
-                            onTogglePaid={handleTogglePaid} 
-                            onUpdateField={handleFieldUpdate} 
-                            sortConfig={sortConfig} 
-                            isClosed={isCurrentMonthClosed}
-                            subprofileRevenueProportions={subprofileRevenueProportions}
-                            subprofiles={profile.subprofiles}
-                            apportionmentMethod={profile.apportionmentMethod}
-                            onSkip={handleSkipTransaction} 
-                            onUnskip={handleUnskipTransaction}
-                            onTransfer={handleOpenTransferModal}
-                            onSaveNote={handleSaveNote}
-                        />
-                        {ignoredTransactions.length > 0 && (
-                            <IgnoredTransactionsTable 
-                                data={ignoredTransactions}
-                                onUnskip={handleUnskipTransaction}
-                                currentMonthString={currentMonthString}
-                                activeTab={activeTab}
-                            />
-                        )}
+                        {activeTab !== 'geral' && <TransactionTable title="Receitas" data={sortedData.receitas} type="income" isClosed={isCurrentMonthClosed} sortConfig={sortConfig} requestSort={requestSort} actions={transactionActions} />}
+                        <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" isClosed={isCurrentMonthClosed} sortConfig={sortConfig} requestSort={requestSort} subprofiles={profile.subprofiles} subprofileRevenueProportions={subprofileRevenueProportions} apportionmentMethod={profile.apportionmentMethod} actions={transactionActions} />
+                        {ignoredTransactions.length > 0 && <IgnoredTransactionsTable data={ignoredTransactions} onUnskip={(t) => transactionActions.onUnskip(t)} currentMonthString={currentMonthString} activeTab={activeTab} />}
                     </div>
                 </>
             )}
 
             {/* Modais */}
-            <TransactionModal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} title={modalInitialValues?.id ? 'Editar Transação' : 'Nova Transação'}>
-                <TransactionForm onClose={() => setIsTransactionModalOpen(false)} onSave={handleSaveTransaction} initialValues={modalInitialValues} isSubprofileView={activeTab !== 'geral'} />
+            <TransactionModal isOpen={modals.transaction.isOpen} onClose={modals.transaction.close} title={modals.transaction.initialValues?.id ? 'Editar Transação' : 'Nova Transação'}>
+                <TransactionForm onClose={modals.transaction.close} onSave={handleSaveTransactionWrapper} initialValues={modals.transaction.initialValues} isSubprofileView={activeTab !== 'geral'} />
             </TransactionModal>
-            <AddSubprofileModal isOpen={isSubprofileModalOpen} onClose={() => setIsSubprofileModalOpen(false)} onSave={handleCreateSubprofile} />
-            <EditSubprofileModal isOpen={!!subprofileToEdit} onClose={() => setSubprofileToEdit(null)} onSave={handleUpdateSubprofile} subprofile={subprofileToEdit} />
-            <DeleteConfirmationModal isOpen={!!subprofileToArchive} onClose={() => setSubprofileToArchive(null)} onConfirm={handleArchiveSubprofile} itemName={subprofileToArchive?.name || ''} title={`Arquivar "${subprofileToArchive?.name}"`} message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-text-primary">{subprofileToArchive?.name}</strong>.</p>} confirmButtonText='Arquivar' />
-            <ConfirmationModal isOpen={isCloseMonthModalOpen} onClose={() => setIsCloseMonthModalOpen(false)} onConfirm={performCloseMonth} title="Fechar o Mês?" message="Esta ação é irreversível e irá criar as transações recorrentes para o próximo mês. Deseja continuar?" />
-            <ConfirmationModal isOpen={!!transactionToDelete} onClose={() => setTransactionToDelete(null)} onConfirm={performDelete} title="Excluir Transação" message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita." />
-            <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSave={handleBulkSave} activeSubprofileId={activeTab} />
-            <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} profile={profile} activeSubprofileId={activeTab} allTransactions={allTransactions} />
-            {contextMenu && <SubprofileContextMenu subprofile={contextMenu.subprofile} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} onEdit={(sub) => { setSubprofileToEdit(sub); setContextMenu(null); }} onArchive={(sub) => { setSubprofileToArchive(sub); setContextMenu(null); }} />}
-            <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} onSave={handleSaveSettings} profile={profile} />
-            
-            <TransferTransactionModal
-                isOpen={isTransferModalOpen}
-                onClose={() => {setIsTransferModalOpen(false); setTransactionToTransfer(null);}}
-                transaction={transactionToTransfer}
-                subprofiles={activeSubprofiles}
-                onConfirmTransfer={handleConfirmTransfer}
-            />
+            <AddSubprofileModal isOpen={modals.addSubprofile.isOpen} onClose={modals.addSubprofile.close} onSave={subprofileManager.handleCreateSubprofile} />
+            <EditSubprofileModal isOpen={modals.editSubprofile.isOpen} onClose={modals.editSubprofile.close} onSave={subprofileManager.handleUpdateSubprofile} subprofile={modals.editSubprofile.subprofileToEdit} />
+            <DeleteConfirmationModal isOpen={modals.archiveSubprofile.isOpen} onClose={modals.archiveSubprofile.close} onConfirm={handleArchiveSubprofileWrapper} itemName={modals.archiveSubprofile.subprofileToArchive?.name || ''} title={`Arquivar "${modals.archiveSubprofile.subprofileToArchive?.name}"`} message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-text-primary">{modals.archiveSubprofile.subprofileToArchive?.name}</strong>.</p>} confirmButtonText='Arquivar' />
+            <ConfirmationModal isOpen={modals.closeMonth.isOpen} onClose={modals.closeMonth.close} onConfirm={performCloseMonth} title="Fechar o Mês?" message="Esta ação é irreversível e irá criar as transações recorrentes para o próximo mês. Deseja continuar?" />
+            <ConfirmationModal isOpen={modals.deleteTransaction.isOpen} onClose={modals.deleteTransaction.close} onConfirm={performDeleteWrapper} title="Excluir Transação" message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita." />
+            <ImportModal isOpen={modals.import.isOpen} onClose={modals.import.close} onSave={handleBulkSave} activeSubprofileId={activeTab} />
+            <ExportModal isOpen={modals.export.isOpen} onClose={modals.export.close} profile={profile} activeSubprofileId={activeTab} allTransactions={allTransactions} />
+            {contextMenu.state && <SubprofileContextMenu subprofile={contextMenu.state.subprofile} x={contextMenu.state.x} y={contextMenu.state.y} onClose={contextMenu.close} onEdit={(sub) => { modals.editSubprofile.open(sub); contextMenu.close(); }} onArchive={(sub) => { modals.archiveSubprofile.open(sub); contextMenu.close(); }} />}
+            <SettingsModal isOpen={modals.settings.isOpen} onClose={modals.settings.close} onSave={handleSaveSettings} profile={profile} />
+            <TransferTransactionModal isOpen={modals.transfer.isOpen} onClose={modals.transfer.close} transaction={modals.transfer.transactionToTransfer} subprofiles={activeSubprofiles} onConfirmTransfer={handleConfirmTransferWrapper} />
         </div>
     );
 };

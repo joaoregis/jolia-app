@@ -52,6 +52,7 @@ export const DashboardScreen: React.FC = () => {
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
+    const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
     
     // Hooks de Lógica de Negócio e Estado
     const transactionMutations = useTransactionMutations(profile);
@@ -69,6 +70,11 @@ export const DashboardScreen: React.FC = () => {
         sortConfig
     );
     
+    // Efeito para limpar a seleção ao mudar de aba ou mês
+    useEffect(() => {
+        setSelectedTransactionIds(new Set());
+    }, [activeTab, currentMonth]);
+
     // Hooks de Ciclo de Vida (useEffect)
     useEffect(() => { setIsInitialMonthSet(false); }, [profileId]);
 
@@ -160,6 +166,28 @@ export const DashboardScreen: React.FC = () => {
     }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
 
     // Handlers
+    const handleSelectionChange = useCallback((id: string, checked: boolean) => {
+        setSelectedTransactionIds(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const handleSelectAll = useCallback((checked: boolean) => {
+        if (checked) {
+            const allIds = new Set(sortedData.despesas.map(t => t.id).concat(sortedData.receitas.map(t => t.id)));
+            setSelectedTransactionIds(allIds);
+        } else {
+            setSelectedTransactionIds(new Set());
+        }
+    }, [sortedData]);
+
+
     const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
     const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
     const handleMonthSelect = (year: number, month: number) => setCurrentMonth(new Date(year, month, 1));
@@ -317,8 +345,37 @@ export const DashboardScreen: React.FC = () => {
                 <>
                     <SummaryCards data={sortedData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
-                        {activeTab !== 'geral' && <TransactionTable title="Receitas" data={sortedData.receitas} type="income" isClosed={isCurrentMonthClosed} sortConfig={sortConfig} requestSort={requestSort} actions={transactionActions} />}
-                        <TransactionTable title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'} data={sortedData.despesas} type="expense" isClosed={isCurrentMonthClosed} sortConfig={sortConfig} requestSort={requestSort} subprofiles={profile.subprofiles} subprofileRevenueProportions={subprofileRevenueProportions} apportionmentMethod={profile.apportionmentMethod} actions={transactionActions} />
+                        {activeTab !== 'geral' && (
+                            <TransactionTable
+                                title="Receitas"
+                                data={sortedData.receitas}
+                                type="income"
+                                isClosed={isCurrentMonthClosed}
+                                sortConfig={sortConfig}
+                                requestSort={requestSort}
+                                actions={transactionActions}
+                                selectedIds={selectedTransactionIds}
+                                onSelectionChange={handleSelectionChange}
+                                onSelectAll={handleSelectAll}
+                                onClearSelection={() => setSelectedTransactionIds(new Set())}
+                            />
+                        )}
+                        <TransactionTable
+                            title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
+                            data={sortedData.despesas}
+                            type="expense"
+                            isClosed={isCurrentMonthClosed}
+                            sortConfig={sortConfig}
+                            requestSort={requestSort}
+                            subprofiles={profile.subprofiles}
+                            subprofileRevenueProportions={subprofileRevenueProportions}
+                            apportionmentMethod={profile.apportionmentMethod}
+                            actions={transactionActions}
+                            selectedIds={selectedTransactionIds}
+                            onSelectionChange={handleSelectionChange}
+                            onSelectAll={handleSelectAll}
+                            onClearSelection={() => setSelectedTransactionIds(new Set())}
+                        />
                         {ignoredTransactions.length > 0 && <IgnoredTransactionsTable data={ignoredTransactions} onUnskip={(t) => transactionActions.onUnskip(t)} currentMonthString={currentMonthString} activeTab={activeTab} />}
                     </div>
                 </>

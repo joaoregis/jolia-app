@@ -32,40 +32,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
-### ✅ Seletor de Linhas para Cálculos
-
-**Objetivo:** Implementar uma funcionalidade que permita ao usuário selecionar múltiplas linhas na tabela de transações para calcular a **soma** e a **média** dos valores previstos e efetivos.
-
-**Requisitos Funcionais:**
-
-1.  **Seleção de Linhas:**
-    * [ ] Adicionar uma coluna de `checkbox` no início de cada linha da `TransactionTable`.
-    * [ ] Incluir um `checkbox` no cabeçalho da tabela para "Selecionar Tudo".
-
-2.  **Barra de Cálculos:**
-    * [ ] Criar um novo componente, como uma barra flutuante ou um rodapé fixo na tabela (`CalculationToolbar.tsx`).
-    * [ ] Esta barra só deve ser visível quando **pelo menos uma linha** for selecionada.
-    * [ ] A barra deve exibir:
-        * **Contagem de Itens:** "X itens selecionados"
-        * **Soma Prevista:** A soma dos valores do campo `planned` das linhas selecionadas.
-        * **Soma Efetiva:** A soma dos valores do campo `actual` das linhas selecionadas.
-        * **Média Prevista:** A média dos valores do campo `planned`.
-        * **Média Efetiva:** A média dos valores do campo `actual`.
-    * [ ] Os valores devem ser formatados como moeda (R$).
-
-3.  **Estado e Lógica:**
-    * [ ] Gerenciar o estado das linhas selecionadas no `DashboardScreen.tsx` (ex: `useState<Set<string>>(new Set())`).
-    * [ ] Passar o estado e as funções de manipulação (adicionar/remover seleção) para a `TransactionTable`.
-    * [ ] Os cálculos de soma e média devem ser refeitos a cada mudança na seleção.
-
-**Design e Experiência do Usuário (UX):**
-
--   Os checkboxes devem ser visualmente agradáveis e alinhados com o design do sistema.
--   A barra de cálculos deve ter um design limpo e não intrusivo, aparecendo e desaparecendo com uma animação suave.
--   Incluir um botão para "Limpar Seleção" na barra de cálculos.
-
----
-
 ## 🔒 Melhorias de Segurança
 
 ### 🛡️ Autenticação de Dois Fatores (2FA)

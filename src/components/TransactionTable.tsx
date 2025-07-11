@@ -8,6 +8,7 @@ import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { NoteModal } from './NoteModal';
+import { CalculationToolbar } from './CalculationToolbar';
 
 // --- Interfaces & Componentes Internos ---
 
@@ -21,6 +22,27 @@ export interface TransactionActions {
     onTransfer: (transaction: Transaction) => void;
     onSaveNote: (transactionId: string, note: string) => void;
 }
+
+const Checkbox: React.FC<{ checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; indeterminate?: boolean; title?: string }> = ({ checked, onChange, indeterminate, title }) => {
+    const ref = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (ref.current) {
+            ref.current.indeterminate = indeterminate || false;
+        }
+    }, [indeterminate]);
+
+    return (
+        <input
+            ref={ref}
+            type="checkbox"
+            title={title}
+            checked={checked}
+            onChange={onChange}
+            className="h-4 w-4 rounded border-border-color text-accent bg-background focus:ring-accent"
+        />
+    );
+};
 
 const Tooltip: React.FC<{ content: React.ReactNode, children: React.ReactNode }> = ({ content, children }) => {
     const triggerRef = useRef<HTMLDivElement>(null);
@@ -97,16 +119,17 @@ const DetailRow: React.FC<{ label: string; value: React.ReactNode; valueClassNam
     </div>
 );
 
-const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense'; isClosed: boolean; isIgnoredTable: boolean; actions: TransactionActions; onOpenNoteModal: (transaction: Transaction) => void; }> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal }) => {
+const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense'; isClosed: boolean; isIgnoredTable: boolean; actions: TransactionActions; onOpenNoteModal: (transaction: Transaction) => void; isSelected: boolean; onSelectionChange: (id: string, checked: boolean) => void; }> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange }) => {
     const difference = item.actual - item.planned;
     const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
     const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
     const isApportioned = item.isApportioned === true;
 
     return (
-        <div className="md:hidden border border-border-color rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50">
+        <div className={`border border-border-color rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
             <div className="flex justify-between items-start">
                  <div className="font-medium text-text-primary flex items-center gap-2 pr-2 overflow-hidden">
+                     {!isIgnoredTable && <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />}
                      {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
                      {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
                      {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
@@ -151,16 +174,38 @@ interface TransactionTableProps {
   subprofileRevenueProportions?: Map<string, number>;
   subprofiles?: Subprofile[];
   apportionmentMethod?: 'proportional' | 'manual';
+  selectedIds: Set<string>;
+  onSelectionChange: (id: string, checked: boolean) => void;
+  onSelectAll: (checked: boolean) => void;
+  onClearSelection: () => void;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions } = props;
+    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions, selectedIds, onSelectionChange, onSelectAll, onClearSelection } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
     const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
 
     const handleOpenNoteModal = (transaction: Transaction) => setNoteModalState({ isOpen: true, transaction });
     const handleCloseNoteModal = () => setNoteModalState({ isOpen: false, transaction: null });
     const handleSaveNote = (note: string) => { if (noteModalState.transaction) actions.onSaveNote(noteModalState.transaction.id, note); };
+    
+    const calculationData = useMemo(() => {
+        const selectedTransactions = data.filter(t => selectedIds.has(t.id));
+        const count = selectedTransactions.length;
+        if (count === 0) {
+            return { count: 0, sumPlanned: 0, sumActual: 0, avgPlanned: 0, avgActual: 0 };
+        }
+        const sumPlanned = selectedTransactions.reduce((acc, t) => acc + t.planned, 0);
+        const sumActual = selectedTransactions.reduce((acc, t) => acc + t.actual, 0);
+        return {
+            count,
+            sumPlanned,
+            sumActual,
+            avgPlanned: sumPlanned / count,
+            avgActual: sumActual / count,
+        };
+    }, [selectedIds, data]);
+
 
     const getSortIndicator = (key: keyof Transaction) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-2 opacity-30 group-hover:opacity-100" />;
@@ -196,19 +241,30 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
         return <div className="p-1">Rateio Manual Ativado</div>;
     }
 
+    const isAllSelected = data.length > 0 && data.every(item => selectedIds.has(item.id));
+    const isSomeSelected = data.some(item => selectedIds.has(item.id));
+    
     return (
         <Card>
             <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
             <CardContent>
                  <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
                 <div className="md:hidden">
-                    {data.length > 0 ? data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} />) : null}
+                    {data.length > 0 ? data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} />) : null}
                     {data.length > 0 && <div className="flex justify-between font-bold text-text-primary bg-background p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
                 </div>
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-text-primary uppercase bg-background">
                             <tr>
+                                <th className="px-4 py-3 w-px">
+                                    <Checkbox
+                                        title="Selecionar Tudo"
+                                        checked={isAllSelected}
+                                        indeterminate={isSomeSelected && !isAllSelected}
+                                        onChange={(e) => onSelectAll(e.target.checked)}
+                                    />
+                                </th>
                                 <SortableHeader sortKey="description" className="w-[33%]">Descrição</SortableHeader>
                                 <SortableHeader sortKey="paymentDate" className="w-[12%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
                                 <SortableHeader sortKey="planned" className="w-[15%]">Previsto</SortableHeader>
@@ -225,8 +281,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
                                 const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
                                 const isApportioned = item.isApportioned === true;
+                                const isSelected = selectedIds.has(item.id);
                                 return (
-                                <tr key={item.id} className={`bg-card ${!isApportioned && 'hover:bg-background'}`}>
+                                <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-accent/10' : 'bg-card'} ${!isApportioned && 'hover:bg-background'}`}>
+                                    <td className="px-4 py-3 align-middle">
+                                        <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
+                                    </td>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
                                         <div className="flex items-center gap-2">
                                             {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
@@ -265,7 +325,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                        {data.length > 0 && (
                          <tfoot className="font-bold text-text-primary bg-background">
                             <tr>
-                                <td className="px-4 py-3">TOTAL</td><td />
+                                <td colSpan={2} className="px-4 py-3">TOTAL</td>
+                                <td />
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
                                 <td colSpan={3}></td>
@@ -276,6 +337,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 </div>
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
             </CardContent>
+            {calculationData.count > 0 && (
+                <CalculationToolbar
+                    selectedCount={calculationData.count}
+                    sumPlanned={calculationData.sumPlanned}
+                    sumActual={calculationData.sumActual}
+                    avgPlanned={calculationData.avgPlanned}
+                    avgActual={calculationData.avgActual}
+                    onClearSelection={onClearSelection}
+                />
+            )}
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
         </Card>
     );

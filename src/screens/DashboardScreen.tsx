@@ -5,10 +5,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
 import { Profile, SortConfig, Transaction, TransactionFormState } from '../types';
-import { themes } from '../lib/themes';
+import { useProfileContext } from '../contexts/ProfileContext';
 
 // Hooks
-import { useProfile } from '../hooks/useProfile';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAvailableMonths } from '../hooks/useAvailableMonths';
 import { useTransactionMutations } from '../hooks/useTransactionMutations';
@@ -40,13 +39,13 @@ const LoadingScreen: React.FC = () => (
 );
 
 const SORT_CONFIG_STORAGE_KEY = 'jolia_sort_config';
+const ACTIVE_TAB_STORAGE_KEY = 'jolia_active_tab';
 
 export const DashboardScreen: React.FC = () => {
-    const { profileId, '*': subprofileId } = useParams<{ profileId: string; '*': string }>();
+    const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const navigate = useNavigate();
+    const { profile, loading: profileLoading, setActiveThemeBySubprofileId } = useProfileContext();
 
-    // Hooks de Dados Brutos e Estado da UI
-    const { profile, loading: profileLoading } = useProfile(profileId);
     const { availableMonths, loading: monthsLoading } = useAvailableMonths(profileId);
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
@@ -54,12 +53,17 @@ export const DashboardScreen: React.FC = () => {
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
     const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
     
-    // Hooks de Lógica de Negócio e Estado
     const transactionMutations = useTransactionMutations(profile);
     const subprofileManager = useSubprofileManager(profile);
     const { modals, contextMenu } = useDashboardState();
     
     const activeTab = subprofileId || 'geral';
+    
+    useEffect(() => {
+        setActiveThemeBySubprofileId(activeTab);
+        localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
+    }, [activeTab, setActiveThemeBySubprofileId]);
+
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
 
     const { sortedData, ignoredTransactions, subprofileRevenueProportions, activeTransactions } = useDashboardData(
@@ -70,12 +74,10 @@ export const DashboardScreen: React.FC = () => {
         sortConfig
     );
     
-    // Efeito para limpar a seleção ao mudar de aba ou mês
     useEffect(() => {
         setSelectedTransactionIds(new Set());
     }, [activeTab, currentMonth]);
 
-    // Hooks de Ciclo de Vida (useEffect)
     useEffect(() => { setIsInitialMonthSet(false); }, [profileId]);
 
     useEffect(() => {
@@ -106,26 +108,6 @@ export const DashboardScreen: React.FC = () => {
     useEffect(() => {
         if (sortConfig) localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
     }, [sortConfig]);
-
-    const activeTheme = useMemo(() => {
-        if (!profile) return themes.default;
-        const activeSub = profile.subprofiles.find(s => s.id === activeTab);
-        
-        // Se o subperfil tem um tema customizado, use-o
-        if (activeSub?.customTheme) {
-            return { name: 'Custom', variables: activeSub.customTheme };
-        }
-        
-        // Senão, use o tema pré-definido ou o padrão
-        return themes[activeSub?.themeId || 'default'] || themes.default;
-    }, [activeTab, profile]);
-
-
-    useEffect(() => {
-        const root = document.documentElement;
-        Object.entries(activeTheme.variables).forEach(([key, value]) => root.style.setProperty(key, value));
-        return () => Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
-    }, [activeTheme]);
     
     useEffect(() => {
         if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) return;
@@ -199,7 +181,10 @@ export const DashboardScreen: React.FC = () => {
     const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
     const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
     const handleMonthSelect = (year: number, month: number) => setCurrentMonth(new Date(year, month, 1));
-    const handleTabClick = useCallback((tabId: string) => navigate(tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`), [profileId, navigate]);
+    const handleTabClick = useCallback((tabId: string) => {
+        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
+        navigate(path);
+    }, [profileId, navigate]);
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;

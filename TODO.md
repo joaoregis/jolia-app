@@ -1,4 +1,4 @@
-# ✅ Jolia Finances - Lista de Tarefas (Roadmap)
+# ✅ Jolia's House - Lista de Tarefas (Roadmap)
 
 Este documento descreve as próximas funcionalidades e melhorias planeadas para a aplicação.
 
@@ -36,7 +36,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ### 🛒 Sistema de Estoque (Dispensa/Geladeira)
 
-**Objetivo:** Expandir o Jolia Finances para incluir um sistema de gestão de itens domésticos, funcionando como um inventário e lista de compras.
+**Objetivo:** Expandir o Jolia's House para incluir um sistema de gestão de itens domésticos, funcionando como um inventário e lista de compras.
 
 -   [ ] **Modelagem de Dados (Firestore):**
     -   Criar uma nova coleção `householdItems`.
@@ -62,28 +62,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
         -   **Supérfluo/Desejo:** Itens não essenciais.
         -   **Ocasional:** Comprado raramente.
     -   Permitir filtrar a lista por essas classificações.
-
-### 🎁 Sistema de Wishlist (Lista de Desejos)
-
-**Objetivo:** Criar um espaço para que o casal (ou utilizadores individuais) possa listar e acompanhar desejos de compra.
-
--   [ ] **Modelagem de Dados (Firestore):**
-    -   Criar uma nova coleção `wishlists`. Cada documento será uma lista (ex: "Coisas para a Casa", "Viagem de Férias").
-    -   Dentro de cada documento `wishlist`, ter uma subcoleção `wishlistItems` com campos como: `title`, `description`, `notes`, `budget` (valor), `isDone` (boolean), `subprofileId` (para desejos individuais) ou `isShared` (para desejos do casal).
-
--   [ ] **Interface da Wishlist:**
-    -   Criar uma nova tela (`WishlistScreen.tsx`) acessível pelo menu principal.
-    -   Permitir a criação de múltiplas listas de desejos.
-    -   Dentro de cada lista, exibir os itens.
-
--   [ ] **Componente de Item da Wishlist:**
-    -   Cada item na lista deve mostrar `title`, `description`, `budget`.
-    -   Um checkbox para marcar `isDone`. Quando marcado, o item deve ter uma aparência diferente (ex: riscado, opaco).
-    -   Botões de ação rápida para editar (abrir modal) e excluir.
-    -   A exclusão deve acionar uma modal de confirmação (`DeleteConfirmationModal`).
-
--   [ ] **Lógica de Subperfis:**
-    -   Implementar abas ou filtros para alternar entre a wishlist "Geral" (da casa/casal) e as wishlists individuais de cada subperfil.
 
 ---
 

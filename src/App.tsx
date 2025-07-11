@@ -13,6 +13,7 @@ import { ProfileSelector } from './screens/ProfileSelector.tsx';
 import { DashboardScreen } from './screens/DashboardScreen.tsx';
 import { Layout } from './components/Layout.tsx';
 import { TrashScreen } from './screens/TrashScreen.tsx';
+import { WishlistScreen } from './screens/WishlistScreen.tsx';
 
 export default function App() {
     const [user, setUser] = useState<User | null>(null);
@@ -42,18 +43,6 @@ export default function App() {
                 } 
             />
             
-            {/* Rota do perfil, protegida */}
-            <Route 
-                path="/profile/:profileId/*" 
-                element={
-                    <ProtectedRoute user={user} loading={loading}>
-                        <Layout user={user}>
-                            <DashboardScreen />
-                        </Layout>
-                    </ProtectedRoute>
-                } 
-            />
-            
             {/* Rota da lixeira, protegida */}
             <Route 
                 path="/trash" 
@@ -63,6 +52,25 @@ export default function App() {
                     </ProtectedRoute>
                 } 
             />
+
+            {/* Layout principal para as rotas do perfil */}
+            <Route 
+                path="/profile/:profileId"
+                element={
+                    <ProtectedRoute user={user} loading={loading}>
+                        <Layout user={user}>
+                            {/* O Outlet do React Router renderizará o componente filho aqui */}
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            >
+                {/* Rota para o dashboard (com ou sem subperfil) */}
+                <Route path="" element={<DashboardScreen />} />
+                <Route path=":subprofileId" element={<DashboardScreen />} />
+                
+                {/* Rota para a wishlist */}
+                <Route path="wishlist" element={<WishlistScreen />} />
+            </Route>
         </Routes>
     );
 }

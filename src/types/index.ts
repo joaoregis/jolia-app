@@ -52,3 +52,25 @@ export interface SortConfig {
     key: keyof Transaction;
     direction: 'ascending' | 'descending';
 }
+
+// Tipos para a nova funcionalidade de Wishlist
+export interface WishlistItem {
+    id: string;
+    title: string;
+    description?: string;
+    notes?: string;
+    budget?: number;
+    isDone: boolean;
+    createdAt: any; // serverTimestamp
+}
+
+export interface Wishlist {
+    id: string;
+    name: string;
+    profileId: string;
+    // Opcional: para vincular a um subperfil específico
+    subprofileId?: string; 
+    // Para listas compartilhadas (visíveis para todos no perfil)
+    isShared: boolean; 
+    createdAt: any; // serverTimestamp
+}

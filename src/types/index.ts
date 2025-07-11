@@ -1,10 +1,13 @@
 // src/types/index.ts
 
+import { Theme } from "../lib/themes";
+
 export interface Subprofile {
     id: string;
     name: string;
     status: 'active' | 'archived';
     themeId?: string;
+    customTheme?: Theme['variables'];
 }
 
 export interface Profile {

@@ -8,8 +8,6 @@ interface CalculationToolbarProps {
     selectedCount: number;
     sumPlanned: number;
     sumActual: number;
-    avgPlanned: number;
-    avgActual: number;
     onClearSelection: () => void;
 }
 
@@ -17,8 +15,6 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
     selectedCount,
     sumPlanned,
     sumActual,
-    avgPlanned,
-    avgActual,
     onClearSelection
 }) => {
     if (selectedCount === 0) {
@@ -40,11 +36,9 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
                         {selectedCount} {selectedCount > 1 ? 'itens selecionados' : 'item selecionado'}
                     </div>
                 </div>
-                <div className="hidden md:flex items-center gap-6">
+                <div className="hidden md:flex items-center gap-12">
                     <Stat label="Soma Prevista" value={formatCurrency(sumPlanned)} />
                     <Stat label="Soma Efetiva" value={formatCurrency(sumActual)} />
-                    <Stat label="Média Prevista" value={formatCurrency(avgPlanned)} />
-                    <Stat label="Média Efetiva" value={formatCurrency(avgActual)} />
                 </div>
                 <button
                     onClick={onClearSelection}

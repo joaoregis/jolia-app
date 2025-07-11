@@ -2,6 +2,7 @@
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Profile, Subprofile } from '../types';
+import { Theme } from '../lib/themes';
 
 /**
  * Hook para gerir as operações de subperfis (criar, atualizar, arquivar).
@@ -20,10 +21,10 @@ export function useSubprofileManager(profile: Profile | null) {
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
     };
 
-    const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string) => {
+    const handleUpdateSubprofile = async (id: string, newName: string, newThemeId: string, customTheme?: Theme['variables']) => {
         if (!profile) return;
         const updatedSubprofiles = profile.subprofiles.map(sub =>
-            sub.id === id ? { ...sub, name: newName, themeId: newThemeId } : sub
+            sub.id === id ? { ...sub, name: newName, themeId: newThemeId, customTheme: customTheme || null } : sub
         );
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
     };

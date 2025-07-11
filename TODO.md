@@ -31,29 +31,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
     -   Criar uma UI para adicionar/gerir categorias (ex: Alimentação, Transporte, Lazer).
 
 ---
-## 🎨 Personalização e UI
-
-### 🖌️ Temas Customizáveis
-
-**Objetivo:** Permitir que os utilizadores criem e salvem os seus próprios temas de cores para cada subperfil, além dos temas pré-definidos.
-
--   [ ] **Modelagem de Dados:**
-    -   Modificar a estrutura do `Subprofile` em `src/types/index.ts` para armazenar um objeto de tema customizado, por exemplo: `customTheme?: Theme['variables']`.
-
--   [ ] **Interface de Customização:**
-    -   Na modal de edição de subperfil (`EditSubprofileModal.tsx`), adicionar uma nova secção "Personalizar Tema".
-    -   Criar um componente `ThemeCustomizer` que contenha:
-        -   Seletores de cores (`<input type="color">`) para cada variável do tema (`--background`, `--card`, `--text-primary`, etc.).
-        -   Uma área de pré-visualização com componentes de exemplo (cards, botões, textos) que se atualizem em tempo real conforme as cores são alteradas.
-
--   [ ] **Lógica de Aplicação:**
-    -   No `DashboardScreen.tsx`, modificar a lógica que aplica o tema para verificar se um subperfil tem um `customTheme`. Se tiver, aplicar essas cores em vez de um tema pré-definido.
-    -   Garantir que a seleção de um tema pré-definido limpe as configurações do tema customizado.
-
--   [ ] **Salvamento:**
-    -   Atualizar a função `handleUpdateSubprofile` no hook `useSubprofileManager.ts` para salvar o objeto `customTheme` no Firestore, junto com as outras informações do subperfil.
-
----
 
 ## 🏡 Gestão da Casa
 

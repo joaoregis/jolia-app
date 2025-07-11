@@ -202,8 +202,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
             count,
             sumPlanned,
             sumActual,
-            avgPlanned: sumPlanned / count,
-            avgActual: sumActual / count,
         };
     }, [selectedIds, data]);
 
@@ -354,8 +352,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                     selectedCount={calculationData.count}
                     sumPlanned={calculationData.sumPlanned}
                     sumActual={calculationData.sumActual}
-                    avgPlanned={calculationData.avgPlanned}
-                    avgActual={calculationData.avgActual}
                     onClearSelection={onClearSelection}
                 />
             )}

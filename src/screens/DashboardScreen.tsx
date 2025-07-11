@@ -110,8 +110,16 @@ export const DashboardScreen: React.FC = () => {
     const activeTheme = useMemo(() => {
         if (!profile) return themes.default;
         const activeSub = profile.subprofiles.find(s => s.id === activeTab);
+        
+        // Se o subperfil tem um tema customizado, use-o
+        if (activeSub?.customTheme) {
+            return { name: 'Custom', variables: activeSub.customTheme };
+        }
+        
+        // Senão, use o tema pré-definido ou o padrão
         return themes[activeSub?.themeId || 'default'] || themes.default;
     }, [activeTab, profile]);
+
 
     useEffect(() => {
         const root = document.documentElement;

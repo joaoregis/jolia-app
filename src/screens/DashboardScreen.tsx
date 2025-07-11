@@ -14,6 +14,7 @@ import { useAvailableMonths } from '../hooks/useAvailableMonths';
 import { useTransactionMutations } from '../hooks/useTransactionMutations';
 import { useSubprofileManager } from '../hooks/useSubprofileManager';
 import { useDashboardState } from '../hooks/useDashboardState';
+import { useDashboardData } from '../hooks/useDashboardData';
 
 // Componentes
 import { DashboardHeader } from '../components/DashboardHeader';
@@ -44,46 +45,48 @@ export const DashboardScreen: React.FC = () => {
     const { profileId, '*': subprofileId } = useParams<{ profileId: string; '*': string }>();
     const navigate = useNavigate();
 
-    // Hooks de Dados
+    // Hooks de Dados Brutos e Estado da UI
     const { profile, loading: profileLoading } = useProfile(profileId);
     const { availableMonths, loading: monthsLoading } = useAvailableMonths(profileId);
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
-
-    // Hooks de Lógica de Negócio
+    const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+    const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
+    
+    // Hooks de Lógica de Negócio e Estado
     const transactionMutations = useTransactionMutations(profile);
     const subprofileManager = useSubprofileManager(profile);
     const { modals, contextMenu } = useDashboardState();
-
-    // Estado da UI
-    const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-    const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
-
+    
     const activeTab = subprofileId || 'geral';
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
+
+    const { sortedData, ignoredTransactions, subprofileRevenueProportions, activeTransactions } = useDashboardData(
+        allTransactions,
+        profile,
+        activeTab,
+        currentMonthString,
+        sortConfig
+    );
     
-    useEffect(() => {
-        setIsInitialMonthSet(false);
-    }, [profileId]);
+    // Hooks de Ciclo de Vida (useEffect)
+    useEffect(() => { setIsInitialMonthSet(false); }, [profileId]);
 
     useEffect(() => {
         if (isInitialMonthSet || monthsLoading || !profile) return;
-
         const closedMonthsSet = new Set(profile.closedMonths || []);
         const openMonths = availableMonths.filter(month => !closedMonthsSet.has(month));
         const latestMonth = availableMonths[availableMonths.length - 1];
         const firstOpenMonthStr = openMonths[0] || latestMonth;
-        
         if (firstOpenMonthStr) {
             const [year, month] = firstOpenMonthStr.split('-');
             setCurrentMonth(new Date(Number(year), Number(month) - 1, 1));
         } else {
             setCurrentMonth(new Date());
         }
-        
-        setIsInitialMonthSet(true); 
+        setIsInitialMonthSet(true);
     }, [isInitialMonthSet, monthsLoading, availableMonths, profile]);
-    
+
     useEffect(() => {
         try {
             const savedSortConfig = localStorage.getItem(SORT_CONFIG_STORAGE_KEY);
@@ -98,16 +101,6 @@ export const DashboardScreen: React.FC = () => {
         if (sortConfig) localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
     }, [sortConfig]);
 
-    const allTransactionsPaid = useMemo(() => {
-        const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
-        return activeTransactions.every(t => t.paid);
-    }, [allTransactions, currentMonthString]);
-
-    const handleTabClick = useCallback((tabId: string) => {
-        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
-        navigate(path);
-    }, [profileId, navigate]);
-
     const activeTheme = useMemo(() => {
         if (!profile) return themes.default;
         const activeSub = profile.subprofiles.find(s => s.id === activeTab);
@@ -119,79 +112,7 @@ export const DashboardScreen: React.FC = () => {
         Object.entries(activeTheme.variables).forEach(([key, value]) => root.style.setProperty(key, value));
         return () => Object.keys(themes.default.variables).forEach(key => root.style.removeProperty(key));
     }, [activeTheme]);
-
-    const subprofileRevenueProportions = useMemo(() => {
-        if (!profile) return new Map<string, number>();
-        const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-        if (activeSubprofiles.length === 0) return new Map<string, number>();
-        const subprofileIncomes = new Map<string, number>(activeSubprofiles.map(s => [s.id, 0]));
-        allTransactions
-            .filter(t => !(t.skippedInMonths || []).includes(currentMonthString) && t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId))
-            .forEach(t => {
-                subprofileIncomes.set(t.subprofileId!, (subprofileIncomes.get(t.subprofileId!) || 0) + t.actual);
-            });
-        const totalIncome = Array.from(subprofileIncomes.values()).reduce((acc, income) => acc + income, 0);
-        const proportions = new Map<string, number>();
-        if (totalIncome > 0) {
-            subprofileIncomes.forEach((income, subId) => proportions.set(subId, income / totalIncome));
-        } else {
-            const equalShare = 1 / activeSubprofiles.length;
-            activeSubprofiles.forEach(sub => proportions.set(sub.id, equalShare));
-        }
-        return proportions;
-    }, [allTransactions, profile, currentMonthString]);
     
-    const { filteredData, ignoredTransactions } = useMemo(() => {
-        const active = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
-        const ignored = allTransactions.filter(t => (t.skippedInMonths || []).includes(currentMonthString));
-        
-        let receitas = (activeTab === 'geral') ? [] : active.filter(t => t.type === 'income' && t.subprofileId === activeTab);
-        let despesas = (activeTab === 'geral') 
-            ? active.filter(t => t.type === 'expense' && t.isShared)
-            : active.filter(t => t.type === 'expense' && t.subprofileId === activeTab);
-            
-        return { filteredData: { receitas, despesas }, ignoredTransactions: ignored };
-    }, [allTransactions, activeTab, currentMonthString]);
-
-    const sortedData = useMemo(() => {
-        const sortFn = (a: Transaction, b: Transaction) => {
-            if (!sortConfig) return 0;
-            const aVal = a[sortConfig.key];
-            const bVal = b[sortConfig.key];
-            if (aVal == null && bVal == null) return 0;
-            if (aVal == null) return sortConfig.direction === 'ascending' ? 1 : -1;
-            if (bVal == null) return sortConfig.direction === 'ascending' ? -1 : 1;
-            if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
-                return (sortConfig.direction === 'ascending' ? (aVal ? -1 : 1) : (aVal ? 1 : -1));
-            }
-            if (typeof aVal === 'number' && typeof bVal === 'number') {
-                return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
-            }
-            return sortConfig.direction === 'ascending' 
-                ? String(aVal).localeCompare(String(bVal)) 
-                : String(bVal).localeCompare(String(aVal));
-        };
-        return {
-            receitas: [...filteredData.receitas].sort(sortFn),
-            despesas: [...filteredData.despesas].sort(sortFn)
-        };
-    }, [filteredData, sortConfig]);
-
-    const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
-    
-    const canCloseMonth = useMemo(() => {
-        if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;
-        const closedMonthsSet = new Set(profile.closedMonths || []);
-        const firstMonthWithData = availableMonths[0];
-        const start = new Date(Number(firstMonthWithData.substring(0, 4)), Number(firstMonthWithData.substring(5, 7)) - 1, 1);
-        const current = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-        for (let d = start; d < current; d.setMonth(d.getMonth() + 1)) {
-            const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            if (availableMonths.includes(monthStr) && !closedMonthsSet.has(monthStr)) return false;
-        }
-        return true;
-    }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
-
     useEffect(() => {
         if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) return;
         const recalculateApportionedExpenses = async () => {
@@ -201,7 +122,6 @@ export const DashboardScreen: React.FC = () => {
                 acc.set(c.parentId!, [...(acc.get(c.parentId!) || []), c]);
                 return acc;
             }, new Map<string, Transaction[]>());
-
             let hasChanges = false;
             parentExpenses.forEach(parent => {
                 subprofileRevenueProportions.forEach((proportion, subId) => {
@@ -222,9 +142,28 @@ export const DashboardScreen: React.FC = () => {
         recalculateApportionedExpenses();
     }, [allTransactions, profile?.apportionmentMethod, subprofileRevenueProportions, transactionsLoading]);
     
+    const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
+    
+    const allTransactionsPaid = useMemo(() => activeTransactions.every(t => t.paid), [activeTransactions]);
+
+    const canCloseMonth = useMemo(() => {
+        if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;
+        const closedMonthsSet = new Set(profile.closedMonths || []);
+        const firstMonthWithData = availableMonths[0];
+        const start = new Date(Number(firstMonthWithData.substring(0, 4)), Number(firstMonthWithData.substring(5, 7)) - 1, 1);
+        const current = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        for (let d = start; d < current; d.setMonth(d.getMonth() + 1)) {
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (availableMonths.includes(monthStr) && !closedMonthsSet.has(monthStr)) return false;
+        }
+        return true;
+    }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
+
+    // Handlers
     const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
     const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
     const handleMonthSelect = (year: number, month: number) => setCurrentMonth(new Date(year, month, 1));
+    const handleTabClick = useCallback((tabId: string) => navigate(tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`), [profileId, navigate]);
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
@@ -245,12 +184,12 @@ export const DashboardScreen: React.FC = () => {
         modals.transfer.open(t);
     }, [isCurrentMonthClosed, modals.transfer]);
 
-    const handleConfirmTransferWrapper = (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
-        transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions).then(modals.transfer.close);
-    };
-
     const handleSaveTransactionWrapper = (data: TransactionFormState, id?: string) => {
         transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab).then(modals.transaction.close);
+    };
+
+    const handleConfirmTransferWrapper = (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
+        transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions).then(modals.transfer.close);
     };
 
     const performDeleteWrapper = () => {
@@ -266,18 +205,16 @@ export const DashboardScreen: React.FC = () => {
         if (recurringTransactions.length > 0) {
             const batch = writeBatch(db);
             recurringTransactions.forEach(t => {
-                const newTransactionData = { ...t };
-                delete (newTransactionData as Partial<Transaction>).id;
-                delete newTransactionData.skippedInMonths;
-                const nextLaunchDate = new Date(newTransactionData.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
-                newTransactionData.date = nextLaunchDate.toISOString().split('T')[0];
-                if (newTransactionData.paymentDate) {
-                    const nextPaymentDate = new Date(newTransactionData.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-                    newTransactionData.paymentDate = nextPaymentDate.toISOString().split('T')[0];
+                const { id, skippedInMonths, ...rest } = t;
+                const nextLaunchDate = new Date(rest.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
+                rest.date = nextLaunchDate.toISOString().split('T')[0];
+                if (rest.paymentDate) {
+                    const nextPaymentDate = new Date(rest.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                    rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
                 }
-                newTransactionData.paid = false;
-                newTransactionData.createdAt = serverTimestamp();
-                batch.set(doc(collection(db, 'transactions')), newTransactionData);
+                rest.paid = false;
+                rest.createdAt = serverTimestamp();
+                batch.set(doc(collection(db, 'transactions')), rest);
             });
             await batch.commit();
         }
@@ -310,10 +247,9 @@ export const DashboardScreen: React.FC = () => {
             const batch = writeBatch(db);
             if (newMethod === 'proportional') {
                 allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
+                    const { id, ...rest } = parent;
                     subprofileRevenueProportions.forEach((proportion, subId) => {
-                        const childData = { ...parent };
-                        delete (childData as Partial<Transaction>).id;
-                        batch.set(doc(collection(db, 'transactions')), { ...childData, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
+                        batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
                     });
                 });
             } else if (oldMethod === 'proportional') {
@@ -341,7 +277,7 @@ export const DashboardScreen: React.FC = () => {
     if (!profile) return <div>Perfil não encontrado.</div>;
 
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-
+    
     return (
         <div className="p-4 md:p-6 lg:p-10 space-y-6">
             <DashboardHeader

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove, getDoc, deleteField } from 'firebase/firestore'; // NOVO: Importa deleteField
+import { updateDoc, doc, writeBatch, collection, getDocs, query, where, arrayUnion, arrayRemove, getDoc, deleteField } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
 import { AppData, Profile, SortConfig, Subprofile, Transaction, TransactionFormState } from '../types';
 import { themes } from '../lib/themes';
@@ -28,6 +28,7 @@ import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 import { Plus } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
+// NoteModal já é importado e renderizado dentro de TransactionTable, não precisa importar aqui.
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -68,7 +69,6 @@ export const DashboardScreen: React.FC = () => {
     const activeTab = subprofileId || 'geral';
     const currentMonthString = useMemo(() => `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`, [currentMonth]);
 
-    // BUG FIX: A verificação de transações pagas agora ignora as transações "puladas".
     const allTransactionsPaid = useMemo(() => {
         const activeTransactions = allTransactions.filter(t => !(t.skippedInMonths || []).includes(currentMonthString));
         return activeTransactions.every(t => t.paid);
@@ -315,7 +315,7 @@ export const DashboardScreen: React.FC = () => {
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
         const dateString = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), new Date().getDate()).toISOString().split('T')[0];
-        const baseData = { paid: false, date: dateString };
+        const baseData = { paid: false, date: dateString, notes: '' };
         setModalInitialValues(activeTab === 'geral'
             ? { ...baseData, type: 'expense', isShared: true, isRecurring: false }
             : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' }
@@ -358,7 +358,6 @@ export const DashboardScreen: React.FC = () => {
             const wasShared = originalTransaction.isShared;
 
             if (destination.type === 'main') {
-                // CORREÇÃO: Usa deleteField() para remover o campo em vez de atribuir 'undefined'.
                 batch.update(transactionRef, { 
                     subprofileId: deleteField(), 
                     isShared: true 
@@ -657,6 +656,15 @@ export const DashboardScreen: React.FC = () => {
         });
     };
 
+    const handleSaveNote = async (transactionId: string, note: string) => {
+        const transactionRef = doc(db, 'transactions', transactionId);
+        if (!note.trim()) {
+            await updateDoc(transactionRef, { notes: deleteField() });
+        } else {
+            await updateDoc(transactionRef, { notes: note });
+        }
+    };
+
 
     if (profileLoading || monthsLoading) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;
@@ -726,6 +734,7 @@ export const DashboardScreen: React.FC = () => {
                                 onSkip={handleSkipTransaction} 
                                 onUnskip={handleUnskipTransaction}
                                 onTransfer={handleOpenTransferModal}
+                                onSaveNote={handleSaveNote}
                             />
                         )}
                         <TransactionTable 
@@ -745,13 +754,14 @@ export const DashboardScreen: React.FC = () => {
                             onSkip={handleSkipTransaction} 
                             onUnskip={handleUnskipTransaction}
                             onTransfer={handleOpenTransferModal}
+                            onSaveNote={handleSaveNote}
                         />
                         {ignoredTransactions.length > 0 && (
                             <IgnoredTransactionsTable 
                                 data={ignoredTransactions}
                                 onUnskip={handleUnskipTransaction}
                                 currentMonthString={currentMonthString}
-                                activeTab={activeTab} // Adicionada a prop
+                                activeTab={activeTab}
                             />
                         )}
                     </div>

@@ -25,6 +25,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         isShared: false,
         isRecurring: false,
         subprofileId: undefined,
+        notes: '',
         ...initialValues
     });
 
@@ -38,11 +39,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         setFormData({
             description: '', type: 'expense', planned: 0, actual: 0, date: new Date().toISOString().split('T')[0],
             paymentDate: new Date().toISOString().split('T')[0], paid: false, isShared: false, isRecurring: false,
-            subprofileId: undefined, ...initialValues
+            subprofileId: undefined, notes: '', ...initialValues
         });
     }, [initialValues]);
 
-    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         
         if (type === 'checkbox') {
@@ -83,7 +84,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
-                    {/* CORREÇÃO: Desabilitado apenas na visão geral (quando NÃO é visão de subperfil) */}
                     <select name="type" value={formData.type} onChange={handleChange} disabled={!isSubprofileView} className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent disabled:opacity-50 p-3">
                         <option value="expense">Despesa</option>
                         <option value="income">Receita</option>
@@ -108,7 +108,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                         <ToggleSwitch id="paid" name="paid" checked={formData.paid} onChange={handleChange} />
                     </div>
 
-                    {/* CORREÇÃO: "Da Casa" só aparece na Visão Geral (quando NÃO é visão de subperfil) e fica sempre travado */}
                     {!isSubprofileView && (
                         <div className="flex items-center justify-between sm:justify-start sm:gap-4">
                             <label htmlFor="isShared" className="block text-sm font-medium text-text-primary">Da Casa</label>
@@ -121,6 +120,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                     </div>
                 </div>
             </fieldset>
+            <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-text-secondary mb-1">
+                    Observações
+                </label>
+                <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes || ''}
+                    onChange={handleChange}
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3"
+                    placeholder="Adicione detalhes, links ou qualquer outra informação relevante..."
+                />
+            </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-border-color mt-6">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-primary hover:opacity-80 border border-border-color">Cancelar</button>

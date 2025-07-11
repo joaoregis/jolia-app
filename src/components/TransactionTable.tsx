@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft } from 'lucide-react';
+import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft, FileText } from 'lucide-react';
 import { Transaction, SortConfig, Subprofile } from '../types';
 import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
+import { NoteModal } from './NoteModal';
 
 // Tooltip com Portal
 const Tooltip: React.FC<{ content: React.ReactNode, children: React.ReactNode }> = ({ content, children }) => {
@@ -117,7 +118,8 @@ const TransactionItem: React.FC<{
     onSkip: (transaction: Transaction) => void;
     onUnskip: (transaction: Transaction) => void;
     onTransfer: (transaction: Transaction) => void;
-}> = ({ item, type, isClosed, isIgnoredTable, onEdit, onDelete, onTogglePaid, onUpdateField, onSkip, onUnskip, onTransfer }) => {
+    onOpenNoteModal: (transaction: Transaction) => void;
+}> = ({ item, type, isClosed, isIgnoredTable, onEdit, onDelete, onTogglePaid, onUpdateField, onSkip, onUnskip, onTransfer, onOpenNoteModal }) => {
     const difference = item.actual - item.planned;
     let differenceColor = 'text-text-secondary';
     if (difference !== 0) {
@@ -132,6 +134,7 @@ const TransactionItem: React.FC<{
                  <div className="font-medium text-text-primary flex items-center gap-2 pr-2 overflow-hidden">
                      {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
                      {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
+                     {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
                      <EditableCell value={item.description} onSave={(v) => onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable} />
                 </div>
                  {!isClosed && !isApportioned && !isIgnoredTable && (
@@ -182,12 +185,28 @@ interface TransactionTableProps {
   onSkip?: (transaction: Transaction) => void;
   onUnskip?: (transaction: Transaction) => void;
   onTransfer: (transaction: Transaction) => void;
+  onSaveNote: (transactionId: string, note: string) => void;
   isIgnoredTable?: boolean;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, onSkip, onUnskip, isIgnoredTable = false, onTransfer, ...rest } = props;
+    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, onSkip, onUnskip, onSaveNote, isIgnoredTable = false, onTransfer, ...rest } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
+    const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
+
+    const handleOpenNoteModal = (transaction: Transaction) => {
+        setNoteModalState({ isOpen: true, transaction });
+    };
+
+    const handleCloseNoteModal = () => {
+        setNoteModalState({ isOpen: false, transaction: null });
+    };
+
+    const handleSaveNote = (note: string) => {
+        if (noteModalState.transaction) {
+            onSaveNote(noteModalState.transaction.id, note);
+        }
+    };
 
     const getSortIndicator = (key: keyof Transaction) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-2 opacity-30 group-hover:opacity-100" />;
@@ -252,6 +271,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                             onSkip={onSkip!}
                             onUnskip={onUnskip!}
                             onTransfer={onTransfer}
+                            onOpenNoteModal={handleOpenNoteModal}
                         />
                     ))}
                     {data.length > 0 && (
@@ -265,7 +285,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-text-primary uppercase bg-background">
                             <tr>
-                                <SortableHeader sortKey="description" className="w-[28%]">Descrição</SortableHeader>
+                                <SortableHeader sortKey="description" className="w-[33%]">Descrição</SortableHeader>
                                 <SortableHeader sortKey="paymentDate" className="w-[12%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
                                 <SortableHeader sortKey="planned" className="w-[15%]">Previsto</SortableHeader>
                                 <SortableHeader sortKey="actual" className="w-[15%]">Efetivo</SortableHeader>
@@ -288,6 +308,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 <tr key={item.id} className={`bg-card ${!isApportioned && !isIgnoredTable && 'hover:bg-background'}`}>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
                                         <div className="flex items-center gap-2">
+                                            {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
                                             {item.isShared && (
                                                  <Tooltip content={getApportionmentTooltipContent(item)}>
                                                      <Users size={14} className="text-cyan-400 flex-shrink-0 cursor-pointer"/>
@@ -377,6 +398,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 </div>
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
             </CardContent>
+            {noteModalState.isOpen && (
+                <NoteModal
+                    isOpen={noteModalState.isOpen}
+                    onClose={handleCloseNoteModal}
+                    onSave={handleSaveNote}
+                    initialNote={noteModalState.transaction?.notes}
+                />
+            )}
         </Card>
     );
 };
@@ -419,6 +448,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                             onSkip={() => {}}
                             onUnskip={onUnskip}
                             onTransfer={() => {}}
+                            onOpenNoteModal={() => {}}
                         />
                     ))}
                 </div>

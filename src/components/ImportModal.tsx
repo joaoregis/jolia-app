@@ -31,6 +31,7 @@ const jsonExample = [
         "actual": 1500,
         "date": "2025-07-10",
         "paymentDate": "2025-07-10",
+        "dueDate": "2025-07-15",
         "paid": true,
         "isShared": true,
         "isRecurring": true
@@ -97,6 +98,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSav
             actual: Number(item.actual) || 0,
             date: String(item.date || new Date().toISOString().split('T')[0]),
             paymentDate: item.paymentDate ? String(item.paymentDate) : String(item.date || new Date().toISOString().split('T')[0]),
+            dueDate: item.dueDate ? String(item.dueDate) : undefined,
             type: item.type === 'income' ? 'income' : 'expense',
             paid: String(item.paid).toLowerCase() === 'true',
             isShared: String(item.isShared).toLowerCase() === 'true',
@@ -219,7 +221,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSav
                                     className="mt-1 block w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent/20 file:text-accent hover:file:bg-accent/30"
                                 />
                                 <p className="mt-2 text-xs text-text-secondary">
-                                    O CSV deve ter as colunas: `description`, `type`, `planned`, `actual`, `date`, `paymentDate`, `paid`, `isShared`, `isRecurring`.
+                                    O CSV deve ter as colunas: `description`, `type`, `planned`, `actual`, `date`, `paymentDate`, `dueDate`, `paid`, `isShared`, `isRecurring`.
                                 </p>
                             </div>
                         )}
@@ -242,6 +244,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSav
                                     <th className="p-2">Efetivo</th>
                                     <th className="p-2">Data Lanç.</th>
                                     <th className="p-2">Data Pag.</th>
+                                    <th className="p-2">Data Venc.</th>
                                     <th className="p-2">Tipo</th>
                                     <th className="p-2 text-center">Pago</th>
                                     <th className="p-2 text-center">Casa</th>
@@ -257,6 +260,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSav
                                         <td className="p-1"><input type="number" value={item.actual} onChange={e => handleDataChange(index, 'actual', parseFloat(e.target.value))} className={inputStyle}/></td>
                                         <td className="p-1"><input type="date" value={item.date} onChange={e => handleDataChange(index, 'date', e.target.value)} className={inputStyle}/></td>
                                         <td className="p-1"><input type="date" value={item.paymentDate} onChange={e => handleDataChange(index, 'paymentDate', e.target.value)} className={inputStyle}/></td>
+                                        <td className="p-1"><input type="date" value={item.dueDate} onChange={e => handleDataChange(index, 'dueDate', e.target.value)} className={inputStyle}/></td>
                                         <td className="p-1"><select value={item.type} onChange={e => handleDataChange(index, 'type', e.target.value)} className={selectStyle}><option value="expense">Despesa</option><option value="income">Receita</option></select></td>
                                         <td className="p-1 text-center"><input type="checkbox" checked={item.paid} onChange={e => handleDataChange(index, 'paid', e.target.checked)} className="h-5 w-5 rounded border-border-color text-accent focus:ring-accent"/></td>
                                         <td className="p-1 text-center"><input type="checkbox" checked={item.isShared} onChange={e => handleDataChange(index, 'isShared', e.target.checked)} className="h-5 w-5 rounded border-border-color text-accent focus:ring-accent"/></td>

@@ -29,6 +29,7 @@ export interface Transaction {
   subprofileId?: string;
   date: string;
   paymentDate?: string;
+  dueDate?: string;
   profileId: string;
   createdAt?: any; 
   parentId?: string; 

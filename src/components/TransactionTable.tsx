@@ -142,6 +142,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
                 <DetailRow label="Efetivo" value={formatCurrency(item.actual)} valueClassName="font-bold text-lg text-text-primary" />
                 <DetailRow label="Previsto" value={formatCurrency(item.planned)} valueClassName="text-sm text-text-secondary" />
                 <DetailRow label="Diferença" value={formatCurrency(difference)} valueClassName={`text-sm font-medium ${differenceColor}`} />
+                {type === 'expense' && item.dueDate && <DetailRow label="Vencimento" value={formatShortDate(item.dueDate)} />}
             </div>
             <div className="border-t border-border-color !mt-3 !mb-2"></div>
             <div className="flex justify-between items-center text-sm">
@@ -265,12 +266,13 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                         onChange={(e) => onSelectAll(e.target.checked)}
                                     />
                                 </th>
-                                <SortableHeader sortKey="description" className="w-[33%]">Descrição</SortableHeader>
-                                <SortableHeader sortKey="paymentDate" className="w-[12%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
-                                <SortableHeader sortKey="planned" className="w-[15%]">Previsto</SortableHeader>
-                                <SortableHeader sortKey="actual" className="w-[15%]">Efetivo</SortableHeader>
-                                <th scope="col" className="w-[15%] px-4 py-3 text-right">Diferença</th>
-                                <SortableHeader sortKey="paid" className="w-[10%] text-center justify-center">{type === 'expense' ? 'Pago?' : 'Recebido?'}</SortableHeader>
+                                <SortableHeader sortKey="description" className="w-[30%]">Descrição</SortableHeader>
+                                <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>
+                                <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
+                                <SortableHeader sortKey="planned" className="w-[12%]">Previsto</SortableHeader>
+                                <SortableHeader sortKey="actual" className="w-[12%]">Efetivo</SortableHeader>
+                                <th scope="col" className="w-[12%] px-4 py-3 text-right">Diferença</th>
+                                <SortableHeader sortKey="paid" className="w-[8%] text-center justify-center">{type === 'expense' ? 'Pago?' : 'Recebido?'}</SortableHeader>
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
@@ -296,11 +298,21 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                             <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned} />
                                         </div>
                                     </td>
+                                     <td className="px-4 py-3 align-middle">
+                                        {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
+                                             <input type="date" defaultValue={item.dueDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
+                                        ) : (
+                                             <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && item.type === 'expense' && setEditingDateId(`${item.id}-due`)}>
+                                                 <span>{formatShortDate(item.dueDate)}</span>
+                                                 {!isClosed && !isApportioned && item.type === 'expense' && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                                             </div>
+                                         )}
+                                     </td>
                                     <td className="px-4 py-3 align-middle">
-                                        {editingDateId === item.id && !isClosed && !isApportioned ? (
+                                        {editingDateId === `${item.id}-payment` && !isClosed && !isApportioned ? (
                                             <input type="date" defaultValue={item.paymentDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'paymentDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'paymentDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
                                         ) : (
-                                            <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && setEditingDateId(item.id)}>
+                                            <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && setEditingDateId(`${item.id}-payment`)}>
                                                 <span>{formatShortDate(item.paymentDate)}</span>
                                                 {!isClosed && !isApportioned && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
                                             </div>
@@ -326,7 +338,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                          <tfoot className="font-bold text-text-primary bg-background">
                             <tr>
                                 <td colSpan={2} className="px-4 py-3">TOTAL</td>
-                                <td />
+                                <td colSpan={2} />
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
                                 <td colSpan={3}></td>

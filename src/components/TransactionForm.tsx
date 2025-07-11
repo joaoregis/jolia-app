@@ -21,6 +21,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         actual: 0,
         date: new Date().toISOString().split('T')[0],
         paymentDate: new Date().toISOString().split('T')[0],
+        dueDate: undefined,
         paid: false,
         isShared: false,
         isRecurring: false,
@@ -95,9 +96,17 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                 </div>
             </div>
             
-            <div>
-                <label htmlFor="paymentDate" className="block text-sm font-medium text-text-secondary mb-1">{formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}</label>
-                <DateInput id="paymentDate" name="paymentDate" value={formData.paymentDate || ''} onChange={handleChange} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label htmlFor="paymentDate" className="block text-sm font-medium text-text-secondary mb-1">{formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}</label>
+                    <DateInput id="paymentDate" name="paymentDate" value={formData.paymentDate || ''} onChange={handleChange} />
+                </div>
+                {formData.type === 'expense' && (
+                    <div>
+                        <label htmlFor="dueDate" className="block text-sm font-medium text-text-secondary mb-1">Data de Vencimento</label>
+                        <DateInput id="dueDate" name="dueDate" value={formData.dueDate || ''} onChange={handleChange} />
+                    </div>
+                )}
             </div>
             
             <fieldset className="border border-border-color rounded-lg p-4">

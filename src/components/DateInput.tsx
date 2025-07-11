@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Calendar } from 'lucide-react';
+import { formatFullDate } from '../lib/utils';
 
 interface DateInputProps {
     value: string;
@@ -10,14 +11,6 @@ interface DateInputProps {
     id: string;
     required?: boolean;
 }
-
-const formatDateForDisplay = (dateString: string): string => {
-    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        return 'Selecione uma data';
-    }
-    const [year, month, day] = dateString.split('-');
-    return `${day}/${month}/${year}`;
-};
 
 export const DateInput: React.FC<DateInputProps> = ({ value, onChange, name, id, required }) => {
     const dateInputRef = React.useRef<HTMLInputElement>(null);
@@ -37,7 +30,7 @@ export const DateInput: React.FC<DateInputProps> = ({ value, onChange, name, id,
                 onClick={handleButtonClick}
                 className="w-full flex justify-between items-center rounded-md border border-border-color shadow-sm bg-card px-3 py-3 text-left focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
             >
-                <span className="text-text-primary">{formatDateForDisplay(value)}</span>
+                <span className="text-text-primary">{value ? formatFullDate(value) : 'Selecione uma data'}</span>
                 <Calendar className="h-5 w-5 text-text-secondary" />
             </button>
 

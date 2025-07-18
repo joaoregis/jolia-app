@@ -34,7 +34,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ### 🛒 Sistema de Estoque Inteligente (Dispensa/Geladeira)
 
-**Objetivo:** Transformar o Jolia's House num sistema completo de gestão de inventário doméstico, com automação de entrada via NFC-e, controle de estoque e geração de listas de compras inteligentes.
+**Objetivo:** Transformar o Jolia's House num sistema completo de gestão de inventário doméstico, com automação de entrada via NFC-e, controle de estoque e geração de listas de compras e insights de gastos.
 
 -   [ ] **1. Modelagem de Dados Avançada (Firestore):**
     -   **Coleção `householdItems`:**
@@ -50,7 +50,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
         -   `status`: Status atual ('Em estoque', 'Baixo', 'Faltando').
     -   **Coleção `purchaseHistory` (subcoleção de `householdItems`):**
         -   Para rastrear o histórico de preços de cada item.
-        -   Campos: `date`, `price`, `quantity`, `store`, `nfceId`.
+        -   Campos: `date`, `price`, `quantity`, `storeName`, `storeId`, `nfceId`.
 
 -   [ ] **2. Entrada de Itens via NFC-e (QR Code):**
     -   **Leitor de QR Code:**
@@ -58,7 +58,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
         -   Utilizar uma biblioteca (ex: `html5-qrcode-scanner`) para ler o QR Code de uma NFC-e e extrair a URL de consulta.
     -   **Web Scraper (Backend/Cloud Function):**
         -   Criar uma Cloud Function que recebe a URL da NFC-e.
-        -   A função acessa a página da Sefaz (em background), faz o scraping dos dados da tabela de produtos (descrição, quantidade, valor unitário, valor total) e das informações do cabeçalho (estabelecimento, data).
+        -   A função acessa a página da Sefaz (em background), faz o scraping dos dados da tabela de produtos (descrição, quantidade, valor unitário, valor total) e das informações do cabeçalho **(incluindo nome e CNPJ do estabelecimento)**.
     -   **Tela de "Conciliação de Nota Fiscal":**
         -   Após o scraping, apresentar os dados numa tela intermediária.
         -   Para cada item da nota, o sistema tentará encontrar um `alias` correspondente na base de dados (usando similaridade de strings).
@@ -68,7 +68,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
                 -   Confirmar a sugestão.
                 -   Escolher um `alias` existente de uma lista.
                 -   Criar um novo `alias`, o que exigirá também a definição de categoria, unidade e quantidade mínima. **(Este passo é obrigatório para novos itens)**.
-        -   Após a conciliação, o utilizador confirma a entrada, e o sistema atualiza o estoque e o histórico de preços dos itens.
+        -   Após a conciliação, o utilizador confirma a entrada, e o sistema atualiza o estoque e o histórico de preços dos itens, **associando a compra ao estabelecimento correto**.
 
 -   [ ] **3. Gestão Manual de Estoque:**
     -   **Tela de Inventário (`StockScreen.tsx`):**
@@ -92,6 +92,18 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
         -   **Importante:** O "check" na lista de compras **não** atualiza o estoque principal. Ele serve apenas como um guia temporário.
         -   O estoque será reposto oficialmente após a compra, através da leitura da nova NFC-e ou da entrada manual dos itens.
         -   Opção para exportar/compartilhar a lista.
+
+-   [ ] **5. Análise e Insights de Compras:**
+    -   **Dashboard de Análise de Gastos:**
+        -   Criar uma nova tela de "Análises" ou uma seção dentro do Estoque.
+    -   **Relatório de Gastos por Estabelecimento:**
+        -   Visualizar o total gasto em cada supermercado/loja num determinado período.
+        -   Gráficos comparativos (barras, pizza) para facilitar a visualização.
+    -   **Comparador de Preços por Item:**
+        -   Selecionar um item (pelo `alias`) e ver um histórico/comparativo de preços dele em todos os estabelecimentos onde foi comprado.
+        -   Ex: "Leite Condensado" - Supermercado A: R$ 5,50 | Supermercado B: R$ 5,25.
+    -   **Sugestão de "Melhor Cesta":**
+        -   Uma funcionalidade avançada que, com base na lista de compras atual, sugere em qual estabelecimento cada item foi mais barato na última compra, ajudando a otimizar a rota de compras.
 
 ---
 

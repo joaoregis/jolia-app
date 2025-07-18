@@ -48,8 +48,8 @@ const ColorContextMenu: React.FC<{
             style={{ top: y, left: x }}
         >
             <div className="py-1">
-                <button onClick={onCopy} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Copiar</button>
-                <button onClick={onPaste} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Colar</button>
+                <button type="button" onClick={onCopy} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Copiar</button>
+                <button type="button" onClick={onPaste} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Colar</button>
             </div>
         </div>
     );

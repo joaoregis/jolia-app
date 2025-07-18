@@ -216,10 +216,10 @@ export const WishlistScreen: React.FC = () => {
                 checked={item.isDone}
                 onChange={() => handleToggleDone(list.id, item)}
             />
-            <div className="flex-grow">
+            <div className="flex-grow min-w-0">
                 <p className={`font-medium text-text-primary ${item.isDone ? 'line-through' : ''}`}>{item.title}</p>
-                {item.description && <p className="text-xs text-text-secondary mt-1">{item.description}</p>}
-                {item.notes && <p className="text-xs text-amber-500 mt-1 italic">{item.notes}</p>}
+                {item.description && <p className="text-xs text-text-secondary mt-1 break-words">{item.description}</p>}
+                {item.notes && <p className="text-xs text-amber-500 mt-1 italic break-all">{item.notes}</p>}
             </div>
             <div className="flex items-center gap-4">
                 {item.budget ? <span className="text-sm font-semibold text-accent">{formatCurrency(item.budget)}</span> : null}

@@ -264,12 +264,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                         onChange={(e) => onSelectAll(e.target.checked)}
                                     />
                                 </th>
-                                <SortableHeader sortKey="description" className="w-[30%]">Descrição</SortableHeader>
+                                <SortableHeader sortKey="description" className="w-[18%]">Descrição</SortableHeader>
                                 <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>
                                 <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
-                                <SortableHeader sortKey="planned" className="w-[12%]">Previsto</SortableHeader>
-                                <SortableHeader sortKey="actual" className="w-[12%]">Efetivo</SortableHeader>
-                                <th scope="col" className="w-[12%] px-4 py-3 text-right">Diferença</th>
+                                <SortableHeader sortKey="planned" className="w-[16%]">Previsto</SortableHeader>
+                                <SortableHeader sortKey="actual" className="w-[16%]">Efetivo</SortableHeader>
+                                <th scope="col" className="w-[15%] px-4 py-3 text-right">Diferença</th>
                                 <SortableHeader sortKey="paid" className="w-[8%] text-center justify-center">{type === 'expense' ? 'Pago?' : 'Recebido?'}</SortableHeader>
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>

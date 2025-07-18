@@ -32,36 +32,76 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
-## 🏡 Gestão da Casa
+### 🛒 Sistema de Estoque Inteligente (Dispensa/Geladeira)
 
-### 🛒 Sistema de Estoque (Dispensa/Geladeira)
+**Objetivo:** Transformar o Jolia's House num sistema completo de gestão de inventário doméstico, com automação de entrada via NFC-e, controle de estoque e geração de listas de compras inteligentes.
 
-**Objetivo:** Expandir o Jolia's House para incluir um sistema de gestão de itens domésticos, funcionando como um inventário e lista de compras.
+-   [ ] **1. Modelagem de Dados Avançada (Firestore):**
+    -   **Coleção `householdItems`:**
+        -   `name`: Nome original do produto (ex: "LEITE COND MOCOCA TP 395G").
+        -   `alias`: Nome personalizado e amigável (ex: "Leite Condensado"). **(Chave para o sistema)**
+        -   `category`: Categoria definida pelo utilizador (ex: "Laticínios", "Limpeza").
+        -   `unit`: Unidade de medida (ex: "un", "kg", "L", "g").
+        -   `quantity`: Quantidade atual em estoque.
+        -   `minQuantity`: Quantidade mínima para alerta de reposição.
+        -   `lastPrice`: Último valor pago pelo item.
+        -   `avgPrice`: Valor médio histórico do item.
+        -   `classification`: Classificação de prioridade (ex: "Essencial", "Uso Comum", "Supérfluo").
+        -   `status`: Status atual ('Em estoque', 'Baixo', 'Faltando').
+    -   **Coleção `purchaseHistory` (subcoleção de `householdItems`):**
+        -   Para rastrear o histórico de preços de cada item.
+        -   Campos: `date`, `price`, `quantity`, `store`, `nfceId`.
 
--   [ ] **Modelagem de Dados (Firestore):**
-    -   Criar uma nova coleção `householdItems`.
-    -   Cada documento representará um item e terá campos como: `name`, `quantity`, `unit` (ex: "un", "kg", "L"), `category` (ex: "Laticínios", "Limpeza", "Higiene"), `status` ('Em estoque', 'Faltando', 'Comprar'), `isEssential` (boolean).
+-   [ ] **2. Entrada de Itens via NFC-e (QR Code):**
+    -   **Leitor de QR Code:**
+        -   Implementar uma funcionalidade na aplicação para abrir a câmera do dispositivo.
+        -   Utilizar uma biblioteca (ex: `html5-qrcode-scanner`) para ler o QR Code de uma NFC-e e extrair a URL de consulta.
+    -   **Web Scraper (Backend/Cloud Function):**
+        -   Criar uma Cloud Function que recebe a URL da NFC-e.
+        -   A função acessa a página da Sefaz (em background), faz o scraping dos dados da tabela de produtos (descrição, quantidade, valor unitário, valor total) e das informações do cabeçalho (estabelecimento, data).
+    -   **Tela de "Conciliação de Nota Fiscal":**
+        -   Após o scraping, apresentar os dados numa tela intermediária.
+        -   Para cada item da nota, o sistema tentará encontrar um `alias` correspondente na base de dados (usando similaridade de strings).
+        -   **Interface de Correção:**
+            -   Mostrar o nome original do produto e o `alias` sugerido.
+            -   Permitir ao utilizador:
+                -   Confirmar a sugestão.
+                -   Escolher um `alias` existente de uma lista.
+                -   Criar um novo `alias`, o que exigirá também a definição de categoria, unidade e quantidade mínima. **(Este passo é obrigatório para novos itens)**.
+        -   Após a conciliação, o utilizador confirma a entrada, e o sistema atualiza o estoque e o histórico de preços dos itens.
 
--   [ ] **Nova Tela de Gestão de Estoque:**
-    -   Criar uma nova rota e um novo componente de tela (ex: `StockScreen.tsx`).
-    -   A tela deve permitir:
-        -   Visualizar itens em listas ou cards, agrupados por `category` ou `status`.
-        -   Adicionar novos itens com nome, categoria e unidade.
-        -   Mudar rapidamente a quantidade de um item.
-        -   Marcar itens como 'Faltando' ou 'Comprar', movendo-os para uma lista de compras.
+-   [ ] **3. Gestão Manual de Estoque:**
+    -   **Tela de Inventário (`StockScreen.tsx`):**
+        -   Visualização completa do estoque, com filtros por `category`, `status`, `classification`.
+        -   Permitir a adição manual de novos itens (com todos os campos: alias, categoria, etc.).
+        -   Funcionalidades de ajuste rápido:
+            -   Botões de "+" e "-" para incrementar/decrementar a quantidade.
+            -   Opção de "Consumir item" (baixa no estoque).
+            -   Opção de "Adicionar ao carrinho" (muda o status para 'Faltando').
 
--   [ ] **Componente de Lista de Compras:**
-    -   Dentro da `StockScreen`, ter uma aba ou secção dedicada à "Lista de Compras".
-    -   Listar todos os itens com status 'Comprar'.
-    -   Permitir marcar itens como "comprados", o que os moveria de volta para 'Em estoque' e permitiria ao utilizador definir a quantidade adquirida.
+-   [ ] **4. Geração de Lista de Compras Inteligente:**
+    -   **Relatório "Lista de Compras":**
+        -   Gerar uma lista com todos os itens cujo `status` seja 'Faltando' ou 'Baixo' (quantidade <= `minQuantity`).
+        -   Para cada item na lista, mostrar:
+            -   `Alias` do item.
+            -   Quantidade a comprar (sugestão para atingir o estoque ideal, a ser definido).
+            -   **Último Preço Pago**.
+            -   **Preço Médio Histórico**.
+    -   **Interatividade da Lista (Guia de Compras):**
+        -   Permitir ao utilizador dar "check" nos itens da lista para controle visual *enquanto estiver no supermercado*.
+        -   **Importante:** O "check" na lista de compras **não** atualiza o estoque principal. Ele serve apenas como um guia temporário.
+        -   O estoque será reposto oficialmente após a compra, através da leitura da nova NFC-e ou da entrada manual dos itens.
+        -   Opção para exportar/compartilhar a lista.
 
--   [ ] **Classificação de Itens:**
-    -   Implementar a classificação de itens. Sugestões:
-        -   **Essencial:** Itens de necessidade básica.
-        -   **Uso Comum:** Itens recorrentes, mas não críticos.
-        -   **Supérfluo/Desejo:** Itens não essenciais.
-        -   **Ocasional:** Comprado raramente.
-    -   Permitir filtrar a lista por essas classificações.
+---
+
+## ✨ Melhorias de UI/UX e Qualidade de Vida
+
+-   [ ] **Sombra de Destaque na Fonte:** Adicionar uma sombra sutil (`text-shadow`) em todos os textos da aplicação para melhorar a legibilidade e o contraste, especialmente em temas personalizados.
+
+-   [ ] **Copiar/Colar Cores no Customizador de Tema:** Implementar um menu de contexto (clique com o botão direito) nos seletores de cor da tela de personalização de tema, com opções para "Copiar Cor" e "Colar Cor", agilizando a criação de paletas consistentes.
+
+-   [ ] **Sincronização Completa de Transações Rateadas:** Garantir que, ao editar uma transação "Da Casa" na Visão Geral, todas as suas propriedades (como `paymentDate`, `dueDate`, `paid`, etc.) sejam automaticamente atualizadas nas transações filhas (rateios) nos subperfis, não apenas os valores.
 
 ---
 

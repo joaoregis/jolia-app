@@ -9,21 +9,27 @@ import { Plus, Trash2, Settings, Archive, LogOut } from 'lucide-react';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal.tsx'; 
 import { IconPicker } from '../components/IconPicker.tsx';
 import { Icon, iconNames } from '../components/Icon.tsx';
+import { useToast } from '../contexts/ToastContext.tsx';
 
-const CreateProfileForm: React.FC<{ onProfileCreated: () => void }> = ({ onProfileCreated }) => {
+const CreateProfileForm: React.FC<{ onProfileCreated: () => void, showToast: (message: string, type: 'success' | 'error') => void }> = ({ onProfileCreated, showToast }) => {
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState(iconNames[0]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
-        await addDoc(collection(db, 'profiles'), { 
-            name, 
-            icon: selectedIcon,
-            subprofiles: [],
-            status: 'active' 
-        });
-        onProfileCreated();
+        try {
+            await addDoc(collection(db, 'profiles'), { 
+                name, 
+                icon: selectedIcon,
+                subprofiles: [],
+                status: 'active' 
+            });
+            showToast('Perfil criado com sucesso!', 'success');
+            onProfileCreated();
+        } catch (error) {
+            showToast('Erro ao criar perfil.', 'error');
+        }
     };
 
     return (
@@ -49,6 +55,7 @@ export const ProfileSelector: React.FC = () => {
     const [itemToArchive, setItemToArchive] = useState<Profile | null>(null);
     const navigate = useNavigate();
     const user = auth.currentUser;
+    const { showToast } = useToast();
 
     useEffect(() => {
         if (!user) {
@@ -80,9 +87,14 @@ export const ProfileSelector: React.FC = () => {
 
     const handleArchiveProfile = async () => {
         if (!itemToArchive) return;
-        const profileRef = doc(db, 'profiles', itemToArchive.id);
-        await updateDoc(profileRef, { status: 'archived' });
-        setItemToArchive(null);
+        try {
+            const profileRef = doc(db, 'profiles', itemToArchive.id);
+            await updateDoc(profileRef, { status: 'archived' });
+            showToast('Perfil arquivado com sucesso!', 'success');
+            setItemToArchive(null);
+        } catch (error) {
+            showToast('Erro ao arquivar o perfil.', 'error');
+        }
     };
     
     const handleLogout = async () => {
@@ -103,7 +115,7 @@ export const ProfileSelector: React.FC = () => {
         return (
              <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
                 <div className="w-full max-w-md p-8 bg-white dark:bg-slate-800 rounded-xl shadow-lg">
-                    <CreateProfileForm onProfileCreated={() => setShowCreateForm(false)} />
+                    <CreateProfileForm onProfileCreated={() => setShowCreateForm(false)} showToast={showToast} />
                     {profiles.length > 0 && (
                         <button onClick={() => setShowCreateForm(false)} className="w-full text-center mt-4 text-sm text-blue-600 hover:underline">
                             Voltar para seleção

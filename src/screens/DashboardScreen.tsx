@@ -6,6 +6,7 @@ import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'f
 import { db, serverTimestamp } from '../lib/firebase';
 import { Profile, SortConfig, Transaction, TransactionFormState } from '../types';
 import { useProfileContext } from '../contexts/ProfileContext';
+import { useToast } from '../contexts/ToastContext';
 
 // Hooks
 import { useTransactions } from '../hooks/useTransactions';
@@ -45,6 +46,7 @@ export const DashboardScreen: React.FC = () => {
     const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const navigate = useNavigate();
     const { profile, loading: profileLoading, setActiveThemeBySubprofileId } = useProfileContext();
+    const { showToast } = useToast();
 
     const { availableMonths, loading: monthsLoading } = useAvailableMonths(profileId);
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
@@ -205,94 +207,166 @@ export const DashboardScreen: React.FC = () => {
         modals.transfer.open(t);
     }, [isCurrentMonthClosed, modals.transfer]);
 
-    const handleSaveTransactionWrapper = (data: TransactionFormState, id?: string) => {
-        transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab).then(modals.transaction.close);
+    const handleSaveTransactionWrapper = async (data: TransactionFormState, id?: string) => {
+        try {
+            await transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab);
+            showToast('Transação salva com sucesso!', 'success');
+            modals.transaction.close();
+        } catch (error) {
+            showToast('Erro ao salvar transação.', 'error');
+        }
     };
 
-    const handleConfirmTransferWrapper = (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
-        transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions).then(modals.transfer.close);
+    const handleConfirmTransferWrapper = async (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
+        try {
+            await transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions);
+            showToast('Transação transferida com sucesso!', 'success');
+            modals.transfer.close();
+        } catch (error) {
+            showToast('Erro ao transferir transação.', 'error');
+        }
     };
 
-    const performDeleteWrapper = () => {
+    const performDeleteWrapper = async () => {
         if (modals.deleteTransaction.transactionToDelete) {
-            transactionMutations.performDelete(modals.deleteTransaction.transactionToDelete).then(modals.deleteTransaction.close);
+            try {
+                await transactionMutations.performDelete(modals.deleteTransaction.transactionToDelete);
+                showToast('Transação excluída com sucesso!', 'success');
+                modals.deleteTransaction.close();
+            } catch (error) {
+                showToast('Erro ao excluir transação.', 'error');
+            }
         }
     };
     
     const performCloseMonth = async () => {
         if (!profile || !canCloseMonth) return;
         modals.closeMonth.close();
-        const recurringTransactions = allTransactions.filter(t => t.isRecurring);
-        if (recurringTransactions.length > 0) {
-            const batch = writeBatch(db);
-            recurringTransactions.forEach(t => {
-                const { id, skippedInMonths, ...rest } = t;
-                const nextLaunchDate = new Date(rest.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
-                rest.date = nextLaunchDate.toISOString().split('T')[0];
-                if (rest.paymentDate) {
-                    const nextPaymentDate = new Date(rest.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-                    rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
-                }
-                rest.paid = false;
-                rest.createdAt = serverTimestamp();
-                batch.set(doc(collection(db, 'transactions')), rest);
-            });
-            await batch.commit();
+        try {
+            const recurringTransactions = allTransactions.filter(t => t.isRecurring);
+            if (recurringTransactions.length > 0) {
+                const batch = writeBatch(db);
+                recurringTransactions.forEach(t => {
+                    const { id, skippedInMonths, ...rest } = t;
+                    const nextLaunchDate = new Date(rest.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
+                    rest.date = nextLaunchDate.toISOString().split('T')[0];
+                    if (rest.paymentDate) {
+                        const nextPaymentDate = new Date(rest.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                        rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
+                    }
+                    rest.paid = false;
+                    rest.createdAt = serverTimestamp();
+                    batch.set(doc(collection(db, 'transactions')), rest);
+                });
+                await batch.commit();
+            }
+            await updateDoc(doc(db, "profiles", profile.id), { closedMonths: [...(profile.closedMonths || []), currentMonthString] });
+            showToast('Mês fechado e recorrências criadas com sucesso!', 'success');
+            changeMonth(1);
+        } catch (error) {
+            showToast('Ocorreu um erro ao fechar o mês.', 'error');
         }
-        await updateDoc(doc(db, "profiles", profile.id), { closedMonths: [...(profile.closedMonths || []), currentMonthString] });
-        changeMonth(1);
     };
 
-    const handleArchiveSubprofileWrapper = () => {
+    const handleArchiveSubprofileWrapper = async () => {
         if (modals.archiveSubprofile.subprofileToArchive) {
-            subprofileManager.handleArchiveSubprofile(modals.archiveSubprofile.subprofileToArchive).then(() => {
+            try {
+                await subprofileManager.handleArchiveSubprofile(modals.archiveSubprofile.subprofileToArchive);
+                showToast('Subperfil arquivado com sucesso!', 'success');
                 modals.archiveSubprofile.close();
                 handleTabClick('geral');
-            });
+            } catch (error) {
+                showToast('Erro ao arquivar subperfil.', 'error');
+            }
         }
     };
 
     const handleBulkSave = async (transactions: TransactionFormState[]) => {
         if (!profile) return;
-        const batch = writeBatch(db);
-        transactions.forEach(t => batch.set(doc(collection(db, 'transactions')), { ...t, profileId: profile.id, createdAt: serverTimestamp() }));
-        await batch.commit();
+        try {
+            const batch = writeBatch(db);
+            transactions.forEach(t => batch.set(doc(collection(db, 'transactions')), { ...t, profileId: profile.id, createdAt: serverTimestamp() }));
+            await batch.commit();
+            showToast(`${transactions.length} transações importadas com sucesso!`, 'success');
+        } catch (error) {
+            showToast('Erro ao importar transações.', 'error');
+        }
     };
 
     const handleSaveSettings = async (newSettings: Partial<Profile>) => {
         if (!profile || !profileId) return;
-        const { apportionmentMethod: oldMethod } = profile;
-        const { apportionmentMethod: newMethod } = newSettings;
-        await updateDoc(doc(db, "profiles", profileId), newSettings);
-        if (newMethod !== oldMethod) {
-            const batch = writeBatch(db);
-            if (newMethod === 'proportional') {
-                allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
-                    const { id, ...rest } = parent;
-                    subprofileRevenueProportions.forEach((proportion, subId) => {
-                        batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
+        try {
+            const { apportionmentMethod: oldMethod } = profile;
+            const { apportionmentMethod: newMethod } = newSettings;
+            await updateDoc(doc(db, "profiles", profileId), newSettings);
+            if (newMethod !== oldMethod) {
+                const batch = writeBatch(db);
+                if (newMethod === 'proportional') {
+                    allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
+                        const { id, ...rest } = parent;
+                        subprofileRevenueProportions.forEach((proportion, subId) => {
+                            batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
+                        });
                     });
-                });
-            } else if (oldMethod === 'proportional') {
-                const childrenQuery = query(collection(db, 'transactions'), where('profileId', '==', profileId), where('isApportioned', '==', true));
-                const childrenSnapshot = await getDocs(childrenQuery);
-                childrenSnapshot.forEach(doc => batch.delete(doc.ref));
+                } else if (oldMethod === 'proportional') {
+                    const childrenQuery = query(collection(db, 'transactions'), where('profileId', '==', profileId), where('isApportioned', '==', true));
+                    const childrenSnapshot = await getDocs(childrenQuery);
+                    childrenSnapshot.forEach(doc => batch.delete(doc.ref));
+                }
+                await batch.commit();
             }
-            await batch.commit();
+            showToast('Configurações salvas com sucesso!', 'success');
+            modals.settings.close();
+        } catch (error) {
+            showToast('Erro ao salvar configurações.', 'error');
         }
-        modals.settings.close();
     };
     
-    const transactionActions: TransactionActions = {
+    const transactionActions: TransactionActions = useMemo(() => ({
         onEdit: handleOpenModalForEdit,
         onDelete: modals.deleteTransaction.open,
-        onTogglePaid: transactionMutations.handleTogglePaid,
-        onUpdateField: transactionMutations.handleFieldUpdate,
-        onSkip: (t) => transactionMutations.handleSkipTransaction(t, currentMonthString),
-        onUnskip: (t) => transactionMutations.handleUnskipTransaction(t, currentMonthString),
+        onTogglePaid: async (t) => {
+            try {
+                await transactionMutations.handleTogglePaid(t);
+                showToast('Status de pagamento atualizado!', 'success');
+            } catch {
+                showToast('Erro ao atualizar status.', 'error');
+            }
+        },
+        onUpdateField: async (id, field, value) => {
+            try {
+                await transactionMutations.handleFieldUpdate(id, field, value);
+                showToast('Campo atualizado com sucesso!', 'success');
+            } catch {
+                showToast('Erro ao atualizar campo.', 'error');
+            }
+        },
+        onSkip: async (t) => {
+            try {
+                await transactionMutations.handleSkipTransaction(t, currentMonthString);
+                showToast('Transação ignorada neste mês.', 'info');
+            } catch {
+                showToast('Erro ao ignorar transação.', 'error');
+            }
+        },
+        onUnskip: async (t) => {
+            try {
+                await transactionMutations.handleUnskipTransaction(t, currentMonthString);
+                showToast('Transação reativada para este mês.', 'info');
+            } catch {
+                showToast('Erro ao reativar transação.', 'error');
+            }
+        },
         onTransfer: handleOpenTransferModal,
-        onSaveNote: transactionMutations.handleSaveNote,
-    };
+        onSaveNote: async (id, note) => {
+            try {
+                await transactionMutations.handleSaveNote(id, note);
+                showToast('Nota salva com sucesso!', 'success');
+            } catch {
+                showToast('Erro ao salvar nota.', 'error');
+            }
+        }
+    }), [handleOpenModalForEdit, modals.deleteTransaction.open, transactionMutations, currentMonthString, handleOpenTransferModal, showToast]);
 
     if (profileLoading || monthsLoading || !sortConfig) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;

@@ -7,12 +7,14 @@ import { db } from '../lib/firebase';
 import { Profile } from '../types';
 import { ArrowLeft, Trash2, RotateCw } from 'lucide-react';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
+import { useToast } from '../contexts/ToastContext';
 
 export const TrashScreen: React.FC = () => {
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string; type: 'perfil' | 'subperfil', parentProfileId?: string } | null>(null);
     const navigate = useNavigate();
+    const { showToast } = useToast();
 
     useEffect(() => {
         const q = collection(db, 'profiles');
@@ -28,35 +30,49 @@ export const TrashScreen: React.FC = () => {
         .flatMap(p => p.subprofiles.filter(s => s.status === 'archived').map(s => ({ ...s, parentProfileId: p.id, parentProfileName: p.name })));
 
     const handleRestoreProfile = async (profileId: string) => {
-        await updateDoc(doc(db, 'profiles', profileId), { status: 'active' });
+        try {
+            await updateDoc(doc(db, 'profiles', profileId), { status: 'active' });
+            showToast('Perfil restaurado com sucesso!', 'success');
+        } catch (error) {
+            showToast('Erro ao restaurar perfil.', 'error');
+        }
     };
 
     const handleRestoreSubprofile = async (parentProfileId: string, subprofileId: string) => {
         const parentProfile = profiles.find(p => p.id === parentProfileId);
         if (!parentProfile) return;
-        const updatedSubprofiles = parentProfile.subprofiles.map(s => s.id === subprofileId ? { ...s, status: 'active' } : s);
-        await updateDoc(doc(db, 'profiles', parentProfileId), { subprofiles: updatedSubprofiles });
+        try {
+            const updatedSubprofiles = parentProfile.subprofiles.map(s => s.id === subprofileId ? { ...s, status: 'active' } : s);
+            await updateDoc(doc(db, 'profiles', parentProfileId), { subprofiles: updatedSubprofiles });
+            showToast('Subperfil restaurado com sucesso!', 'success');
+        } catch (error) {
+            showToast('Erro ao restaurar subperfil.', 'error');
+        }
     };
 
     const handlePermanentDelete = async () => {
         if (!itemToDelete) return;
 
-        if (itemToDelete.type === 'perfil') {
-            const batch = writeBatch(db);
-            const transQuery = query(collection(db, 'transactions'), where('profileId', '==', itemToDelete.id));
-            const transSnapshot = await getDocs(transQuery);
-            transSnapshot.forEach(doc => batch.delete(doc.ref));
-            batch.delete(doc(db, 'profiles', itemToDelete.id));
-            await batch.commit();
-        } 
-        else if (itemToDelete.type === 'subperfil' && itemToDelete.parentProfileId) {
-            const parentProfile = profiles.find(p => p.id === itemToDelete.parentProfileId);
-            if (!parentProfile) return;
-            const updatedSubprofiles = parentProfile.subprofiles.filter(s => s.id !== itemToDelete.id);
-            await updateDoc(doc(db, 'profiles', itemToDelete.parentProfileId), { subprofiles: updatedSubprofiles });
+        try {
+            if (itemToDelete.type === 'perfil') {
+                const batch = writeBatch(db);
+                const transQuery = query(collection(db, 'transactions'), where('profileId', '==', itemToDelete.id));
+                const transSnapshot = await getDocs(transQuery);
+                transSnapshot.forEach(doc => batch.delete(doc.ref));
+                batch.delete(doc(db, 'profiles', itemToDelete.id));
+                await batch.commit();
+            } 
+            else if (itemToDelete.type === 'subperfil' && itemToDelete.parentProfileId) {
+                const parentProfile = profiles.find(p => p.id === itemToDelete.parentProfileId);
+                if (!parentProfile) return;
+                const updatedSubprofiles = parentProfile.subprofiles.filter(s => s.id !== itemToDelete.id);
+                await updateDoc(doc(db, 'profiles', itemToDelete.parentProfileId), { subprofiles: updatedSubprofiles });
+            }
+            showToast(`${itemToDelete.type === 'perfil' ? 'Perfil' : 'Subperfil'} excluído permanentemente.`, 'success');
+            setItemToDelete(null);
+        } catch (error) {
+            showToast(`Erro ao excluir o ${itemToDelete.type}.`, 'error');
         }
-
-        setItemToDelete(null);
     };
 
     const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-md">{children}</div>;

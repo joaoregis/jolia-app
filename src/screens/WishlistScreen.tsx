@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useProfileContext } from '../contexts/ProfileContext';
+import { useToast } from '../contexts/ToastContext';
 import { Wishlist, WishlistItem } from '../types';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
@@ -56,6 +57,7 @@ export const WishlistScreen: React.FC = () => {
     const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const navigate = useNavigate();
     const { profile, loading: profileLoading, setActiveThemeBySubprofileId } = useProfileContext();
+    const { showToast } = useToast();
     const { wishlists, wishlistItems, loading: wishlistsLoading } = useWishlists(profileId);
     
     const activeTab = subprofileId || 'geral';
@@ -95,76 +97,111 @@ export const WishlistScreen: React.FC = () => {
 
     const handleAddWishlist = async (name: string) => {
         if (!profileId) return;
-        const data: {
-            name: string;
-            profileId: string;
-            isShared: boolean;
-            subprofileId?: string;
-            createdAt: any;
-        } = {
-            name,
-            profileId,
-            isShared: activeTab === 'geral',
-            createdAt: serverTimestamp(),
-        };
-
-        if (activeTab !== 'geral') {
-            data.subprofileId = activeTab;
+        try {
+            const data: {
+                name: string;
+                profileId: string;
+                isShared: boolean;
+                subprofileId?: string;
+                createdAt: any;
+            } = {
+                name,
+                profileId,
+                isShared: activeTab === 'geral',
+                createdAt: serverTimestamp(),
+            };
+    
+            if (activeTab !== 'geral') {
+                data.subprofileId = activeTab;
+            }
+    
+            await addDoc(collection(db, 'wishlists'), data);
+            showToast('Lista de desejos criada com sucesso!', 'success');
+            setAddListModalOpen(false);
+        } catch (error) {
+            showToast('Erro ao criar a lista de desejos.', 'error');
         }
-
-        await addDoc(collection(db, 'wishlists'), data);
-        setAddListModalOpen(false);
     };
 
     const handleEditWishlist = async (newName: string) => {
         if (!selectedWishlist) return;
-        await updateDoc(doc(db, 'wishlists', selectedWishlist.id), { name: newName });
-        setEditListModalOpen(false);
-        setSelectedWishlist(null);
+        try {
+            await updateDoc(doc(db, 'wishlists', selectedWishlist.id), { name: newName });
+            showToast('Lista de desejos atualizada!', 'success');
+            setEditListModalOpen(false);
+            setSelectedWishlist(null);
+        } catch (error) {
+            showToast('Erro ao atualizar a lista.', 'error');
+        }
     };
     
     const handleDeleteWishlist = async () => {
         if (!selectedWishlist) return;
-        const batch = writeBatch(db);
-        const items = wishlistItems.get(selectedWishlist.id) || [];
-        items.forEach(item => {
-            batch.delete(doc(db, `wishlists/${selectedWishlist.id}/items`, item.id));
-        });
-        batch.delete(doc(db, 'wishlists', selectedWishlist.id));
-        await batch.commit();
-        setDeleteListModalOpen(false);
-        setSelectedWishlist(null);
+        try {
+            const batch = writeBatch(db);
+            const items = wishlistItems.get(selectedWishlist.id) || [];
+            items.forEach(item => {
+                batch.delete(doc(db, `wishlists/${selectedWishlist.id}/items`, item.id));
+            });
+            batch.delete(doc(db, 'wishlists', selectedWishlist.id));
+            await batch.commit();
+            showToast('Lista de desejos excluída com sucesso.', 'success');
+            setDeleteListModalOpen(false);
+            setSelectedWishlist(null);
+        } catch (error) {
+            showToast('Erro ao excluir a lista.', 'error');
+        }
     };
 
     const handleAddWishlistItem = async (itemData: Omit<WishlistItem, 'id' | 'createdAt' | 'isDone'>) => {
         if (!selectedWishlist) return;
-        await addDoc(collection(db, `wishlists/${selectedWishlist.id}/items`), {
-            ...itemData,
-            isDone: false,
-            createdAt: serverTimestamp()
-        });
-        setAddItemModalOpen(false);
-        setSelectedWishlist(null);
+        try {
+            await addDoc(collection(db, `wishlists/${selectedWishlist.id}/items`), {
+                ...itemData,
+                isDone: false,
+                createdAt: serverTimestamp()
+            });
+            showToast('Item adicionado à lista!', 'success');
+            setAddItemModalOpen(false);
+            setSelectedWishlist(null);
+        } catch (error) {
+            showToast('Erro ao adicionar o item.', 'error');
+        }
     };
 
     const handleEditWishlistItem = async (itemData: Omit<WishlistItem, 'id' | 'createdAt' | 'isDone'>) => {
         if (!selectedWishlist || !selectedWishlistItem) return;
-        await updateDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id), { ...itemData });
-        setEditItemModalOpen(false);
-        setSelectedWishlistItem(null);
-        setSelectedWishlist(null);
+        try {
+            await updateDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id), { ...itemData });
+            showToast('Item atualizado com sucesso!', 'success');
+            setEditItemModalOpen(false);
+            setSelectedWishlistItem(null);
+            setSelectedWishlist(null);
+        } catch (error) {
+            showToast('Erro ao atualizar o item.', 'error');
+        }
     };
 
     const handleToggleDone = async (listId: string, item: WishlistItem) => {
-        await updateDoc(doc(db, `wishlists/${listId}/items`, item.id), { isDone: !item.isDone });
+        try {
+            await updateDoc(doc(db, `wishlists/${listId}/items`, item.id), { isDone: !item.isDone });
+            showToast(item.isDone ? 'Item marcado como não concluído.' : 'Item marcado como concluído!', 'info');
+        } catch (error) {
+            showToast('Erro ao atualizar o status do item.', 'error');
+        }
     };
 
     const handleDeleteItem = async () => {
         if (!selectedWishlist || !selectedWishlistItem) return;
-        await deleteDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id));
-        setDeleteItemModalOpen(false);
-        setSelectedWishlistItem(null);
-        setSelectedWishlist(null);
+        try {
+            await deleteDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id));
+            showToast('Item excluído da lista.', 'success');
+            setDeleteItemModalOpen(false);
+            setSelectedWishlistItem(null);
+            setSelectedWishlist(null);
+        } catch (error) {
+            showToast('Erro ao excluir o item.', 'error');
+        }
     };
 
 

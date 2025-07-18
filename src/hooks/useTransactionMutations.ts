@@ -92,7 +92,35 @@ export function useTransactionMutations(profile: Profile | null) {
     };
 
     const handleFieldUpdate = async (id: string, field: keyof Transaction, value: any) => {
-        await updateDoc(doc(db, 'transactions', id), { [field]: value });
+        if (!profile) return;
+        const batch = writeBatch(db);
+        const transactionRef = doc(db, 'transactions', id);
+    
+        // Obtém a transação para verificar se ela é compartilhada
+        const docSnap = await getDoc(transactionRef);
+        if (!docSnap.exists()) {
+            console.error("Transação não encontrada para atualização.");
+            return;
+        }
+        const transaction = docSnap.data() as Transaction;
+    
+        // Atualiza o documento pai
+        batch.update(transactionRef, { [field]: value });
+    
+        // Se for uma despesa compartilhada com rateio proporcional, propaga a alteração para os filhos
+        const isProportionalShared = transaction.isShared && profile.apportionmentMethod === 'proportional';
+        // Campos que não devem ser propagados diretamente pois possuem cálculo próprio (ou já são tratados em outras funções)
+        const fieldsToIgnore = ['planned', 'actual', 'description', 'paid', 'isShared', 'subprofileId'];
+    
+        if (isProportionalShared && !fieldsToIgnore.includes(field)) {
+            const q = query(collection(db, 'transactions'), where('parentId', '==', id));
+            const childrenSnapshot = await getDocs(q);
+            childrenSnapshot.forEach(childDoc => {
+                batch.update(childDoc.ref, { [field]: value });
+            });
+        }
+    
+        await batch.commit();
     };
 
     const handleTogglePaid = async (transaction: Transaction) => {

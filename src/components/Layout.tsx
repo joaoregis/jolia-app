@@ -59,7 +59,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
 
     return (
         <ProfileProvider>
-            <div className="flex h-screen overflow-hidden bg-background font-sans">
+            <div className="flex h-screen overflow-hidden bg-background font-sans text-with-shadow">
                 {isMobileMenuOpen && (
                     <div 
                         onClick={() => setIsMobileMenuOpen(false)}

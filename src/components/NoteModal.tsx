@@ -28,7 +28,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, i
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
                 <div className="flex justify-between items-center p-4 border-b border-border-color">
                     <h3 className="text-xl font-semibold text-text-primary">Nota da Transação</h3>
                     <button onClick={onClose} className="text-text-secondary hover:opacity-75">

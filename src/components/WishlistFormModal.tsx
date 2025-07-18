@@ -31,7 +31,7 @@ export const WishlistFormModal: React.FC<WishlistFormModalProps> = ({ isOpen, on
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
                 <form onSubmit={handleSubmit}>
                     <div className="flex justify-between items-center p-4 border-b border-border-color">
                         <h3 className="text-xl font-semibold text-text-primary">

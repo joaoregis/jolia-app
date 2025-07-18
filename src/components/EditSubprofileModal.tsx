@@ -49,15 +49,12 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
     }, [subprofile, isOpen]);
     
     useEffect(() => {
-        // Se um tema pré-definido for selecionado, limpa o tema customizado
         if (selectedThemeId !== 'custom') {
             setCustomTheme(undefined);
         } else if (!customTheme) {
-            // Se mudou para custom e não existe um, inicializa com o tema padrão
             setCustomTheme(themes.default.variables);
         }
     }, [selectedThemeId]);
-
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -78,7 +75,6 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div 
-                onClick={(e) => e.stopPropagation()}
                 className="bg-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
                 style={modalStyle}
             >
@@ -108,7 +104,6 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
 
                     <div className="border-t border-border-color my-4"></div>
 
-                     {/* Nova seção para o customizador de tema */}
                     <div className="flex items-center gap-4">
                         <input
                             type="radio"

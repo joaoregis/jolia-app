@@ -34,11 +34,11 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ data, activeTab }) =
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader><CardTitle>Total Previsto (Despesas da Casa)</CardTitle></CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-text-primary">{formatCurrency(totalDespesaPrevisto)}</div></CardContent>
+                    <CardContent><div className="text-2xl font-bold text-text-primary text-shadow-none">{formatCurrency(totalDespesaPrevisto)}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader><CardTitle>Total Efetivo (Despesas da Casa)</CardTitle></CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div></CardContent>
+                    <CardContent><div className="text-2xl font-bold text-red-600 text-shadow-none">{formatCurrency(totalDespesaEfetivo)}</div></CardContent>
                 </Card>
             </div>
         );
@@ -49,14 +49,14 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ data, activeTab }) =
             <Card>
                 <CardHeader><CardTitle>Receitas</CardTitle></CardHeader>
                 <CardContent>
-                    <div className="text-xl font-bold text-green-600">{formatCurrency(totalReceitaEfetivo)}</div>
+                    <div className="text-xl font-bold text-green-600 text-shadow-none">{formatCurrency(totalReceitaEfetivo)}</div>
                     <p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalReceitaPrevisto)}</p>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Despesas</CardTitle></CardHeader>
                 <CardContent>
-                    <div className="text-xl font-bold text-red-600">{formatCurrency(totalDespesaEfetivo)}</div>
+                    <div className="text-xl font-bold text-red-600 text-shadow-none">{formatCurrency(totalDespesaEfetivo)}</div>
                     <p className="text-xs text-text-secondary">Previsto: {formatCurrency(totalDespesaPrevisto)}</p>
                 </CardContent>
             </Card>

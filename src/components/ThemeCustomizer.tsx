@@ -1,8 +1,9 @@
 // src/components/ThemeCustomizer.tsx
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Theme } from '../lib/themes';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
+import { useToast } from '../contexts/ToastContext';
 
 interface ThemeCustomizerProps {
     customTheme: Theme['variables'];
@@ -21,10 +22,98 @@ const colorVariables: Array<{ key: keyof Theme['variables'], label: string }> = 
     { key: '--border', label: 'Cor da Borda' },
 ];
 
+const ColorContextMenu: React.FC<{
+    x: number;
+    y: number;
+    onCopy: () => void;
+    onPaste: () => void;
+    onClose: () => void;
+}> = ({ x, y, onCopy, onPaste, onClose }) => {
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [onClose]);
+
+    return (
+        <div
+            ref={menuRef}
+            className="absolute z-50 w-32 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 border border-border"
+            style={{ top: y, left: x }}
+        >
+            <div className="py-1">
+                <button onClick={onCopy} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Copiar</button>
+                <button onClick={onPaste} className="w-full text-left px-4 py-2 text-sm text-text-secondary hover:bg-background">Colar</button>
+            </div>
+        </div>
+    );
+};
+
+
+const normalizeHexColor = (colorString: string): string | null => {
+    const str = colorString.trim().replace(/^#/, '');
+
+    if (/^[0-9a-f]{6}$/i.test(str)) {
+        return `#${str.toLowerCase()}`;
+    }
+
+    if (/^[0-9a-f]{3}$/i.test(str)) {
+        return `#${str.split('').map(char => char + char).join('').toLowerCase()}`;
+    }
+
+    return null;
+}
+
+
 export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, onThemeChange }) => {
+    const { showToast } = useToast();
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; key: keyof Theme['variables'] } | null>(null);
 
     const handleColorChange = (key: keyof Theme['variables'], value: string) => {
         onThemeChange({ ...customTheme, [key]: value });
+    };
+
+    const handleContextMenu = (e: React.MouseEvent, key: keyof Theme['variables']) => {
+        e.preventDefault();
+        setContextMenu({ x: e.pageX, y: e.pageY, key });
+    };
+
+    const handleCopy = () => {
+        if (contextMenu) {
+            const colorToCopy = customTheme[contextMenu.key];
+            navigator.clipboard.writeText(colorToCopy).then(() => {
+                showToast(`Cor ${colorToCopy} copiada!`, 'success');
+            }).catch(() => {
+                showToast('Falha ao copiar a cor.', 'error');
+            });
+            setContextMenu(null);
+        }
+    };
+
+    const handlePaste = async () => {
+        if (contextMenu) {
+            try {
+                const text = await navigator.clipboard.readText();
+                const validHexColor = normalizeHexColor(text);
+
+                if (validHexColor) {
+                    handleColorChange(contextMenu.key, validHexColor);
+                    showToast(`Cor "${text}" colada com sucesso!`, 'success');
+                } else {
+                    showToast(`"${text.substring(0, 10) + (text.length > 10 ? "..." : "")}" não é um formato HEX válido.`, 'error');
+                }
+            } catch (error) {
+                showToast('Não foi possível ler da área de transferência.', 'error');
+                console.error('Clipboard paste error:', error);
+            }
+            setContextMenu(null);
+        }
     };
 
     return (
@@ -33,7 +122,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                 <h4 className="text-lg font-medium text-text-primary mb-3">Cores Personalizadas</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {colorVariables.map(({ key, label }) => (
-                        <div key={key}>
+                        <div key={key} onContextMenu={(e) => handleContextMenu(e, key)}>
                             <label htmlFor={key} className="block text-sm font-medium text-text-secondary">
                                 {label}
                             </label>
@@ -49,6 +138,16 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                     ))}
                 </div>
             </div>
+
+            {contextMenu && (
+                <ColorContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
+                    onClose={() => setContextMenu(null)}
+                />
+            )}
 
             <div>
                 <h4 className="text-lg font-medium text-text-primary mb-3">Pré-visualização</h4>

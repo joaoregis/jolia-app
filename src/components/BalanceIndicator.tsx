@@ -47,7 +47,7 @@ export const BalanceIndicator: React.FC<BalanceIndicatorProps> = ({ effectiveBal
     return (
         <div className={`flex items-center gap-2 ${textColorClass}`} title={titleText}>
             <IconComponent size={24} className="flex-shrink-0" />
-            <span className="text-xl font-bold">{formatCurrency(effectiveBalance)}</span>
+            <span className="text-xl font-bold text-shadow-none">{formatCurrency(effectiveBalance)}</span>
         </div>
     );
 };

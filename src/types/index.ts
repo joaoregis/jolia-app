@@ -17,7 +17,7 @@ export interface Profile {
     subprofiles: Subprofile[];
     status: 'active' | 'archived';
     closedMonths?: string[];
-    apportionmentMethod?: 'proportional' | 'manual'; 
+    apportionmentMethod?: 'proportional' | 'manual';
 }
 
 export interface Transaction {
@@ -34,11 +34,11 @@ export interface Transaction {
   paymentDate?: string;
   dueDate?: string;
   profileId: string;
-  createdAt?: any; 
-  parentId?: string; 
+  createdAt?: any;
+  parentId?: string;
   isApportioned?: boolean;
-  skippedInMonths?: string[]; 
-  notes?: string; 
+  skippedInMonths?: string[];
+  notes?: string;
 }
 
 export interface AppData {
@@ -69,8 +69,17 @@ export interface Wishlist {
     name: string;
     profileId: string;
     // Opcional: para vincular a um subperfil específico
-    subprofileId?: string; 
+    subprofileId?: string;
     // Para listas compartilhadas (visíveis para todos no perfil)
-    isShared: boolean; 
+    isShared: boolean;
     createdAt: any; // serverTimestamp
+}
+
+// Tipos para o sistema de Toast
+export type ToastType = 'success' | 'error' | 'info';
+
+export interface ToastMessage {
+  id: number;
+  message: string;
+  type: ToastType;
 }

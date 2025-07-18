@@ -58,6 +58,7 @@ export default function App() {
                     <Route path="" element={<DashboardScreen />} />
                     <Route path=":subprofileId" element={<DashboardScreen />} />
                     <Route path="wishlist" element={<WishlistScreen />} />
+                    <Route path="wishlist/:subprofileId" element={<WishlistScreen />} />
                 </Route>
             </Routes>
         </ToastProvider>

@@ -1,7 +1,7 @@
 // src/screens/WishlistScreen.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useProfileContext } from '../contexts/ProfileContext';
@@ -53,11 +53,12 @@ const useWishlists = (profileId?: string) => {
 
 
 export const WishlistScreen: React.FC = () => {
-    const { profileId } = useParams<{ profileId: string }>();
+    const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
+    const navigate = useNavigate();
     const { profile, loading: profileLoading, setActiveThemeBySubprofileId } = useProfileContext();
     const { wishlists, wishlistItems, loading: wishlistsLoading } = useWishlists(profileId);
     
-    const [activeTab, setActiveTab] = useState('geral');
+    const activeTab = subprofileId || 'geral';
 
     useEffect(() => {
         setActiveThemeBySubprofileId(activeTab);
@@ -85,6 +86,13 @@ export const WishlistScreen: React.FC = () => {
     }, [wishlists, activeTab]);
 
     // --- Handlers ---
+    const handleTabClick = (tabId: string) => {
+        const path = tabId === 'geral'
+            ? `/profile/${profileId}/wishlist`
+            : `/profile/${profileId}/wishlist/${tabId}`;
+        navigate(path);
+    };
+
     const handleAddWishlist = async (name: string) => {
         if (!profileId) return;
         const data: {
@@ -213,11 +221,11 @@ export const WishlistScreen: React.FC = () => {
 
             <div className="border-b border-border-color">
                 <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto">
-                    <button onClick={() => setActiveTab('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
+                    <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
                         Geral (Casa)
                     </button>
                     {activeSubprofiles.map(sub => (
-                        <button key={sub.id} onClick={() => setActiveTab(sub.id)} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === sub.id ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
+                        <button key={sub.id} onClick={() => handleTabClick(sub.id)} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === sub.id ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
                             {sub.name}
                         </button>
                     ))}

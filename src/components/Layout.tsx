@@ -15,7 +15,7 @@ const COLLAPSED_STATE_STORAGE_KEY = 'jolia_sidebar_collapsed';
 
 export const Layout: React.FC<LayoutProps> = ({ user }) => {
     const navigate = useNavigate();
-    const { profileId } = useParams<{ profileId: string }>();
+    const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const location = useLocation();
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -37,9 +37,11 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
         }
     }, [isCollapsed]);
 
+    const subprofilePath = subprofileId ? `/${subprofileId}` : '';
+
     const navItems = [
-        { href: `/profile/${profileId}`, icon: Home, label: 'Dashboard' },
-        { href: `/profile/${profileId}/wishlist`, icon: Gift, label: 'Lista de Desejos' },
+        { href: `/profile/${profileId}${subprofilePath}`, icon: Home, label: 'Dashboard' },
+        { href: `/profile/${profileId}/wishlist${subprofilePath}`, icon: Gift, label: 'Lista de Desejos' },
     ];
 
     const NavLink: React.FC<{ href: string; icon: React.ElementType; label: string; isActive: boolean; isCollapsed: boolean; }> = 
@@ -82,9 +84,15 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                         
                         <nav className="space-y-2">
                         {navItems.map(item => {
-                            const isDashboardLink = item.label === 'Dashboard';
-                            const isCurrentRouteDashboard = !location.pathname.includes('wishlist');
-                            const isActive = isDashboardLink ? isCurrentRouteDashboard : location.pathname.startsWith(item.href);
+                            const isDashboardRoute = location.pathname.startsWith(`/profile/${profileId}`) && !location.pathname.includes('wishlist');
+                            const isWishlistRoute = location.pathname.startsWith(`/profile/${profileId}/wishlist`);
+
+                            let isActive = false;
+                            if (item.label === 'Dashboard') {
+                                isActive = isDashboardRoute;
+                            } else if (item.label === 'Lista de Desejos') {
+                                isActive = isWishlistRoute;
+                            }
 
                             return (
                                 <NavLink 

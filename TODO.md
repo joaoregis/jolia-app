@@ -107,16 +107,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ---
 
-## ✨ Melhorias de UI/UX e Qualidade de Vida
-
--   [ ] **Sombra de Destaque na Fonte:** Adicionar uma sombra sutil (`text-shadow`) em todos os textos da aplicação para melhorar a legibilidade e o contraste, especialmente em temas personalizados.
-
--   [ ] **Copiar/Colar Cores no Customizador de Tema:** Implementar um menu de contexto (clique com o botão direito) nos seletores de cor da tela de personalização de tema, com opções para "Copiar Cor" e "Colar Cor", agilizando a criação de paletas consistentes.
-
--   [ ] **Sincronização Completa de Transações Rateadas:** Garantir que, ao editar uma transação "Da Casa" na Visão Geral, todas as suas propriedades (como `paymentDate`, `dueDate`, `paid`, etc.) sejam automaticamente atualizadas nas transações filhas (rateios) nos subperfis, não apenas os valores.
-
----
-
 ## 🔒 Melhorias de Segurança
 
 ### 🛡️ Autenticação de Dois Fatores (2FA)

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { User } from 'firebase/auth';
-import { Briefcase, Home, Settings, LogOut, ChevronLeft, Gift } from 'lucide-react';
+import { Briefcase, Home, LogOut, ChevronLeft, Gift } from 'lucide-react';
 import { Header } from './Header';
 import { ProfileProvider } from '../contexts/ProfileContext';
 
@@ -49,7 +49,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
         <a 
             href={href} 
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
-                ${isActive ? 'bg-accent text-white' : 'text-text-secondary hover:bg-background'}
+                ${isActive ? 'bg-accent text-white' : 'text-sidebar-text-secondary hover:bg-background'}
                 ${isCollapsed ? 'justify-center' : ''}
             `}
             title={isCollapsed ? label : undefined}
@@ -61,7 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
 
     return (
         <ProfileProvider>
-            <div className="flex h-screen overflow-hidden bg-background font-sans text-with-shadow">
+            <div className="flex h-screen overflow-hidden bg-background font-sans">
                 {isMobileMenuOpen && (
                     <div 
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -79,7 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                     <div>
                         <div className={`flex items-center gap-3 mb-10 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
                             <Briefcase className="text-accent h-8 w-8 flex-shrink-0" />
-                            {!isCollapsed && <h1 className="text-2xl font-bold text-text-primary whitespace-nowrap">Jolia</h1>}
+                            {!isCollapsed && <h1 className="text-2xl font-bold text-sidebar-text-primary whitespace-nowrap">Jolia</h1>}
                         </div>
                         
                         <nav className="space-y-2">
@@ -109,14 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                     </div>
                     
                     <div className="space-y-2 border-t border-border pt-4">
-                        <NavLink 
-                            href="#"
-                            icon={Settings}
-                            label="Configurações"
-                            isCollapsed={isCollapsed}
-                            isActive={false}
-                        />
-                        <button onClick={() => navigate('/')} title="Trocar de Perfil" className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary hover:bg-background rounded-lg ${isCollapsed ? 'justify-center' : ''}`}>
+                        <button onClick={() => navigate('/')} title="Trocar de Perfil" className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-text-secondary hover:bg-background rounded-lg ${isCollapsed ? 'justify-center' : ''}`}>
                             <LogOut size={20} />
                             {!isCollapsed && <span>Trocar de Perfil</span>}
                         </button>

@@ -5,8 +5,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
 import { Profile, SortConfig, Transaction, TransactionFormState } from '../types';
-import { useProfileContext } from '../contexts/ProfileContext';
 import { useToast } from '../contexts/ToastContext';
+import { useProfileContext } from '../hooks/useProfileContext';
 
 // Hooks
 import { useTransactions } from '../hooks/useTransactions';

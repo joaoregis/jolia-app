@@ -194,15 +194,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
         const selectedTransactions = data.filter(t => selectedIds.has(t.id));
         const count = selectedTransactions.length;
         if (count === 0) {
-            return { count: 0, sumPlanned: 0, sumActual: 0, avgPlanned: 0, avgActual: 0 };
+            return { count: 0, sumPlanned: 0, sumActual: 0 };
         }
         const sumPlanned = selectedTransactions.reduce((acc, t) => acc + t.planned, 0);
         const sumActual = selectedTransactions.reduce((acc, t) => acc + t.actual, 0);
-        return {
-            count,
-            sumPlanned,
-            sumActual,
-        };
+        return { count, sumPlanned, sumActual };
     }, [selectedIds, data]);
 
 
@@ -250,11 +246,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                  <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
                 <div className="md:hidden">
                     {data.length > 0 ? data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} />) : null}
-                    {data.length > 0 && <div className="flex justify-between font-bold text-text-primary bg-table-header p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
+                    {data.length > 0 && <div className="flex justify-between font-bold text-table-footer-text bg-table-footer p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
                 </div>
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
-                        <thead className="text-xs text-text-primary uppercase bg-table-header">
+                        <thead className="text-xs text-table-header-text uppercase bg-table-header">
                             <tr>
                                 <th className="px-4 py-3 w-px">
                                     <Checkbox
@@ -264,6 +260,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                         onChange={(e) => onSelectAll(e.target.checked)}
                                     />
                                 </th>
+                                <th scope="col" className="px-1 py-3 w-[40px]"></th>
                                 <SortableHeader sortKey="description" className="w-[18%]">Descrição</SortableHeader>
                                 <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>
                                 <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
@@ -287,14 +284,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                     <td className="px-4 py-3 align-middle">
                                         <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
                                     </td>
-                                    <td className="px-4 py-3 align-middle font-medium text-text-primary">
-                                        <div className="flex items-center gap-2">
+                                    <td className="px-1 py-3 align-middle">
+                                         <div className="flex items-center justify-center gap-2">
                                             {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
                                             {item.isShared && <Tooltip content={getApportionmentTooltipContent(item)}><Users size={14} className="text-cyan-400 flex-shrink-0 cursor-pointer"/></Tooltip>}
                                             {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0"/></span>}
                                             {isApportioned && <Tooltip content={<>Esta despesa é um rateio da Visão Geral<br />e não pode ser editada aqui.</>}><Info size={14} className="text-teal-400 flex-shrink-0 cursor-help" /></Tooltip>}
-                                            <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned} />
                                         </div>
+                                    </td>
+                                    <td className="px-4 py-3 align-middle font-medium text-text-primary">
+                                        <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned} />
                                     </td>
                                      <td className="px-4 py-3 align-middle">
                                         {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
@@ -333,9 +332,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                         </tbody>
                        )}
                        {data.length > 0 && (
-                         <tfoot className="font-bold text-text-primary bg-table-header">
+                         <tfoot className="font-bold text-table-footer-text bg-table-footer">
                             <tr>
-                                <td colSpan={2} className="px-4 py-3">TOTAL</td>
+                                <td colSpan={3} className="px-4 py-3">TOTAL</td>
                                 <td colSpan={2} />
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
@@ -382,7 +381,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
             <CardContent>
                 <div className="w-full overflow-x-auto">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
-                        <thead className="text-xs text-text-primary uppercase bg-table-header">
+                        <thead className="text-xs text-table-header-text uppercase bg-table-header">
                             <tr>
                                 <th scope="col" className="px-4 py-3 w-[40%]">Descrição</th>
                                 <th scope="col" className="px-4 py-3 w-[20%]">Tipo</th>

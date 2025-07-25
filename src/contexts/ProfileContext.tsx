@@ -1,6 +1,6 @@
 // src/contexts/ProfileContext.tsx
 
-import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import { themes, Theme } from '../lib/themes';
@@ -13,7 +13,7 @@ interface ProfileContextType {
     setActiveThemeBySubprofileId: (subprofileId: string | null) => void;
 }
 
-const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+export const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { profileId } = useParams<{ profileId: string }>();
@@ -33,15 +33,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             themeToApply = themes[activeSub.themeId];
         }
         
-        // A verificação abaixo evita uma atualização de estado desnecessária se o tema já for o correto.
-        // Isso adiciona uma camada extra de segurança contra loops.
         setActiveTheme(currentTheme => {
             if (JSON.stringify(currentTheme) === JSON.stringify(themeToApply)) {
                 return currentTheme;
             }
             return themeToApply;
         });
-    }, [profile]); // A função agora só é recriada se o 'profile' mudar.
+    }, [profile]);
     
     useEffect(() => {
         const root = document.documentElement;
@@ -68,12 +66,4 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             {children}
         </ProfileContext.Provider>
     );
-};
-
-export const useProfileContext = () => {
-    const context = useContext(ProfileContext);
-    if (context === undefined) {
-        throw new Error('useProfileContext must be used within a ProfileProvider');
-    }
-    return context;
 };

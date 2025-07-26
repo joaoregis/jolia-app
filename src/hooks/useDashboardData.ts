@@ -64,7 +64,7 @@ export function useDashboardData(
     const filteredData = useMemo<AppData>(() => {
         if (activeTab === 'geral') {
             return {
-                receitas: [],
+                receitas: activeTransactions.filter(t => t.type === 'income' && t.isShared),
                 despesas: activeTransactions.filter(t => t.type === 'expense' && t.isShared)
             };
         }

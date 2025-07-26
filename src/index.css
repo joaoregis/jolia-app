@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* Estilos customizados da barra de rolagem */
+
+  /* Para Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) var(--sidebar);
+  }
+
+  /* Para browsers baseados em WebKit (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: var(--sidebar);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 10px;
+    border: 2px solid var(--sidebar);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent);
+  }
+}
+
 @layer utilities {
   .text-with-shadow {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);

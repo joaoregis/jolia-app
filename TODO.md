@@ -6,59 +6,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ## 🎯 Funcionalidades Principais (Core Features)
 
-### 🗓️ Sistema de Transações Parceladas (Recorrentes)
-
-**Objetivo:** Permitir o lançamento de transações que se repetem por um número definido de meses, como financiamentos ou compras parceladas, com gestão flexível sobre as parcelas futuras.
-
--   [ ] **1. Modelagem de Dados (Firestore):**
-    -   **Coleção `transactions`:**
-        -   Adicionar o campo `seriesId: string` para agrupar todas as transações de uma mesma série de parcelas.
-        -   Adicionar `currentInstallment: number`.
-        -   Adicionar `totalInstallments: number`.
-        -   O campo `isRecurring` será usado para identificar o início de uma série de parcelas. A lógica de repetição será controlada por esta nova estrutura.
-        -   Adicionar `originalDate: string` para ser usado em caso de adiamento (skip).
-
--   [ ] **2. Interface de Lançamento:**
-    -   No modal de transação, adicionar um toggle "É uma compra parcelada?".
-    -   Ao ativar, exibir um campo para "Número de Parcelas".
-    -   Ao salvar, o sistema deve:
-        1.  Gerar um `seriesId` único (ex: UUID).
-        2.  Criar a primeira transação com `isRecurring: true`, `seriesId`, `currentInstallment: 1` e `totalInstallments`.
-        3.  Criar as transações futuras (`totalInstallments - 1`) para os meses subsequentes, cada uma com o mesmo `seriesId`, o `currentInstallment` correspondente e `isRecurring: false`. A data (`date`, `paymentDate`, `dueDate`) deve ser incrementada em um mês para cada parcela.
-
--   [ ] **3. Lógica de Edição e Exclusão (Estilo Google Calendar):**
-    -   Ao tentar editar ou excluir uma transação que pertence a uma série (`seriesId` presente):
-        -   Exibir um modal perguntando ao usuário o que ele deseja alterar:
-            -   "Apenas esta transação"
-            -   "Esta e as transações futuras"
-        -   **Lógica de Edição:**
-            -   *Apenas esta:* Altera somente o documento da transação atual.
-            -   *Esta e as futuras:* Altera o documento atual e todos os documentos subsequentes (`currentInstallment` maior ou igual) da mesma série (`seriesId`).
-        -   **Lógica de Exclusão:**
-            -   *Apenas esta:* Exclui somente o documento da transação atual.
-            -   *Esta e as futuras:* Exclui o documento atual e todos os subsequentes da mesma série.
-        -   **Importante:** Nunca permitir a alteração de transações de meses já fechados.
-
--   [ ] **4. Lógica de "Ignorar" (Skip/Adiar):**
-    -   Quando o usuário clica em "Ignorar neste mês" em uma transação parcelada:
-        1.  A transação não é excluída. Em vez disso, seu campo `date` (e `paymentDate`, `dueDate`) é atualizado para o mês seguinte.
-        2.  O campo `originalDate` é preenchido com a data original para manter o rastreamento.
-        3.  **Cenário:** No mês seguinte, o usuário verá duas transações da mesma série: a que foi adiada do mês anterior e a parcela que já pertencia ao mês atual.
-    -   **Definições de Comportamento:**
-        -   **Ignorar novamente:** Sim, uma transação já ignorada pode ser ignorada novamente, empurrando-a para o próximo mês. O `originalDate` permanece o mesmo da primeira vez que foi adiada.
-        -   **Editar uma transação ignorada:** A edição se aplicará apenas àquela instância específica, pois ela já foi "descolada" da sua posição original na série.
-        -   **Excluir uma transação ignorada:**
-            -   *Apenas esta:* Exclui a transação adiada.
-            -   *Esta e as futuras:* O sistema deve identificar a posição original da parcela (`originalDate`) e excluir ela e todas as parcelas futuras da série, mesmo que não tenham sido adiadas.
-
--   [ ] **5. UI/UX de Visualização:**
-    -   Na tabela de transações, as parcelas devem exibir visualmente sua condição.
-    -   Adicionar um ícone (ex: um ícone de "parcelas" ou um contador numérico) ao lado da descrição da transação.
-    -   Ao passar o mouse sobre este ícone, um tooltip deve exibir a informação detalhada, como "Parcela 2 de 60".
-    -   Isso evita poluir a descrição da transação e mantém a interface limpa e informativa.
-
----
-
 ### 💳 Gestão de Faturas de Cartão
 
 **Objetivo:** Criar um ambiente dedicado para rastrear despesas de cartões (crédito e débito/pix), com categorização e integração automática com o dashboard principal para os cartões de crédito.

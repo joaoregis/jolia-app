@@ -32,6 +32,7 @@ import { SubprofileContextMenu } from '../components/SubprofileContextMenu';
 import { Plus } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
+import { SeriesEditConfirmationModal } from '../components/SeriesEditConfirmationModal';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -54,6 +55,8 @@ export const DashboardScreen: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
     const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+    const [seriesActionState, setSeriesActionState] = useState<{ isOpen: boolean; actionType: 'edit' | 'delete'; transaction: Transaction | null }>({ isOpen: false, actionType: 'edit', transaction: null });
+
     
     const transactionMutations = useTransactionMutations(profile);
     const subprofileManager = useSubprofileManager(profile);
@@ -142,7 +145,16 @@ export const DashboardScreen: React.FC = () => {
     
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
     
-    const allTransactionsPaid = useMemo(() => activeTransactions.every(t => t.paid), [activeTransactions]);
+    const allTransactionsPaid = useMemo(() => {
+        const relevantTransactions = activeTransactions.filter(t => {
+            if (t.isShared && profile?.apportionmentMethod === 'proportional') {
+                return false;
+            }
+            return true;
+        });
+        if (relevantTransactions.length === 0) return true;
+        return relevantTransactions.every(t => t.paid);
+    }, [activeTransactions, profile?.apportionmentMethod]);
 
     const canCloseMonth = useMemo(() => {
         if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;
@@ -190,17 +202,37 @@ export const DashboardScreen: React.FC = () => {
     
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
-        const baseData = { paid: false, date: new Date().toISOString().split('T')[0], notes: '' };
+    
+        const today = new Date();
+        const isViewingCurrentMonth = today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
+        const defaultDate = isViewingCurrentMonth ? today : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    
+        const baseData = { paid: false, date: defaultDate.toISOString().split('T')[0], notes: '' };
+    
         const initialValues = activeTab === 'geral' 
             ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false } 
             : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false };
+        
         modals.transaction.open(initialValues);
-    }, [activeTab, isCurrentMonthClosed, modals.transaction]);
+    }, [activeTab, isCurrentMonthClosed, modals.transaction, currentMonth]);
 
     const handleOpenModalForEdit = useCallback((t: Transaction) => {
         if (isCurrentMonthClosed || t.isApportioned) return;
-        modals.transaction.open(t);
+        if (t.seriesId) {
+            setSeriesActionState({ isOpen: true, actionType: 'edit', transaction: t });
+        } else {
+            modals.transaction.open(t);
+        }
     }, [isCurrentMonthClosed, modals.transaction]);
+
+    const handleDeleteRequest = useCallback((t: Transaction) => {
+        if (isCurrentMonthClosed || t.isApportioned) return;
+        if (t.seriesId) {
+            setSeriesActionState({ isOpen: true, actionType: 'delete', transaction: t });
+        } else {
+            modals.deleteTransaction.open(t);
+        }
+    }, [isCurrentMonthClosed, modals.deleteTransaction]);
     
     const handleOpenTransferModal = useCallback((t: Transaction) => {
         if (isCurrentMonthClosed || t.isApportioned) return;
@@ -227,14 +259,17 @@ export const DashboardScreen: React.FC = () => {
         }
     };
 
-    const performDeleteWrapper = async () => {
-        if (modals.deleteTransaction.transactionToDelete) {
+    const performDeleteWrapper = async (scope: 'one' | 'future' = 'one') => {
+        const transactionToDelete = seriesActionState.transaction || modals.deleteTransaction.transactionToDelete;
+        if (transactionToDelete) {
             try {
-                await transactionMutations.performDelete(modals.deleteTransaction.transactionToDelete);
-                showToast('Transação excluída com sucesso!', 'success');
-                modals.deleteTransaction.close();
+                await transactionMutations.performDelete(transactionToDelete, scope);
+                showToast('Transação(ões) excluída(s) com sucesso!', 'success');
             } catch (error) {
                 showToast('Erro ao excluir transação.', 'error');
+            } finally {
+                modals.deleteTransaction.close();
+                setSeriesActionState({ isOpen: false, actionType: 'delete', transaction: null });
             }
         }
     };
@@ -243,7 +278,7 @@ export const DashboardScreen: React.FC = () => {
         if (!profile || !canCloseMonth) return;
         modals.closeMonth.close();
         try {
-            const recurringTransactions = allTransactions.filter(t => t.isRecurring);
+            const recurringTransactions = allTransactions.filter(t => t.isRecurring && !t.seriesId);
             if (recurringTransactions.length > 0) {
                 const batch = writeBatch(db);
                 recurringTransactions.forEach(t => {
@@ -321,10 +356,29 @@ export const DashboardScreen: React.FC = () => {
             showToast('Erro ao salvar configurações.', 'error');
         }
     };
+
+    const handleSeriesActionConfirm = (scope: 'one' | 'future') => {
+        const { actionType, transaction } = seriesActionState;
+        if (!transaction) return;
+
+        if (actionType === 'delete') {
+            performDeleteWrapper(scope);
+        } else if (actionType === 'edit') {
+            // Para edição, atualmente só permitimos a alteração de campos inline.
+            // A edição completa que altera valores ou datas para parcelas futuras necessitará de uma lógica mais complexa.
+            // Por enquanto, vamos abrir o modal para editar apenas a transação atual.
+            if (scope === 'one') {
+                modals.transaction.open(transaction);
+            } else {
+                 showToast('A edição de múltiplas parcelas será implementada em breve.', 'info');
+            }
+        }
+        setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null });
+    };
     
     const transactionActions: TransactionActions = useMemo(() => ({
         onEdit: handleOpenModalForEdit,
-        onDelete: modals.deleteTransaction.open,
+        onDelete: handleDeleteRequest,
         onTogglePaid: async (t) => {
             try {
                 await transactionMutations.handleTogglePaid(t);
@@ -366,7 +420,7 @@ export const DashboardScreen: React.FC = () => {
                 showToast('Erro ao salvar nota.', 'error');
             }
         }
-    }), [handleOpenModalForEdit, modals.deleteTransaction.open, transactionMutations, currentMonthString, handleOpenTransferModal, showToast]);
+    }), [handleOpenModalForEdit, handleDeleteRequest, transactionMutations, currentMonthString, handleOpenTransferModal, showToast]);
 
     if (profileLoading || monthsLoading || !sortConfig) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;
@@ -412,21 +466,19 @@ export const DashboardScreen: React.FC = () => {
                 <>
                     <SummaryCards data={sortedData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
-                        {activeTab !== 'geral' && (
-                            <TransactionTable
-                                title="Receitas"
-                                data={sortedData.receitas}
-                                type="income"
-                                isClosed={isCurrentMonthClosed}
-                                sortConfig={sortConfig}
-                                requestSort={requestSort}
-                                actions={transactionActions}
-                                selectedIds={selectedTransactionIds}
-                                onSelectionChange={handleSelectionChange}
-                                onSelectAll={handleSelectAll}
-                                onClearSelection={() => setSelectedTransactionIds(new Set())}
-                            />
-                        )}
+                        <TransactionTable
+                            title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
+                            data={sortedData.receitas}
+                            type="income"
+                            isClosed={isCurrentMonthClosed}
+                            sortConfig={sortConfig}
+                            requestSort={requestSort}
+                            actions={transactionActions}
+                            selectedIds={selectedTransactionIds}
+                            onSelectionChange={handleSelectionChange}
+                            onSelectAll={handleSelectAll}
+                            onClearSelection={() => setSelectedTransactionIds(new Set())}
+                        />
                         <TransactionTable
                             title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
                             data={sortedData.despesas}
@@ -456,12 +508,13 @@ export const DashboardScreen: React.FC = () => {
             <EditSubprofileModal isOpen={modals.editSubprofile.isOpen} onClose={modals.editSubprofile.close} onSave={subprofileManager.handleUpdateSubprofile} subprofile={modals.editSubprofile.subprofileToEdit} />
             <DeleteConfirmationModal isOpen={modals.archiveSubprofile.isOpen} onClose={modals.archiveSubprofile.close} onConfirm={handleArchiveSubprofileWrapper} itemName={modals.archiveSubprofile.subprofileToArchive?.name || ''} title={`Arquivar "${modals.archiveSubprofile.subprofileToArchive?.name}"`} message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-text-primary">{modals.archiveSubprofile.subprofileToArchive?.name}</strong>.</p>} confirmButtonText='Arquivar' />
             <ConfirmationModal isOpen={modals.closeMonth.isOpen} onClose={modals.closeMonth.close} onConfirm={performCloseMonth} title="Fechar o Mês?" message="Esta ação é irreversível e irá criar as transações recorrentes para o próximo mês. Deseja continuar?" />
-            <ConfirmationModal isOpen={modals.deleteTransaction.isOpen} onClose={modals.deleteTransaction.close} onConfirm={performDeleteWrapper} title="Excluir Transação" message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita." />
+            <ConfirmationModal isOpen={modals.deleteTransaction.isOpen} onClose={modals.deleteTransaction.close} onConfirm={() => performDeleteWrapper('one')} title="Excluir Transação" message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita." />
             <ImportModal isOpen={modals.import.isOpen} onClose={modals.import.close} onSave={handleBulkSave} activeSubprofileId={activeTab} />
             <ExportModal isOpen={modals.export.isOpen} onClose={modals.export.close} profile={profile} activeSubprofileId={activeTab} allTransactions={allTransactions} />
             {contextMenu.state && <SubprofileContextMenu subprofile={contextMenu.state.subprofile} x={contextMenu.state.x} y={contextMenu.state.y} onClose={contextMenu.close} onEdit={(sub) => { modals.editSubprofile.open(sub); contextMenu.close(); }} onArchive={(sub) => { modals.archiveSubprofile.open(sub); contextMenu.close(); }} />}
             <SettingsModal isOpen={modals.settings.isOpen} onClose={modals.settings.close} onSave={handleSaveSettings} profile={profile} />
             <TransferTransactionModal isOpen={modals.transfer.isOpen} onClose={modals.transfer.close} transaction={modals.transfer.transactionToTransfer} subprofiles={activeSubprofiles} onConfirmTransfer={handleConfirmTransferWrapper} />
+            <SeriesEditConfirmationModal isOpen={seriesActionState.isOpen} actionType={seriesActionState.actionType} onClose={() => setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null })} onConfirm={handleSeriesActionConfirm} />
         </div>
     );
 };

@@ -39,6 +39,11 @@ export interface Transaction {
   isApportioned?: boolean;
   skippedInMonths?: string[];
   notes?: string;
+  // Campos para parcelamento
+  seriesId?: string;
+  currentInstallment?: number;
+  totalInstallments?: number;
+  originalDate?: string;
 }
 
 export interface AppData {
@@ -46,7 +51,9 @@ export interface AppData {
   despesas: Transaction[];
 }
 
-export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths'>;
+export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths' | 'originalDate' | 'seriesId' | 'currentInstallment'> & {
+    isInstallmentPurchase?: boolean;
+};
 
 export interface SortConfig {
     key: keyof Transaction;

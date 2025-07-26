@@ -20,26 +20,26 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         planned: 0,
         actual: 0,
         date: new Date().toISOString().split('T')[0],
-        paymentDate: new Date().toISOString().split('T')[0],
+        paymentDate: '',
         dueDate: undefined,
         paid: false,
         isShared: false,
         isRecurring: false,
+        isInstallmentPurchase: false,
+        totalInstallments: 2,
         subprofileId: undefined,
         notes: '',
         ...initialValues
     });
 
-    useEffect(() => {
-        if (!initialValues?.id) {
-            setFormData(prev => ({ ...prev, paymentDate: prev.date }));
-        }
-    }, [formData.date, initialValues?.id]);
+     const isEditingInstallment = !!initialValues?.seriesId;
 
     useEffect(() => {
         setFormData({
             description: '', type: 'expense', planned: 0, actual: 0, date: new Date().toISOString().split('T')[0],
-            paymentDate: new Date().toISOString().split('T')[0], paid: false, isShared: false, isRecurring: false,
+            paymentDate: '', dueDate: undefined, paid: false, isShared: false, isRecurring: false,
+            isInstallmentPurchase: !!initialValues?.seriesId, 
+            totalInstallments: initialValues?.totalInstallments || 2,
             subprofileId: undefined, notes: '', ...initialValues
         });
     }, [initialValues]);
@@ -49,9 +49,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         
         if (type === 'checkbox') {
             const checked = (e.target as HTMLInputElement).checked;
-            setFormData(prev => ({ ...prev, [name]: checked }));
+            setFormData(prev => {
+                const newState = { ...prev, [name]: checked };
+                if (name === 'isRecurring' && checked) {
+                    newState.isInstallmentPurchase = false;
+                }
+                if (name === 'isInstallmentPurchase' && checked) {
+                    newState.isRecurring = false;
+                }
+                return newState;
+            });
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+             setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
@@ -111,24 +120,46 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             
             <fieldset className="border border-border-color rounded-lg p-4">
                 <legend className="px-2 text-sm font-medium text-text-secondary">Opções</legend>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
-                    <div className="flex items-center justify-between sm:justify-start sm:gap-4">
-                        <label htmlFor="paid" className="block text-sm font-medium text-text-primary">{formData.type === 'expense' ? 'Pago' : 'Recebido'}</label>
-                        <ToggleSwitch id="paid" name="paid" checked={formData.paid} onChange={handleChange} />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4">
+                        <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                            <label htmlFor="paid" className="block text-sm font-medium text-text-primary">{formData.type === 'expense' ? 'Pago' : 'Recebido'}</label>
+                            <ToggleSwitch id="paid" name="paid" checked={formData.paid} onChange={handleChange} />
+                        </div>
+                        {!isSubprofileView && (
+                            <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                                <label htmlFor="isShared" className="block text-sm font-medium text-text-primary">Da Casa</label>
+                                <ToggleSwitch id="isShared" name="isShared" checked={formData.isShared} onChange={handleChange} disabled={true} />
+                            </div>
+                        )}
+                        {!formData.isInstallmentPurchase && (
+                            <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                                <label htmlFor="isRecurring" className="block text-sm font-medium text-text-primary">Recorrente</label>
+                                <ToggleSwitch id="isRecurring" name="isRecurring" checked={formData.isRecurring} onChange={handleChange} disabled={isEditingInstallment} />
+                            </div>
+                        )}
                     </div>
 
-                    {!isSubprofileView && (
-                        <div className="flex items-center justify-between sm:justify-start sm:gap-4">
-                            <label htmlFor="isShared" className="block text-sm font-medium text-text-primary">Da Casa</label>
-                            <ToggleSwitch id="isShared" name="isShared" checked={formData.isShared} onChange={handleChange} disabled={true} />
+                    {!formData.isRecurring && formData.type === 'expense' && (
+                        <div className="border-t border-border-color pt-4">
+                            <div className="flex items-center justify-between sm:justify-start sm:gap-4">
+                                <label htmlFor="isInstallmentPurchase" className="block text-sm font-medium text-text-primary">É uma compra parcelada?</label>
+                                <ToggleSwitch id="isInstallmentPurchase" name="isInstallmentPurchase" checked={formData.isInstallmentPurchase} onChange={handleChange} disabled={isEditingInstallment} />
+                            </div>
+                            {formData.isInstallmentPurchase && !isEditingInstallment && (
+                                <div className="mt-4 pl-8">
+                                    <label htmlFor="totalInstallments" className="block text-sm font-medium text-text-secondary">Número de Parcelas</label>
+                                    <input type="number" id="totalInstallments" name="totalInstallments" value={formData.totalInstallments} onChange={handleChange} min="2" className="mt-1 w-full max-w-xs rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-2"/>
+                                </div>
+                            )}
+                            {isEditingInstallment && (
+                                <p className="text-xs text-amber-500 mt-2 pl-8">Não é possível alterar as opções de parcelamento de uma transação já criada. Para isso, exclua e crie novamente.</p>
+                            )}
                         </div>
                     )}
-                    <div className="flex items-center justify-between sm:justify-start sm:gap-4">
-                        <label htmlFor="isRecurring" className="block text-sm font-medium text-text-primary">Recorrente</label>
-                        <ToggleSwitch id="isRecurring" name="isRecurring" checked={formData.isRecurring} onChange={handleChange} />
-                    </div>
                 </div>
             </fieldset>
+
             <div>
                 <label htmlFor="notes" className="block text-sm font-medium text-text-secondary mb-1">
                     Observações

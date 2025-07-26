@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft, FileText } from 'lucide-react';
+import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft, FileText, Landmark } from 'lucide-react';
 import { Transaction, SortConfig, Subprofile } from '../types';
 import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
@@ -124,6 +124,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
     const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
     const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
     const isApportioned = item.isApportioned === true;
+    const isInstallment = !!item.seriesId;
 
     return (
         <div className={`border border-border rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
@@ -133,7 +134,12 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
                      {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
                      {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
                      {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
-                     <EditableCell value={item.description} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable} />
+                     <EditableCell value={item.description} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} />
+                     {item.seriesId && (
+                         <span className="text-xs text-text-secondary whitespace-nowrap">
+                             ({item.currentInstallment}/{item.totalInstallments})
+                         </span>
+                     )}
                 </div>
                  {!isClosed && !isApportioned && !isIgnoredTable && <ActionMenu item={item} actions={actions} />}
                  {isIgnoredTable && <button onClick={() => actions.onUnskip(item)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1"><RotateCw size={14} /> Reativar</button>}
@@ -236,6 +242,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
         return <div className="p-1">Rateio Manual Ativado</div>;
     }
 
+    const getInstallmentTooltipContent = (item: Transaction) => {
+        const totalValue = item.actual * (item.totalInstallments || 0);
+        return (
+            <div className="p-1 text-center">
+                <p>Parcela {item.currentInstallment} de {item.totalInstallments}</p>
+                <p className="border-t border-slate-600 mt-1 pt-1">Total: <span className="font-bold">{formatCurrency(totalValue)}</span></p>
+            </div>
+        )
+    };
+
     const isAllSelected = data.length > 0 && data.every(item => selectedIds.has(item.id));
     const isSomeSelected = data.some(item => selectedIds.has(item.id));
     
@@ -262,7 +278,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 </th>
                                 <th scope="col" className="px-1 py-3 w-[40px]"></th>
                                 <SortableHeader sortKey="description" className="w-[18%]">Descrição</SortableHeader>
-                                <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>
+                                {type === 'expense' && <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>}
                                 <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
                                 <SortableHeader sortKey="planned" className="w-[16%]">Previsto</SortableHeader>
                                 <SortableHeader sortKey="actual" className="w-[16%]">Efetivo</SortableHeader>
@@ -278,6 +294,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
                                 const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
                                 const isApportioned = item.isApportioned === true;
+                                const isInstallment = !!item.seriesId;
                                 const isSelected = selectedIds.has(item.id);
                                 return (
                                 <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-accent/10' : 'bg-card'} ${!isApportioned && 'hover:bg-background'}`}>
@@ -288,35 +305,49 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                          <div className="flex items-center justify-center gap-2">
                                             {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
                                             {item.isShared && <Tooltip content={getApportionmentTooltipContent(item)}><Users size={14} className="text-cyan-400 flex-shrink-0 cursor-pointer"/></Tooltip>}
-                                            {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0"/></span>}
+                                            {item.isRecurring && !item.seriesId && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0"/></span>}
+                                            {isInstallment && (
+                                                <Tooltip content={getInstallmentTooltipContent(item)}>
+                                                    <Landmark size={14} className="text-purple-400 flex-shrink-0 cursor-pointer" />
+                                                </Tooltip>
+                                            )}
                                             {isApportioned && <Tooltip content={<>Esta despesa é um rateio da Visão Geral<br />e não pode ser editada aqui.</>}><Info size={14} className="text-teal-400 flex-shrink-0 cursor-help" /></Tooltip>}
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
-                                        <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned} />
+                                        <div className="flex items-center gap-2">
+                                            <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned || isInstallment} />
+                                            {item.seriesId && (
+                                                <span className="text-xs text-text-secondary whitespace-nowrap">
+                                                    ({item.currentInstallment}/{item.totalInstallments})
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
-                                     <td className="px-4 py-3 align-middle">
-                                        {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
-                                             <input type="date" defaultValue={item.dueDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
-                                        ) : (
-                                             <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && item.type === 'expense' && setEditingDateId(`${item.id}-due`)}>
-                                                 <span>{formatShortDate(item.dueDate)}</span>
-                                                 {!isClosed && !isApportioned && item.type === 'expense' && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
-                                             </div>
-                                         )}
-                                     </td>
+                                    {type === 'expense' && (
+                                        <td className="px-4 py-3 align-middle">
+                                            {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
+                                                <input type="date" defaultValue={item.dueDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
+                                            ) : (
+                                                <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && item.type === 'expense' && !isInstallment && setEditingDateId(`${item.id}-due`)}>
+                                                    <span>{formatShortDate(item.dueDate)}</span>
+                                                    {!isClosed && !isApportioned && item.type === 'expense' && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                                                </div>
+                                            )}
+                                        </td>
+                                    )}
                                     <td className="px-4 py-3 align-middle">
                                         {editingDateId === `${item.id}-payment` && !isClosed && !isApportioned ? (
                                             <input type="date" defaultValue={item.paymentDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'paymentDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'paymentDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
                                         ) : (
-                                            <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && setEditingDateId(`${item.id}-payment`)}>
+                                            <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && !isInstallment && setEditingDateId(`${item.id}-payment`)}>
                                                 <span>{formatShortDate(item.paymentDate)}</span>
-                                                {!isClosed && !isApportioned && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                                                {!isClosed && !isApportioned && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed || isApportioned}/></td>
-                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed || isApportioned}/></td>
+                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed || isApportioned || isInstallment}/></td>
+                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed || isApportioned || isInstallment}/></td>
                                     <td className={`px-4 py-3 text-right font-bold align-middle ${differenceColor}`}>{formatCurrency(difference)}</td>
                                     <td className="px-4 py-3 text-center align-middle">
                                         <button onClick={() => actions.onTogglePaid(item)} className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70" disabled={isClosed || (isApportioned && type !== 'income')}>
@@ -335,7 +366,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                          <tfoot className="font-bold text-table-footer-text bg-table-footer">
                             <tr>
                                 <td colSpan={3} className="px-4 py-3">TOTAL</td>
-                                <td colSpan={2} />
+                                <td colSpan={type === 'expense' ? 2 : 1} />
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
                                 <td colSpan={3}></td>

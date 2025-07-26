@@ -6,31 +6,115 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ## 🎯 Funcionalidades Principais (Core Features)
 
-### 💳 Sistema de Parcelamento e Fatura de Cartão
+### 🗓️ Sistema de Transações Parceladas (Recorrentes)
 
-**Objetivo:** Gerir compras parceladas e faturas de cartão de crédito de forma integrada.
+**Objetivo:** Permitir o lançamento de transações que se repetem por um número definido de meses, como financiamentos ou compras parceladas, com gestão flexível sobre as parcelas futuras.
 
--   [ ] **Modelagem de Dados:**
-    -   Adicionar novos campos à `Transaction`: `isInstallment: boolean`, `installmentId: string` (para agrupar parcelas), `currentInstallment: number`, `totalInstallments: number`.
-    -   Criar uma nova coleção `creditCardPurchases` para lançamentos individuais do cartão, com campos como `description`, `amount`, `category`, `date`, `cardId`.
+-   [ ] **1. Modelagem de Dados (Firestore):**
+    -   **Coleção `transactions`:**
+        -   Adicionar o campo `seriesId: string` para agrupar todas as transações de uma mesma série de parcelas.
+        -   Adicionar `currentInstallment: number`.
+        -   Adicionar `totalInstallments: number`.
+        -   O campo `isRecurring` será usado para identificar o início de uma série de parcelas. A lógica de repetição será controlada por esta nova estrutura.
+        -   Adicionar `originalDate: string` para ser usado em caso de adiamento (skip).
 
--   [ ] **Interface de Lançamento de Parcelas:**
-    -   No modal de nova transação, ao marcar como "compra parcelada", mostrar campos para `Número de Parcelas`.
-    -   Ao salvar, criar múltiplas transações no Firestore, uma para cada mês futuro, todas ligadas pelo mesmo `installmentId`.
+-   [ ] **2. Interface de Lançamento:**
+    -   No modal de transação, adicionar um toggle "É uma compra parcelada?".
+    -   Ao ativar, exibir um campo para "Número de Parcelas".
+    -   Ao salvar, o sistema deve:
+        1.  Gerar um `seriesId` único (ex: UUID).
+        2.  Criar a primeira transação com `isRecurring: true`, `seriesId`, `currentInstallment: 1` e `totalInstallments`.
+        3.  Criar as transações futuras (`totalInstallments - 1`) para os meses subsequentes, cada uma com o mesmo `seriesId`, o `currentInstallment` correspondente e `isRecurring: false`. A data (`date`, `paymentDate`, `dueDate`) deve ser incrementada em um mês para cada parcela.
 
--   [ ] **Gestão de Fatura:**
-    -   Criar uma nova tela para "Fatura de Cartão".
-    -   Nessa tela, listar todos os `creditCardPurchases` do período.
-    -   Implementar um botão "Fechar Fatura" que:
-        1.  Soma o total dos `creditCardPurchases`.
-        2.  Cria uma única transação de despesa (`type: 'expense'`) no dashboard principal com a descrição "Fatura do Cartão" e o valor total.
-        3.  Marca os `creditCardPurchases` como "faturados".
+-   [ ] **3. Lógica de Edição e Exclusão (Estilo Google Calendar):**
+    -   Ao tentar editar ou excluir uma transação que pertence a uma série (`seriesId` presente):
+        -   Exibir um modal perguntando ao usuário o que ele deseja alterar:
+            -   "Apenas esta transação"
+            -   "Esta e as transações futuras"
+        -   **Lógica de Edição:**
+            -   *Apenas esta:* Altera somente o documento da transação atual.
+            -   *Esta e as futuras:* Altera o documento atual e todos os documentos subsequentes (`currentInstallment` maior ou igual) da mesma série (`seriesId`).
+        -   **Lógica de Exclusão:**
+            -   *Apenas esta:* Exclui somente o documento da transação atual.
+            -   *Esta e as futuras:* Exclui o documento atual e todos os subsequentes da mesma série.
+        -   **Importante:** Nunca permitir a alteração de transações de meses já fechados.
 
--   [ ] **Categorização de Gastos:**
-    -   Adicionar um campo `category` aos `creditCardPurchases` e também às `transactions` normais.
-    -   Criar uma UI para adicionar/gerir categorias (ex: Alimentação, Transporte, Lazer).
+-   [ ] **4. Lógica de "Ignorar" (Skip/Adiar):**
+    -   Quando o usuário clica em "Ignorar neste mês" em uma transação parcelada:
+        1.  A transação não é excluída. Em vez disso, seu campo `date` (e `paymentDate`, `dueDate`) é atualizado para o mês seguinte.
+        2.  O campo `originalDate` é preenchido com a data original para manter o rastreamento.
+        3.  **Cenário:** No mês seguinte, o usuário verá duas transações da mesma série: a que foi adiada do mês anterior e a parcela que já pertencia ao mês atual.
+    -   **Definições de Comportamento:**
+        -   **Ignorar novamente:** Sim, uma transação já ignorada pode ser ignorada novamente, empurrando-a para o próximo mês. O `originalDate` permanece o mesmo da primeira vez que foi adiada.
+        -   **Editar uma transação ignorada:** A edição se aplicará apenas àquela instância específica, pois ela já foi "descolada" da sua posição original na série.
+        -   **Excluir uma transação ignorada:**
+            -   *Apenas esta:* Exclui a transação adiada.
+            -   *Esta e as futuras:* O sistema deve identificar a posição original da parcela (`originalDate`) e excluir ela e todas as parcelas futuras da série, mesmo que não tenham sido adiadas.
+
+-   [ ] **5. UI/UX de Visualização:**
+    -   Na tabela de transações, as parcelas devem exibir visualmente sua condição.
+    -   Adicionar um ícone (ex: um ícone de "parcelas" ou um contador numérico) ao lado da descrição da transação.
+    -   Ao passar o mouse sobre este ícone, um tooltip deve exibir a informação detalhada, como "Parcela 2 de 60".
+    -   Isso evita poluir a descrição da transação e mantém a interface limpa e informativa.
 
 ---
+
+### 💳 Gestão de Faturas de Cartão
+
+**Objetivo:** Criar um ambiente dedicado para rastrear despesas de cartões (crédito e débito/pix), com categorização e integração automática com o dashboard principal para os cartões de crédito.
+
+-   [ ] **1. Modelagem de Dados (Firestore):**
+    -   **Coleção `cards`:**
+        -   `name`: "Nubank Ultravioleta", "Inter Gold"
+        -   `type`: 'credit' | 'debit'
+        -   `closingDay`: dia do fechamento da fatura (para crédito)
+        -   `dueDay`: dia do vencimento da fatura (para crédito)
+        -   `subprofileId`: a qual subperfil o cartão pertence.
+        -   `status`: 'active' | 'archived'
+    -   **Coleção `cardPurchases` (subcoleção de `cards`):**
+        -   `description`: "iFood", "Assinatura Netflix"
+        -   `amount`: valor da compra
+        -   `categoryId`, `subcategoryId`: para categorização
+        -   `purchaseDate`: data da compra
+        -   `status`: 'confirmed' | 'pending' (Efetivado ou Pendente)
+        -   `isInstallment`: boolean
+        -   `seriesId`: (opcional) para agrupar compras parceladas dentro do cartão.
+        -   `currentInstallment`, `totalInstallments`: (opcional)
+        -   `isRecurring`: boolean (para assinaturas)
+    -   **Coleção `categories`:**
+        -   `name`: "Alimentação", "Transporte"
+        -   `subcategories`: ["Restaurante", "Supermercado"]
+        -   `profileId`: a qual perfil principal a categoria pertence.
+
+-   [ ] **2. Interface de Gestão de Cartões e Categorias:**
+    -   Criar uma nova tela (ou seção nas configurações) onde cada subperfil possa:
+        -   CRUD de `cards` (adicionar, editar, arquivar cartões).
+        -   CRUD de `categories` e suas subcategorias.
+
+-   [ ] **3. Tela de Fatura do Cartão:**
+    -   Criar uma nova tela principal "Faturas".
+    -   Nessa tela, o usuário seleciona o subperfil e, em seguida, um dos seus cartões.
+    -   Listar todas as `cardPurchases` do mês corrente para o cartão selecionado.
+    -   Permitir o lançamento de novas compras (`cardPurchases`), incluindo a opção de serem recorrentes ou parceladas (reutilizando a lógica do Sistema de Parcelamento).
+    -   Exibir o valor total da fatura (soma dos `amount` das compras).
+    -   Exibir um total previsto (incluindo compras com status `pending`).
+
+-   [ ] **4. Lógica de Integração com o Dashboard:**
+    -   **Cartão de Crédito:**
+        -   Ao executar a ação de **"Fechar Mês"** no dashboard:
+            1.  O sistema irá varrer todos os cartões de crédito de todos os subperfis.
+            2.  Para cada cartão, ele somará o `amount` de todas as `cardPurchases` daquele mês.
+            3.  Automaticamente, criará uma **única transação** do tipo `expense` no dashboard do subperfil correspondente.
+            4.  **Detalhes da transação criada:**
+                -   `description`: "Fatura Nubank Ultravioleta"
+                -   `actual`: (soma total da fatura)
+                -   `isShared`: `false`
+                -   `isApportioned`: `false`
+                -   `isRecurring`: `false`
+                -   Adicionar um campo `cardId: string` ou `isCardBill: true` para identificar que esta transação não pode ser editada ou excluída, apenas marcada como `paid`.
+    -   **Cartão de Débito/Pix:**
+        -   As compras lançadas em cartões `debit` servem **apenas para tracking e categorização de gastos**.
+        -   Elas **NÃO** geram uma transação automática no dashboard principal. O controle de saldo já é feito pelas transações de receita/despesa lançadas manualmente no dashboard.
 
 ### 🛒 Sistema de Estoque Inteligente (Dispensa/Geladeira)
 

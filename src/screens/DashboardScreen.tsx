@@ -146,15 +146,9 @@ export const DashboardScreen: React.FC = () => {
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
     
     const allTransactionsPaid = useMemo(() => {
-        const relevantTransactions = activeTransactions.filter(t => {
-            if (t.isShared && profile?.apportionmentMethod === 'proportional') {
-                return false;
-            }
-            return true;
-        });
-        if (relevantTransactions.length === 0) return true;
-        return relevantTransactions.every(t => t.paid);
-    }, [activeTransactions, profile?.apportionmentMethod]);
+        if (activeTransactions.length === 0) return true;
+        return activeTransactions.every(t => t.paid);
+    }, [activeTransactions]);
 
     const canCloseMonth = useMemo(() => {
         if (!profile || isCurrentMonthClosed || !allTransactionsPaid || availableMonths.length === 0) return false;
@@ -505,7 +499,15 @@ export const DashboardScreen: React.FC = () => {
                 <TransactionForm onClose={modals.transaction.close} onSave={handleSaveTransactionWrapper} initialValues={modals.transaction.initialValues} isSubprofileView={activeTab !== 'geral'} />
             </TransactionModal>
             <AddSubprofileModal isOpen={modals.addSubprofile.isOpen} onClose={modals.addSubprofile.close} onSave={subprofileManager.handleCreateSubprofile} />
-            <EditSubprofileModal isOpen={modals.editSubprofile.isOpen} onClose={modals.editSubprofile.close} onSave={subprofileManager.handleUpdateSubprofile} subprofile={modals.editSubprofile.subprofileToEdit} />
+            <EditSubprofileModal 
+                isOpen={modals.editSubprofile.isOpen} 
+                onClose={modals.editSubprofile.close} 
+                onSave={subprofileManager.handleUpdateSubprofile} 
+                subprofile={modals.editSubprofile.subprofileToEdit}
+                profile={profile}
+                onSaveTheme={subprofileManager.handleSaveCustomTheme}
+                onDeleteTheme={subprofileManager.handleDeleteCustomTheme}
+            />
             <DeleteConfirmationModal isOpen={modals.archiveSubprofile.isOpen} onClose={modals.archiveSubprofile.close} onConfirm={handleArchiveSubprofileWrapper} itemName={modals.archiveSubprofile.subprofileToArchive?.name || ''} title={`Arquivar "${modals.archiveSubprofile.subprofileToArchive?.name}"`} message={<p>Esta ação não irá apagar os dados. Para confirmar, digite <strong className="text-text-primary">{modals.archiveSubprofile.subprofileToArchive?.name}</strong>.</p>} confirmButtonText='Arquivar' />
             <ConfirmationModal isOpen={modals.closeMonth.isOpen} onClose={modals.closeMonth.close} onConfirm={performCloseMonth} title="Fechar o Mês?" message="Esta ação é irreversível e irá criar as transações recorrentes para o próximo mês. Deseja continuar?" />
             <ConfirmationModal isOpen={modals.deleteTransaction.isOpen} onClose={modals.deleteTransaction.close} onConfirm={() => performDeleteWrapper('one')} title="Excluir Transação" message="Tem a certeza que quer excluir este item? Esta ação não pode ser desfeita." />

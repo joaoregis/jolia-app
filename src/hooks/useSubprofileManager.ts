@@ -1,8 +1,7 @@
 // src/hooks/useSubprofileManager.ts
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Profile, Subprofile } from '../types';
-import { Theme } from '../lib/themes';
+import { Profile, Subprofile, Theme, CustomTheme } from '../types';
 
 /**
  * Hook para gerir as operações de subperfis (criar, atualizar, arquivar).
@@ -12,7 +11,7 @@ export function useSubprofileManager(profile: Profile | null) {
     const handleCreateSubprofile = async (name: string, themeId: string) => {
         if (!profile) return;
         const newSubprofile: Subprofile = {
-            id: name.trim().toLowerCase().replace(/\s+/g, '-'),
+            id: crypto.randomUUID(),
             name: name.trim(),
             status: 'active',
             themeId: themeId
@@ -37,9 +36,33 @@ export function useSubprofileManager(profile: Profile | null) {
         await updateDoc(doc(db, "profiles", profile.id), { subprofiles: updatedSubprofiles });
     };
 
+    const handleSaveCustomTheme = async (name: string, variables: Theme['variables']) => {
+        if (!profile) return;
+        const newTheme: CustomTheme = {
+            id: crypto.randomUUID(),
+            name,
+            variables
+        };
+        await updateDoc(doc(db, "profiles", profile.id), {
+            savedThemes: arrayUnion(newTheme)
+        });
+    };
+    
+    const handleDeleteCustomTheme = async (themeId: string) => {
+        if (!profile || !profile.savedThemes) return;
+        const themeToDelete = profile.savedThemes.find(t => t.id === themeId);
+        if (themeToDelete) {
+            await updateDoc(doc(db, "profiles", profile.id), {
+                savedThemes: arrayRemove(themeToDelete)
+            });
+        }
+    };
+
     return {
         handleCreateSubprofile,
         handleUpdateSubprofile,
         handleArchiveSubprofile,
+        handleSaveCustomTheme,
+        handleDeleteCustomTheme,
     };
 }

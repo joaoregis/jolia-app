@@ -1,6 +1,7 @@
 // src/types/index.ts
 
-import { Theme } from "../lib/themes";
+import type { Theme } from "../lib/themes";
+export type { Theme } from "../lib/themes";
 
 export interface Subprofile {
     id: string;
@@ -8,6 +9,12 @@ export interface Subprofile {
     status: 'active' | 'archived';
     themeId?: string;
     customTheme?: Theme['variables'];
+}
+
+export interface CustomTheme {
+  id: string;
+  name: string;
+  variables: Theme['variables'];
 }
 
 export interface Profile {
@@ -18,6 +25,7 @@ export interface Profile {
     status: 'active' | 'archived';
     closedMonths?: string[];
     apportionmentMethod?: 'proportional' | 'manual';
+    savedThemes?: CustomTheme[];
 }
 
 export interface Transaction {

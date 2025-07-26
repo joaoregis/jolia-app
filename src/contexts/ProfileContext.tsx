@@ -29,8 +29,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (activeSub?.customTheme) {
             themeToApply = { name: 'Custom', variables: activeSub.customTheme };
-        } else if (activeSub?.themeId && themes[activeSub.themeId]) {
-            themeToApply = themes[activeSub.themeId];
+        } else if (activeSub?.themeId) {
+            const savedTheme = profile.savedThemes?.find(t => t.id === activeSub.themeId);
+            if (savedTheme) {
+                themeToApply = { name: savedTheme.name, variables: savedTheme.variables };
+            } else if (themes[activeSub.themeId]) {
+                themeToApply = themes[activeSub.themeId];
+            }
         }
         
         setActiveTheme(currentTheme => {
@@ -48,7 +53,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         
         return () => {
-             // Ao desmontar o contexto, retorna ao tema padrão em vez de remover os estilos
              Object.entries(themes.default.variables).forEach(([key, value]) => {
                 root.style.setProperty(key, value);
             });

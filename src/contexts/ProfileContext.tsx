@@ -48,8 +48,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         
         return () => {
-             Object.keys(themes.default.variables).forEach(key => {
-                root.style.removeProperty(key);
+             // Ao desmontar o contexto, retorna ao tema padrão em vez de remover os estilos
+             Object.entries(themes.default.variables).forEach(([key, value]) => {
+                root.style.setProperty(key, value);
             });
         }
     }, [activeTheme]);

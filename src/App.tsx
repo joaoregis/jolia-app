@@ -13,6 +13,7 @@ import { Layout } from './components/Layout.tsx';
 import { TrashScreen } from './screens/TrashScreen.tsx';
 import { WishlistScreen } from './screens/WishlistScreen.tsx';
 import { ToastProvider } from './contexts/ToastContext.tsx';
+import { themes } from './lib/themes.ts';
 
 export default function App() {
     const [user, setUser] = useState<User | null>(null);
@@ -23,6 +24,13 @@ export default function App() {
             setUser(currentUser);
             setLoading(false);
         });
+
+        // Aplica o tema padrão na inicialização do app
+        const root = document.documentElement;
+        Object.entries(themes.default.variables).forEach(([key, value]) => {
+            root.style.setProperty(key, value);
+        });
+
         return () => unsubscribe();
     }, []);
 

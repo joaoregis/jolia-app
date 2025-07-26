@@ -277,7 +277,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                     />
                                 </th>
                                 <th scope="col" className="px-1 py-3 w-[40px]"></th>
-                                <SortableHeader sortKey="description" className="w-[18%]">Descrição</SortableHeader>
+                                <SortableHeader sortKey="description" className={type === 'income' ? 'w-[28%]' : 'w-[18%]'}>Descrição</SortableHeader>
                                 {type === 'expense' && <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>}
                                 <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
                                 <SortableHeader sortKey="planned" className="w-[16%]">Previsto</SortableHeader>

@@ -460,19 +460,21 @@ export const DashboardScreen: React.FC = () => {
                 <>
                     <SummaryCards data={sortedData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
-                        <TransactionTable
-                            title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
-                            data={sortedData.receitas}
-                            type="income"
-                            isClosed={isCurrentMonthClosed}
-                            sortConfig={sortConfig}
-                            requestSort={requestSort}
-                            actions={transactionActions}
-                            selectedIds={selectedTransactionIds}
-                            onSelectionChange={handleSelectionChange}
-                            onSelectAll={handleSelectAll}
-                            onClearSelection={() => setSelectedTransactionIds(new Set())}
-                        />
+                        {(sortedData.receitas.length > 0 || activeTab !== 'geral') && (
+                            <TransactionTable
+                                title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
+                                data={sortedData.receitas}
+                                type="income"
+                                isClosed={isCurrentMonthClosed}
+                                sortConfig={sortConfig}
+                                requestSort={requestSort}
+                                actions={transactionActions}
+                                selectedIds={selectedTransactionIds}
+                                onSelectionChange={handleSelectionChange}
+                                onSelectAll={handleSelectAll}
+                                onClearSelection={() => setSelectedTransactionIds(new Set())}
+                            />
+                        )}
                         <TransactionTable
                             title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
                             data={sortedData.despesas}

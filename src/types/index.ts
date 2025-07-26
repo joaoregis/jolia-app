@@ -61,6 +61,7 @@ export interface AppData {
 
 export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths' | 'originalDate' | 'seriesId' | 'currentInstallment'> & {
     isInstallmentPurchase?: boolean;
+    scope?: 'one' | 'future';
 };
 
 export interface SortConfig {

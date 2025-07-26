@@ -56,6 +56,7 @@ export const DashboardScreen: React.FC = () => {
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
     const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
     const [seriesActionState, setSeriesActionState] = useState<{ isOpen: boolean; actionType: 'edit' | 'delete'; transaction: Transaction | null }>({ isOpen: false, actionType: 'edit', transaction: null });
+    const [editScope, setEditScope] = useState<'one' | 'future' | null>(null);
 
     
     const transactionMutations = useTransactionMutations(profile);
@@ -235,9 +236,10 @@ export const DashboardScreen: React.FC = () => {
 
     const handleSaveTransactionWrapper = async (data: TransactionFormState, id?: string) => {
         try {
-            await transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab);
+            await transactionMutations.handleSaveTransaction(data, id, subprofileRevenueProportions, activeTab, editScope || 'one');
             showToast('Transação salva com sucesso!', 'success');
             modals.transaction.close();
+            setEditScope(null);
         } catch (error) {
             showToast('Erro ao salvar transação.', 'error');
         }
@@ -358,14 +360,8 @@ export const DashboardScreen: React.FC = () => {
         if (actionType === 'delete') {
             performDeleteWrapper(scope);
         } else if (actionType === 'edit') {
-            // Para edição, atualmente só permitimos a alteração de campos inline.
-            // A edição completa que altera valores ou datas para parcelas futuras necessitará de uma lógica mais complexa.
-            // Por enquanto, vamos abrir o modal para editar apenas a transação atual.
-            if (scope === 'one') {
-                modals.transaction.open(transaction);
-            } else {
-                 showToast('A edição de múltiplas parcelas será implementada em breve.', 'info');
-            }
+            setEditScope(scope);
+            modals.transaction.open(transaction);
         }
         setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null });
     };

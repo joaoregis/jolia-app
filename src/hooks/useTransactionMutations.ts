@@ -34,16 +34,16 @@ const cleanUndefinedFields = (obj: any) => {
  */
 export function useTransactionMutations(profile: Profile | null) {
 
-    const handleSaveTransaction = async (data: TransactionFormState, id?: string, subprofileRevenueProportions?: Map<string, number>, activeTab?: string) => {
+    const handleSaveTransaction = async (data: TransactionFormState, id?: string, subprofileRevenueProportions?: Map<string, number>, activeTab?: string, scope: 'one' | 'future' = 'one') => {
         if (!profile) return;
     
         const batch = writeBatch(db);
         const transactionsRef = collection(db, "transactions");
     
         const isProportional = profile.apportionmentMethod === 'proportional';
-        const isEditingSharedExpense = id && data.isShared;
     
         try {
+            // 1. Criando uma nova transação parcelada
             if (data.isInstallmentPurchase && data.totalInstallments && data.totalInstallments > 1 && !id) {
                 const seriesId = crypto.randomUUID();
                 const totalInstallments = data.totalInstallments;
@@ -81,54 +81,92 @@ export function useTransactionMutations(profile: Profile | null) {
                     batch.set(installmentDocRef, cleanUndefinedFields(installmentData));
                 }
 
-            } else if (data.isShared && isProportional) {
-                const parentDocRef = id ? doc(db, "transactions", id) : doc(transactionsRef);
-                const parentId = parentDocRef.id;
-    
-                const parentData: Partial<Transaction> = { ...data, profileId: profile.id };
-                delete parentData.subprofileId; 
-                if (!id) parentData.createdAt = serverTimestamp();
-    
-                if (id) batch.update(parentDocRef, cleanUndefinedFields(parentData));
-                else batch.set(parentDocRef, cleanUndefinedFields(parentData));
-    
-                if (isEditingSharedExpense) {
-                    const q = query(transactionsRef, where("parentId", "==", id));
-                    const oldChildrenSnapshot = await getDocs(q);
-                    oldChildrenSnapshot.forEach(doc => batch.delete(doc.ref));
-                }
-    
-                if(subprofileRevenueProportions && subprofileRevenueProportions.size > 0) {
-                    subprofileRevenueProportions.forEach((proportion, subId) => {
-                        const childDocRef = doc(transactionsRef);
-                        const childData: Omit<Transaction, 'id'> = {
-                            ...(data as Omit<Transaction, 'id' | 'createdAt'>),
-                            profileId: profile.id,
-                            description: `[Rateio] ${data.description}`,
-                            planned: data.planned * proportion,
-                            actual: data.actual * proportion,
-                            isShared: false,
-                            isApportioned: true,
-                            parentId: parentId,
-                            subprofileId: subId,
-                            createdAt: serverTimestamp()
+            } else if (id) { // 2. Editando uma transação existente (qualquer tipo)
+                const docRef = doc(db, "transactions", id);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) throw new Error("Documento não encontrado");
+                const originalTransaction = docSnap.data() as Transaction;
+
+                if (originalTransaction.seriesId && scope === 'future') {
+                    const seriesQuery = query(
+                        transactionsRef,
+                        where('seriesId', '==', originalTransaction.seriesId),
+                        where('currentInstallment', '>=', originalTransaction.currentInstallment),
+                        orderBy('currentInstallment')
+                    );
+                    const seriesSnapshot = await getDocs(seriesQuery);
+
+                    const baseDate = new Date(data.date + 'T00:00:00');
+                    const basePaymentDate = data.paymentDate ? new Date(data.paymentDate + 'T00:00:00') : undefined;
+                    const baseDueDate = data.dueDate ? new Date(data.dueDate + 'T00:00:00') : undefined;
+                    
+                    seriesSnapshot.forEach(doc => {
+                        const installment = doc.data() as Transaction;
+                        const monthDiff = (installment.currentInstallment || 0) - (originalTransaction.currentInstallment || 0);
+                        
+                        const newDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + monthDiff, baseDate.getDate());
+                        const newPaymentDate = basePaymentDate ? new Date(basePaymentDate.getFullYear(), basePaymentDate.getMonth() + monthDiff, basePaymentDate.getDate()) : undefined;
+                        const newDueDate = baseDueDate ? new Date(baseDueDate.getFullYear(), baseDueDate.getMonth() + monthDiff, baseDueDate.getDate()) : undefined;
+
+                        const updatePayload = {
+                            description: data.description,
+                            type: data.type,
+                            planned: data.planned,
+                            actual: data.actual,
+                            paid: data.paid,
+                            isShared: data.isShared,
+                            subprofileId: data.subprofileId,
+                            notes: data.notes,
+                            date: newDate.toISOString().split('T')[0],
+                            paymentDate: newPaymentDate ? newPaymentDate.toISOString().split('T')[0] : undefined,
+                            dueDate: newDueDate ? newDueDate.toISOString().split('T')[0] : undefined,
                         };
-                        batch.set(childDocRef, cleanUndefinedFields(childData));
+                        batch.update(doc.ref, cleanUndefinedFields(updatePayload));
                     });
-                }
-            } else {
-                const { isInstallmentPurchase, totalInstallments, ...restData } = data;
-                const dataToSave: Partial<Transaction> = { ...restData, profileId: profile.id };
-                
-                if (data.isShared) {
-                    delete dataToSave.subprofileId;
-                } else if(!id && activeTab) {
-                    dataToSave.subprofileId = activeTab;
+
+                } else { 
+                    const { isInstallmentPurchase, totalInstallments, ...restData } = data;
+                    batch.update(docRef, cleanUndefinedFields(restData));
                 }
 
-                if (id) {
-                    batch.update(doc(db, "transactions", id), cleanUndefinedFields(dataToSave));
+            } else { // 3. Criando uma nova transação simples (não parcelada)
+                if (data.isShared && isProportional) {
+                    const parentDocRef = doc(transactionsRef);
+                    const parentId = parentDocRef.id;
+                    const { isInstallmentPurchase, totalInstallments, ...parentData } = data;
+                    
+                    const finalParentData = { ...parentData, profileId: profile.id, createdAt: serverTimestamp() };
+                    delete (finalParentData as Partial<TransactionFormState>).subprofileId;
+
+                    batch.set(parentDocRef, cleanUndefinedFields(finalParentData));
+        
+                    if(subprofileRevenueProportions && subprofileRevenueProportions.size > 0) {
+                        subprofileRevenueProportions.forEach((proportion, subId) => {
+                            const childDocRef = doc(transactionsRef);
+                            const childData: Omit<Transaction, 'id'> = {
+                                ...parentData,
+                                profileId: profile.id,
+                                description: `[Rateio] ${parentData.description}`,
+                                planned: parentData.planned * proportion,
+                                actual: parentData.actual * proportion,
+                                isShared: false,
+                                isApportioned: true,
+                                parentId: parentId,
+                                subprofileId: subId,
+                                createdAt: serverTimestamp()
+                            };
+                            batch.set(childDocRef, cleanUndefinedFields(childData));
+                        });
+                    }
                 } else {
+                    const { isInstallmentPurchase, totalInstallments, ...restData } = data;
+                    const dataToSave: Partial<Transaction> = { ...restData, profileId: profile.id };
+                    
+                    if (data.isShared) {
+                        delete dataToSave.subprofileId;
+                    } else if(activeTab) {
+                        dataToSave.subprofileId = activeTab;
+                    }
                     dataToSave.createdAt = serverTimestamp();
                     batch.set(doc(transactionsRef), cleanUndefinedFields(dataToSave));
                 }

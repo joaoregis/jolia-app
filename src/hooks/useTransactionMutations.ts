@@ -193,9 +193,9 @@ export function useTransactionMutations(profile: Profile | null) {
     
         const updatePayload = { [field]: value };
         cleanUndefinedFields(updatePayload);
-
+    
         if (scope === 'one' || !transaction.seriesId) {
-             batch.update(transactionRef, updatePayload);
+            batch.update(transactionRef, updatePayload);
         } else { // scope === 'future'
             const seriesQuery = query(
                 collection(db, 'transactions'),
@@ -210,9 +210,10 @@ export function useTransactionMutations(profile: Profile | null) {
         }
     
         const isProportionalShared = transaction.isShared && profile.apportionmentMethod === 'proportional';
-        const fieldsToIgnore = ['planned', 'actual', 'description', 'paid', 'isShared', 'subprofileId'];
     
-        if (isProportionalShared && !fieldsToIgnore.includes(field as string)) {
+        // Propaga a atualização para os filhos, se aplicável.
+        const fieldsToPropagate = ['paymentDate', 'dueDate', 'paid'];
+        if (isProportionalShared && fieldsToPropagate.includes(field as string)) {
             const q = query(collection(db, 'transactions'), where('parentId', '==', id));
             const childrenSnapshot = await getDocs(q);
             childrenSnapshot.forEach(childDoc => {

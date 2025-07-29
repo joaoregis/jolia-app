@@ -8,6 +8,8 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 - Need improvements on mobile layout
   
+- Sistema de rótulos nas transações e barra de filtros
+
 ---
 
 ## 🎯 Funcionalidades Principais (Core Features)

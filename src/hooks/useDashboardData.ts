@@ -1,13 +1,14 @@
 // src/hooks/useDashboardData.ts
 
 import { useMemo } from 'react';
-import { AppData, Profile, SortConfig, Transaction } from '../types';
+import { AppData, Label, Profile, SortConfig, Transaction } from '../types';
 
 /**
  * Hook para processar e derivar todos os dados necessários para o Dashboard.
  * Ele recebe dados brutos e retorna os dados prontos para a UI.
  * @param allTransactions - Lista de todas as transações do mês.
  * @param profile - O perfil atual.
+ * @param allLabels - A lista de todos os rótulos do perfil.
  * @param activeTab - O subperfil ativo ou 'geral'.
  * @param currentMonthString - O mês atual no formato "YYYY-MM".
  * @param sortConfig - A configuração de ordenação atual.
@@ -16,6 +17,7 @@ import { AppData, Profile, SortConfig, Transaction } from '../types';
 export function useDashboardData(
     allTransactions: Transaction[],
     profile: Profile | null,
+    allLabels: Label[],
     activeTab: string,
     currentMonthString: string,
     sortConfig: SortConfig | null
@@ -76,8 +78,27 @@ export function useDashboardData(
 
     // Ordena os dados filtrados com base na configuração de ordenação
     const sortedData = useMemo(() => {
+        const labelsMap = new Map(allLabels.map(l => [l.id, l]));
+
+        const getPrimaryLabelName = (t: Transaction) => {
+            if (!t.labelIds || t.labelIds.length === 0) return null;
+            return labelsMap.get(t.labelIds[0])?.name || null;
+        };
+
         const sortFn = (a: Transaction, b: Transaction) => {
             if (!sortConfig) return 0;
+
+            if (sortConfig.key === 'labelIds') {
+                const aLabel = getPrimaryLabelName(a);
+                const bLabel = getPrimaryLabelName(b);
+                if (aLabel === bLabel) return 0;
+                if (aLabel === null) return 1;
+                if (bLabel === null) return -1;
+                return sortConfig.direction === 'ascending'
+                    ? aLabel.localeCompare(bLabel)
+                    : bLabel.localeCompare(aLabel);
+            }
+            
             const aVal = a[sortConfig.key];
             const bVal = b[sortConfig.key];
             if (aVal == null && bVal == null) return 0;
@@ -93,11 +114,12 @@ export function useDashboardData(
                 ? String(aVal).localeCompare(String(bVal)) 
                 : String(bVal).localeCompare(String(aVal));
         };
+
         return {
             receitas: [...filteredData.receitas].sort(sortFn),
             despesas: [...filteredData.despesas].sort(sortFn)
         };
-    }, [filteredData, sortConfig]);
+    }, [filteredData, sortConfig, allLabels]);
 
     return {
         sortedData,

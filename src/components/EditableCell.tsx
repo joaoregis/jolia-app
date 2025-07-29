@@ -11,9 +11,10 @@ interface EditableCellProps {
     type?: 'text' | 'number';
     formatAsCurrency?: boolean;
     disabled?: boolean;
+    className?: string;
 }
 
-export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type = 'text', formatAsCurrency = false, disabled = false }) => {
+export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type = 'text', formatAsCurrency = false, disabled = false, className }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentValue, setCurrentValue] = useState(value);
 
@@ -60,14 +61,14 @@ export const EditableCell: React.FC<EditableCellProps> = ({ value, onSave, type 
                         className="w-full bg-background text-text-primary p-2 rounded border border-accent"
                     />
                 )}
-                 <button onClick={handleSave} className="p-2 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full"><Check size={16} /></button>
-                 <button onClick={handleCancel} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><X size={16} /></button>
+                 <button onClick={handleSave} className="p-1 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full"><Check size={16} /></button>
+                 <button onClick={handleCancel} className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full"><X size={16} /></button>
             </div>
         );
     }
 
     return (
-        <div className="group relative w-full h-full flex items-center">
+        <div className={`group relative w-full h-full flex items-center ${className}`}>
             <span className="block w-full whitespace-nowrap overflow-hidden text-ellipsis">
                 {formatAsCurrency ? formatCurrency(Number(value)) : value}
             </span>

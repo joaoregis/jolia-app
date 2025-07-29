@@ -12,6 +12,7 @@ import { DashboardScreen } from './screens/DashboardScreen.tsx';
 import { Layout } from './components/Layout.tsx';
 import { TrashScreen } from './screens/TrashScreen.tsx';
 import { WishlistScreen } from './screens/WishlistScreen.tsx';
+import { SettingsScreen } from './screens/SettingsScreen.tsx';
 import { ToastProvider } from './contexts/ToastContext.tsx';
 import { themes } from './lib/themes.ts';
 
@@ -67,6 +68,7 @@ export default function App() {
                     <Route path=":subprofileId" element={<DashboardScreen />} />
                     <Route path="wishlist" element={<WishlistScreen />} />
                     <Route path="wishlist/:subprofileId" element={<WishlistScreen />} />
+                    <Route path="settings" element={<SettingsScreen />} />
                 </Route>
             </Routes>
         </ToastProvider>

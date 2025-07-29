@@ -26,8 +26,8 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onValueChan
 
     const isSmall = size === 'small';
     const containerClasses = "relative group w-full";
-    const symbolClasses = `absolute top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors pointer-events-none ${isSmall ? 'left-3 text-sm' : 'left-4 text-lg'}`;
-    const inputClasses = `w-full bg-card font-semibold rounded-lg border-2 border-border-color focus:border-accent focus:ring-0 transition-colors text-text-primary ${isSmall ? 'p-2 pl-9 text-base' : 'p-4 pl-12 text-2xl'}`;
+    const symbolClasses = `absolute top-1/2 -translate-y-1/2 text-text-secondary group-focus-within:text-accent transition-colors pointer-events-none ${isSmall ? 'left-2 text-xs' : 'left-4 text-lg'}`;
+    const inputClasses = `w-full bg-card font-semibold rounded-lg border-2 border-border-color focus:border-accent focus:ring-0 transition-colors text-text-primary ${isSmall ? 'p-1.5 pl-7 text-sm' : 'p-4 pl-12 text-2xl'}`;
 
     return (
         <div className={containerClasses}>

@@ -17,6 +17,15 @@ export interface CustomTheme {
   variables: Theme['variables'];
 }
 
+export interface Label {
+  id: string;
+  profileId: string;
+  name: string;
+  color: string;
+  status: 'active' | 'archived';
+  createdAt: any; // serverTimestamp
+}
+
 export interface Profile {
     id:string;
     name: string;
@@ -38,6 +47,7 @@ export interface Transaction {
   isShared?: boolean;
   isRecurring?: boolean;
   subprofileId?: string;
+  labelIds?: string[];
   date: string;
   paymentDate?: string;
   dueDate?: string;

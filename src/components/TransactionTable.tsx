@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft, FileText, Landmark } from 'lucide-react';
-import { Transaction, SortConfig, Subprofile } from '../types';
+import { MoreVertical, CheckCircle, XCircle, Edit, Trash2, ArrowUpDown, Repeat, Users, Info, SkipForward, RotateCw, ArrowRightLeft, FileText, Landmark, PlusCircle } from 'lucide-react';
+import { Transaction, SortConfig, Subprofile, Label } from '../types';
 import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { NoteModal } from './NoteModal';
 import { CalculationToolbar } from './CalculationToolbar';
+import { LabelSelector } from './LabelSelector';
 
 // --- Interfaces & Componentes Internos ---
 
@@ -62,7 +63,7 @@ const Tooltip: React.FC<{ content: React.ReactNode, children: React.ReactNode }>
         <div ref={triggerRef} onMouseEnter={() => setIsVisible(true)} onMouseLeave={() => setIsVisible(false)} className="relative flex items-center">
             {children}
             {isVisible && ReactDOM.createPortal(
-                <div ref={tooltipRef} className="fixed bg-slate-900 text-white text-xs rounded py-1 px-2 z-50 transition-opacity duration-300 pointer-events-none animate-fade-in">
+                <div ref={tooltipRef} className="fixed bg-card text-text-primary text-xs rounded-md py-1.5 px-2.5 z-50 shadow-lg pointer-events-none animate-fade-in border border-border-color">
                     {content}
                 </div>, document.body
             )}
@@ -134,7 +135,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
                      {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
                      {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
                      {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
-                     <EditableCell value={item.description} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} />
+                     <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} />
                      {item.seriesId && (
                          <span className="text-xs text-text-secondary whitespace-nowrap">
                              ({item.currentInstallment}/{item.totalInstallments})
@@ -173,6 +174,7 @@ const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense';
 interface TransactionTableProps {
   title: string;
   data: Transaction[];
+  labels: Label[];
   type: 'income' | 'expense';
   isClosed: boolean;
   requestSort: (key: keyof Transaction) => void;
@@ -188,13 +190,27 @@ interface TransactionTableProps {
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions, selectedIds, onSelectionChange, onSelectAll, onClearSelection } = props;
+    const { title, data, labels, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions, selectedIds, onSelectionChange, onSelectAll, onClearSelection } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
     const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
+    const [labelSelectorState, setLabelSelectorState] = useState<{ isOpen: boolean; transactionId: string | null, anchorEl: HTMLElement | null }>({ isOpen: false, transactionId: null, anchorEl: null });
+    
+    const labelsMap = useMemo(() => new Map(labels.map(l => [l.id, l])), [labels]);
+    const activeLabels = useMemo(() => labels.filter(l => l.status === 'active'), [labels]);
 
     const handleOpenNoteModal = (transaction: Transaction) => setNoteModalState({ isOpen: true, transaction });
     const handleCloseNoteModal = () => setNoteModalState({ isOpen: false, transaction: null });
     const handleSaveNote = (note: string) => { if (noteModalState.transaction) actions.onSaveNote(noteModalState.transaction.id, note); };
+    
+    const handleToggleLabel = (transactionId: string, labelId: string) => {
+        const transaction = data.find(t => t.id === transactionId);
+        if (!transaction) return;
+        const currentLabels = transaction.labelIds || [];
+        const newLabels = currentLabels.includes(labelId)
+            ? currentLabels.filter(id => id !== labelId)
+            : [...currentLabels, labelId];
+        actions.onUpdateField(transactionId, 'labelIds', newLabels);
+    };
     
     const calculationData = useMemo(() => {
         const selectedTransactions = data.filter(t => selectedIds.has(t.id));
@@ -277,12 +293,13 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                     />
                                 </th>
                                 <th scope="col" className="px-1 py-3 w-[40px]"></th>
-                                <SortableHeader sortKey="description" className={type === 'income' ? 'w-[28%]' : 'w-[18%]'}>Descrição</SortableHeader>
+                                <SortableHeader sortKey="description" className="w-[25%]">Descrição</SortableHeader>
+                                <SortableHeader sortKey="labelIds" className="w-[12%]">Rótulos</SortableHeader>
                                 {type === 'expense' && <SortableHeader sortKey="dueDate" className="w-[10%]">Vencimento</SortableHeader>}
                                 <SortableHeader sortKey="paymentDate" className="w-[10%]">{type === 'expense' ? 'Pagamento' : 'Recebimento'}</SortableHeader>
-                                <SortableHeader sortKey="planned" className="w-[16%]">Previsto</SortableHeader>
-                                <SortableHeader sortKey="actual" className="w-[16%]">Efetivo</SortableHeader>
-                                <th scope="col" className="w-[15%] px-4 py-3 text-right">Diferença</th>
+                                <SortableHeader sortKey="planned" className="w-[14%]">Previsto</SortableHeader>
+                                <SortableHeader sortKey="actual" className="w-[14%]">Efetivo</SortableHeader>
+                                <th scope="col" className="w-[10%] px-4 py-3 text-right">Diferença</th>
                                 <SortableHeader sortKey="paid" className="w-[8%] text-center justify-center">{type === 'expense' ? 'Pago?' : 'Recebido?'}</SortableHeader>
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>
@@ -296,6 +313,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 const isApportioned = item.isApportioned === true;
                                 const isInstallment = !!item.seriesId;
                                 const isSelected = selectedIds.has(item.id);
+                                const itemLabels = (item.labelIds || []).map(id => labelsMap.get(id)).filter((l): l is Label => l !== undefined);
                                 return (
                                 <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-accent/10' : 'bg-card'} ${!isApportioned && 'hover:bg-background'}`}>
                                     <td className="px-4 py-3 align-middle">
@@ -315,13 +333,29 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
-                                        <div className="flex items-center gap-2">
-                                            <EditableCell value={item.description} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned || isInstallment} />
-                                            {item.seriesId && (
-                                                <span className="text-xs text-text-secondary whitespace-nowrap">
-                                                    ({item.currentInstallment}/{item.totalInstallments})
-                                                </span>
+                                        <Tooltip content={item.description.replace('[Rateio] ', '')}>
+                                            <div className="flex items-center gap-2">
+                                                <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned || isInstallment} className="max-w-[20ch] truncate" />
+                                                {item.seriesId && (
+                                                    <span className="text-xs text-text-secondary whitespace-nowrap">
+                                                        ({item.currentInstallment}/{item.totalInstallments})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </Tooltip>
+                                    </td>
+                                    <td className="px-4 py-3 align-middle">
+                                        <div className="flex items-center gap-1.5">
+                                            {isApportioned && <span className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap" style={{backgroundColor: '#0d9488'}}>Rateio</span>}
+                                            {itemLabels.slice(0, 1).map(label => (
+                                                <span key={label.id} style={{backgroundColor: label.color}} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{label.name}</span>
+                                            ))}
+                                            {itemLabels.length > 1 && (
+                                                <Tooltip content={<div className="flex flex-col items-start gap-1.5 p-1">{itemLabels.map(l => <span key={l.id} style={{backgroundColor: l.color}} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{l.name}</span>)}</div>}>
+                                                     <span className="px-2 py-0.5 text-xs font-medium bg-gray-500 text-white rounded-full cursor-pointer whitespace-nowrap">...</span>
+                                                </Tooltip>
                                             )}
+                                            {!isClosed && !isApportioned && <button onClick={(e) => setLabelSelectorState({ isOpen: true, transactionId: item.id, anchorEl: e.currentTarget })} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-background hover:bg-border-color"><PlusCircle size={14} className="text-text-secondary"/></button>}
                                         </div>
                                     </td>
                                     {type === 'expense' && (
@@ -365,8 +399,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                        {data.length > 0 && (
                          <tfoot className="font-bold text-table-footer-text bg-table-footer">
                             <tr>
-                                <td colSpan={3} className="px-4 py-3">TOTAL</td>
-                                <td colSpan={type === 'expense' ? 2 : 1} />
+                                <td colSpan={type === 'expense' ? 5 : 4} className="px-4 py-3">TOTAL</td>
+                                <td />
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
                                 <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
                                 <td colSpan={3}></td>
@@ -386,6 +420,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 />
             )}
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
+            <LabelSelector
+                isOpen={labelSelectorState.isOpen}
+                onClose={() => setLabelSelectorState({ isOpen: false, transactionId: null, anchorEl: null })}
+                availableLabels={activeLabels}
+                selectedLabelIds={data.find(t => t.id === labelSelectorState.transactionId)?.labelIds || []}
+                onToggleLabel={(labelId) => {
+                    if (labelSelectorState.transactionId) {
+                        handleToggleLabel(labelSelectorState.transactionId, labelId);
+                    }
+                }}
+                anchorEl={labelSelectorState.anchorEl}
+            />
         </Card>
     );
 };

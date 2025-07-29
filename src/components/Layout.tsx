@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { User } from 'firebase/auth';
-import { Briefcase, Home, LogOut, ChevronLeft, Gift } from 'lucide-react';
+import { Briefcase, Home, LogOut, ChevronLeft, Gift, Settings } from 'lucide-react';
 import { Header } from './Header';
 import { ProfileProvider } from '../contexts/ProfileContext';
 
@@ -84,9 +84,9 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                         
                         <nav className="space-y-2">
                         {navItems.map(item => {
-                            const isDashboardRoute = location.pathname.startsWith(`/profile/${profileId}`) && !location.pathname.includes('wishlist');
-                            const isWishlistRoute = location.pathname.startsWith(`/profile/${profileId}/wishlist`);
-
+                            const isDashboardRoute = !location.pathname.includes('wishlist') && !location.pathname.includes('settings');
+                            const isWishlistRoute = location.pathname.includes('wishlist');
+                            
                             let isActive = false;
                             if (item.label === 'Dashboard') {
                                 isActive = isDashboardRoute;
@@ -109,6 +109,13 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                     </div>
                     
                     <div className="space-y-2 border-t border-border pt-4">
+                        <NavLink
+                            href={`/profile/${profileId}/settings`}
+                            icon={Settings}
+                            label="Configurações"
+                            isCollapsed={isCollapsed}
+                            isActive={location.pathname.includes('settings')}
+                        />
                         <button onClick={() => navigate('/')} title="Trocar de Perfil" className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-text-secondary hover:bg-background rounded-lg ${isCollapsed ? 'justify-center' : ''}`}>
                             <LogOut size={20} />
                             {!isCollapsed && <span>Trocar de Perfil</span>}

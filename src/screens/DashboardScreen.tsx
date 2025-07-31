@@ -15,6 +15,7 @@ import { useTransactionMutations } from '../hooks/useTransactionMutations';
 import { useSubprofileManager } from '../hooks/useSubprofileManager';
 import { useDashboardState } from '../hooks/useDashboardState';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useLabels } from '../hooks/useLabels';
 
 // Componentes
 import { DashboardHeader } from '../components/DashboardHeader';
@@ -52,6 +53,7 @@ export const DashboardScreen: React.FC = () => {
     const { availableMonths, loading: monthsLoading } = useAvailableMonths(profileId);
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
+    const { labels, loading: labelsLoading } = useLabels(profileId);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
     const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
@@ -75,6 +77,7 @@ export const DashboardScreen: React.FC = () => {
     const { sortedData, ignoredTransactions, subprofileRevenueProportions, activeTransactions } = useDashboardData(
         allTransactions,
         profile,
+        labels,
         activeTab,
         currentMonthString,
         sortConfig
@@ -205,8 +208,8 @@ export const DashboardScreen: React.FC = () => {
         const baseData = { paid: false, date: defaultDate.toISOString().split('T')[0], notes: '' };
     
         const initialValues = activeTab === 'geral' 
-            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false } 
-            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false };
+            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false, labelIds: [] } 
+            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false, labelIds: [] };
         
         modals.transaction.open(initialValues);
     }, [activeTab, isCurrentMonthClosed, modals.transaction, currentMonth]);
@@ -412,7 +415,7 @@ export const DashboardScreen: React.FC = () => {
         }
     }), [handleOpenModalForEdit, handleDeleteRequest, transactionMutations, currentMonthString, handleOpenTransferModal, showToast]);
 
-    if (profileLoading || monthsLoading || !sortConfig) return <LoadingScreen />;
+    if (profileLoading || monthsLoading || !sortConfig || labelsLoading) return <LoadingScreen />;
     if (!profile) return <div>Perfil não encontrado.</div>;
 
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
@@ -460,6 +463,7 @@ export const DashboardScreen: React.FC = () => {
                             <TransactionTable
                                 title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
                                 data={sortedData.receitas}
+                                labels={labels}
                                 type="income"
                                 isClosed={isCurrentMonthClosed}
                                 sortConfig={sortConfig}
@@ -474,6 +478,7 @@ export const DashboardScreen: React.FC = () => {
                         <TransactionTable
                             title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
                             data={sortedData.despesas}
+                            labels={labels}
                             type="expense"
                             isClosed={isCurrentMonthClosed}
                             sortConfig={sortConfig}

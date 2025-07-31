@@ -1,10 +1,14 @@
 // src/components/TransactionForm.tsx
 
-import React, { useState, ChangeEvent, FormEvent, useEffect } from 'react';
-import { Transaction, TransactionFormState } from '../types';
+import React, { useState, ChangeEvent, FormEvent, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { Transaction, TransactionFormState, Label } from '../types';
+import { useLabels } from '../hooks/useLabels';
 import { CurrencyInput } from './CurrencyInput';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DateInput } from './DateInput';
+import { LabelSelector } from './LabelSelector';
+import { PlusCircle } from 'lucide-react';
 
 interface TransactionFormProps {
     onClose: () => void;
@@ -14,6 +18,8 @@ interface TransactionFormProps {
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, initialValues, isSubprofileView }) => {
+    const { profileId } = useParams<{ profileId: string }>();
+    const { labels } = useLabels(profileId);
     const [formData, setFormData] = useState<TransactionFormState>({
         description: '',
         type: 'expense',
@@ -28,11 +34,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         isInstallmentPurchase: false,
         totalInstallments: 2,
         subprofileId: undefined,
+        labelIds: [],
         notes: '',
         ...initialValues
     });
 
-     const isEditingInstallment = !!initialValues?.seriesId;
+    const [isLabelSelectorOpen, setLabelSelectorOpen] = useState(false);
+    const labelSelectorAnchor = useRef<HTMLButtonElement>(null);
+
+    const isEditingInstallment = !!initialValues?.seriesId;
+    
+    const activeLabels = labels.filter(l => l.status === 'active');
+    const selectedLabels = (formData.labelIds || [])
+        .map(id => labels.find(l => l.id === id))
+        .filter((l): l is Label => l !== undefined);
 
     useEffect(() => {
         setFormData({
@@ -40,7 +55,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             paymentDate: '', dueDate: undefined, paid: false, isShared: false, isRecurring: false,
             isInstallmentPurchase: !!initialValues?.seriesId, 
             totalInstallments: initialValues?.totalInstallments || 2,
-            subprofileId: undefined, notes: '', ...initialValues
+            subprofileId: undefined, labelIds: [], notes: '', ...initialValues
         });
     }, [initialValues]);
 
@@ -68,6 +83,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         setFormData(prev => ({ ...prev, [name]: value }));
     }
 
+    const handleToggleLabel = (labelId: string) => {
+        setFormData(prev => {
+            const currentLabels = prev.labelIds || [];
+            const newLabels = currentLabels.includes(labelId)
+                ? currentLabels.filter(id => id !== labelId)
+                : [...currentLabels, labelId];
+            return { ...prev, labelIds: newLabels };
+        });
+    };
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         onSave(formData, initialValues?.id);
@@ -78,6 +103,33 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
                 <input type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3"/>
+            </div>
+
+            <div>
+                 <label className="block text-sm font-medium text-text-secondary mb-1">Rótulos</label>
+                 <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    {selectedLabels.map(label => (
+                        <span key={label.id} style={{ backgroundColor: label.color }} className="px-2 py-0.5 text-xs font-medium text-white rounded-full">
+                            {label.name}
+                        </span>
+                    ))}
+                    <button
+                        ref={labelSelectorAnchor}
+                        type="button"
+                        onClick={() => setLabelSelectorOpen(true)}
+                        className="flex items-center justify-center w-6 h-6 bg-background rounded-full hover:bg-border-color"
+                    >
+                        <PlusCircle size={16} className="text-text-secondary" />
+                    </button>
+                    <LabelSelector
+                        isOpen={isLabelSelectorOpen}
+                        onClose={() => setLabelSelectorOpen(false)}
+                        availableLabels={activeLabels}
+                        selectedLabelIds={formData.labelIds || []}
+                        onToggleLabel={handleToggleLabel}
+                        anchorEl={labelSelectorAnchor.current}
+                    />
+                 </div>
             </div>
             
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

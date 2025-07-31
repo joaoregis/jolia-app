@@ -116,6 +116,7 @@ export function useTransactionMutations(profile: Profile | null) {
                             paid: data.paid,
                             isShared: data.isShared,
                             subprofileId: data.subprofileId,
+                            labelIds: data.labelIds,
                             notes: data.notes,
                             date: newDate.toISOString().split('T')[0],
                             paymentDate: newPaymentDate ? newPaymentDate.toISOString().split('T')[0] : undefined,

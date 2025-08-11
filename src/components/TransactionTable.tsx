@@ -8,7 +8,6 @@ import { formatCurrency, formatShortDate } from '../lib/utils';
 import { EditableCell } from './EditableCell';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import { NoteModal } from './NoteModal';
-import { CalculationToolbar } from './CalculationToolbar';
 import { LabelSelector } from './LabelSelector';
 
 // --- Interfaces & Componentes Internos ---
@@ -104,7 +103,7 @@ const ActionMenu: React.FC<{ item: Transaction; actions: Pick<TransactionActions
                     <div className="py-1">
                         <button onClick={() => { actions.onEdit(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><Edit size={16} /> Editar</button>
                         <button onClick={() => { actions.onTransfer(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><ArrowRightLeft size={16} /> Transferir</button>
-                        {item.isRecurring && <button onClick={() => { actions.onSkip(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><SkipForward size={16} /> Ignorar neste mês</button>}
+                        {(item.isRecurring || !!item.seriesId) && <button onClick={() => { actions.onSkip(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:bg-background"><SkipForward size={16} /> Ignorar neste mês</button>}
                         <button onClick={() => { actions.onDelete(item); setIsOpen(false); }} className="w-full text-left flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-background"><Trash2 size={16} /> Excluir</button>
                     </div>
                 </div>, document.body
@@ -186,11 +185,10 @@ interface TransactionTableProps {
   selectedIds: Set<string>;
   onSelectionChange: (id: string, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
-  onClearSelection: () => void;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, labels, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions, selectedIds, onSelectionChange, onSelectAll, onClearSelection } = props;
+    const { title, data, labels, type, isClosed, requestSort, sortConfig, subprofileRevenueProportions, subprofiles, apportionmentMethod, actions, selectedIds, onSelectionChange, onSelectAll } = props;
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
     const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
     const [labelSelectorState, setLabelSelectorState] = useState<{ isOpen: boolean; transactionId: string | null, anchorEl: HTMLElement | null }>({ isOpen: false, transactionId: null, anchorEl: null });
@@ -212,18 +210,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
         actions.onUpdateField(transactionId, 'labelIds', newLabels);
     };
     
-    const calculationData = useMemo(() => {
-        const selectedTransactions = data.filter(t => selectedIds.has(t.id));
-        const count = selectedTransactions.length;
-        if (count === 0) {
-            return { count: 0, sumPlanned: 0, sumActual: 0 };
-        }
-        const sumPlanned = selectedTransactions.reduce((acc, t) => acc + t.planned, 0);
-        const sumActual = selectedTransactions.reduce((acc, t) => acc + t.actual, 0);
-        return { count, sumPlanned, sumActual };
-    }, [selectedIds, data]);
-
-
     const getSortIndicator = (key: keyof Transaction) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-2 opacity-30 group-hover:opacity-100" />;
         const rotationClass = sortConfig.direction === 'descending' ? 'transform rotate-180' : '';
@@ -411,14 +397,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 </div>
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
             </CardContent>
-            {calculationData.count > 0 && (
-                <CalculationToolbar
-                    selectedCount={calculationData.count}
-                    sumPlanned={calculationData.sumPlanned}
-                    sumActual={calculationData.sumActual}
-                    onClearSelection={onClearSelection}
-                />
-            )}
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
             <LabelSelector
                 isOpen={labelSelectorState.isOpen}
@@ -441,14 +419,21 @@ interface IgnoredTransactionsTableProps {
     onUnskip: (transaction: Transaction) => void;
     currentMonthString: string;
     activeTab: string;
+    isCurrentMonthClosed: boolean;
+    selectedIds: Set<string>;
+    onSelectionChange: (id: string, checked: boolean) => void;
+    onSelectAll: (checked: boolean) => void;
 }
 
-export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> = ({ data, onUnskip, currentMonthString, activeTab }) => {
+export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> = ({ data, onUnskip, currentMonthString, activeTab, isCurrentMonthClosed, selectedIds, onSelectionChange, onSelectAll }) => {
     const filteredData = useMemo(() => {
         const ignoredInCurrentMonth = data.filter((t) => (t.skippedInMonths || []).includes(currentMonthString));
         if (activeTab === 'geral') return ignoredInCurrentMonth.filter(t => t.isShared);
         return ignoredInCurrentMonth.filter(t => t.subprofileId === activeTab);
     }, [data, currentMonthString, activeTab]);
+
+    const isAllSelected = filteredData.length > 0 && filteredData.every(item => selectedIds.has(item.id));
+    const isSomeSelected = filteredData.some(item => selectedIds.has(item.id));
 
     if (filteredData.length === 0) return null;
 
@@ -460,6 +445,14 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-table-header-text uppercase bg-table-header">
                             <tr>
+                                <th className="px-4 py-3 w-px">
+                                     <Checkbox
+                                        title="Selecionar Tudo"
+                                        checked={isAllSelected}
+                                        indeterminate={isSomeSelected && !isAllSelected}
+                                        onChange={(e) => onSelectAll(e.target.checked)}
+                                    />
+                                </th>
                                 <th scope="col" className="px-4 py-3 w-[40%]">Descrição</th>
                                 <th scope="col" className="px-4 py-3 w-[20%]">Tipo</th>
                                 <th scope="col" className="px-4 py-3 w-[20%]">Valor Previsto</th>
@@ -468,13 +461,33 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                         </thead>
                         <tbody className="divide-y divide-border">
                             {filteredData.map((item) => (
-                                <tr key={item.id} className="bg-card hover:bg-background">
+                                <tr key={item.id} className={`transition-colors ${selectedIds.has(item.id) ? 'bg-accent/10' : 'bg-card'} hover:bg-background`}>
+                                     <td className="px-4 py-3 align-middle">
+                                        <Checkbox checked={selectedIds.has(item.id)} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
+                                    </td>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
-                                        <div className="flex items-center gap-2"><Repeat size={14} className="text-accent flex-shrink-0" /><span>{item.description}</span></div>
+                                        <div className="flex items-center gap-2">
+                                            {item.seriesId ? <Landmark size={14} className="text-purple-400 flex-shrink-0" /> : <Repeat size={14} className="text-accent flex-shrink-0" />}
+                                            <span>{item.description}</span>
+                                            {item.seriesId && (
+                                                <span className="text-xs text-text-secondary whitespace-nowrap">
+                                                    ({item.currentInstallment}/{item.totalInstallments})
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3 align-middle"><span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>{item.type === 'income' ? 'Receita' : 'Despesa'}</span></td>
                                     <td className="px-4 py-3 align-middle text-text-primary">{formatCurrency(item.planned)}</td>
-                                    <td className="px-4 py-3 text-center align-middle"><button onClick={() => onUnskip(item)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1 mx-auto"><RotateCw size={14} /> Reativar</button></td>
+                                    <td className="px-4 py-3 text-center align-middle">
+                                        <button 
+                                            onClick={() => onUnskip(item)} 
+                                            disabled={isCurrentMonthClosed}
+                                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1 mx-auto disabled:bg-slate-400 disabled:cursor-not-allowed"
+                                            title={isCurrentMonthClosed ? "Não é possível reativar em meses fechados" : "Reativar transação para este mês"}
+                                        >
+                                            <RotateCw size={14} /> Reativar
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

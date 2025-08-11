@@ -12,9 +12,10 @@ import {
     arrayRemove,
     getDoc,
     deleteField,
-    orderBy
+    orderBy,
+    serverTimestamp as firestoreServerTimestamp // Renomeado para evitar conflito
 } from 'firebase/firestore';
-import { db, serverTimestamp } from '../lib/firebase';
+import { db } from '../lib/firebase';
 import { Profile, Transaction, TransactionFormState } from '../types';
 
 /**
@@ -68,8 +69,8 @@ export function useTransactionMutations(profile: Profile | null) {
                         seriesId: seriesId,
                         currentInstallment: i + 1,
                         totalInstallments: totalInstallments,
-                        isRecurring: i === 0,
-                        createdAt: serverTimestamp()
+                        isRecurring: false, // Parcelas não são recorrentes no sentido tradicional
+                        createdAt: firestoreServerTimestamp()
                     };
                     if (data.isShared) {
                         delete (installmentData as Partial<TransactionFormState>).subprofileId;
@@ -115,7 +116,7 @@ export function useTransactionMutations(profile: Profile | null) {
                             actual: data.actual,
                             paid: data.paid,
                             isShared: data.isShared,
-                            subprofileId: data.subprofileId,
+                            subprofileId: data.isShared ? deleteField() : data.subprofileId,
                             labelIds: data.labelIds,
                             notes: data.notes,
                             date: newDate.toISOString().split('T')[0],
@@ -127,7 +128,8 @@ export function useTransactionMutations(profile: Profile | null) {
 
                 } else { 
                     const { isInstallmentPurchase, totalInstallments, ...restData } = data;
-                    batch.update(docRef, cleanUndefinedFields(restData));
+                    const finalData = { ...restData, subprofileId: data.isShared ? deleteField() : restData.subprofileId };
+                    batch.update(docRef, cleanUndefinedFields(finalData));
                 }
 
             } else { // 3. Criando uma nova transação simples (não parcelada)
@@ -136,7 +138,7 @@ export function useTransactionMutations(profile: Profile | null) {
                     const parentId = parentDocRef.id;
                     const { isInstallmentPurchase, totalInstallments, ...parentData } = data;
                     
-                    const finalParentData = { ...parentData, profileId: profile.id, createdAt: serverTimestamp() };
+                    const finalParentData = { ...parentData, profileId: profile.id, createdAt: firestoreServerTimestamp() };
                     delete (finalParentData as Partial<TransactionFormState>).subprofileId;
 
                     batch.set(parentDocRef, cleanUndefinedFields(finalParentData));
@@ -154,7 +156,7 @@ export function useTransactionMutations(profile: Profile | null) {
                                 isApportioned: true,
                                 parentId: parentId,
                                 subprofileId: subId,
-                                createdAt: serverTimestamp()
+                                createdAt: firestoreServerTimestamp()
                             };
                             batch.set(childDocRef, cleanUndefinedFields(childData));
                         });
@@ -168,7 +170,7 @@ export function useTransactionMutations(profile: Profile | null) {
                     } else if(activeTab) {
                         dataToSave.subprofileId = activeTab;
                     }
-                    dataToSave.createdAt = serverTimestamp();
+                    dataToSave.createdAt = firestoreServerTimestamp();
                     batch.set(doc(transactionsRef), cleanUndefinedFields(dataToSave));
                 }
             }
@@ -179,7 +181,33 @@ export function useTransactionMutations(profile: Profile | null) {
             throw error;
         }
     };
-
+    
+    const recalculateApportionedChildren = async (batch: any, parentId: string, updatedParentData: Partial<Transaction>, proportions: Map<string, number>) => {
+        // 1. Excluir filhos existentes
+        const childrenQuery = query(collection(db, 'transactions'), where('parentId', '==', parentId));
+        const childrenSnapshot = await getDocs(childrenQuery);
+        childrenSnapshot.forEach(doc => batch.delete(doc.ref));
+        
+        // 2. Criar novos filhos com dados atualizados
+        proportions.forEach((proportion, subId) => {
+            const childDocRef = doc(collection(db, "transactions"));
+            const { id, subprofileId, isShared, isApportioned, parentId: pId, ...restOfParent } = updatedParentData as Transaction;
+            
+            const childData: Omit<Transaction, 'id'> = {
+                ...restOfParent,
+                description: `[Rateio] ${updatedParentData.description}`,
+                planned: (updatedParentData.planned || 0) * proportion,
+                actual: (updatedParentData.actual || 0) * proportion,
+                isShared: false,
+                isApportioned: true,
+                parentId: parentId,
+                subprofileId: subId,
+                createdAt: firestoreServerTimestamp()
+            };
+            batch.set(childDocRef, cleanUndefinedFields(childData));
+        });
+    };
+    
     const handleFieldUpdate = async (id: string, field: keyof Transaction, value: any, scope: 'one' | 'future' = 'one') => {
         if (!profile) return;
         const batch = writeBatch(db);
@@ -190,7 +218,7 @@ export function useTransactionMutations(profile: Profile | null) {
             console.error("Transação não encontrada para atualização.");
             return;
         }
-        const transaction = docSnap.data() as Transaction;
+        const transaction = { id: docSnap.id, ...docSnap.data() } as Transaction;
     
         const updatePayload = { [field]: value };
         cleanUndefinedFields(updatePayload);
@@ -210,20 +238,39 @@ export function useTransactionMutations(profile: Profile | null) {
             });
         }
     
-        const isProportionalShared = transaction.isShared && profile.apportionmentMethod === 'proportional';
+        const isProportionalSharedParent = transaction.isShared && !transaction.isApportioned && profile.apportionmentMethod === 'proportional';
     
-        // Propaga a atualização para os filhos, se aplicável.
-        const fieldsToPropagate = ['paymentDate', 'dueDate', 'paid'];
-        if (isProportionalShared && fieldsToPropagate.includes(field as string)) {
-            const q = query(collection(db, 'transactions'), where('parentId', '==', id));
-            const childrenSnapshot = await getDocs(q);
-            childrenSnapshot.forEach(childDoc => {
-                batch.update(childDoc.ref, updatePayload);
-            });
+        if (isProportionalSharedParent) {
+            const allTransactionsQuery = query(collection(db, 'transactions'), where('profileId', '==', profile.id));
+            const allTransactionsSnapshot = await getDocs(allTransactionsQuery);
+            const allTransactions = allTransactionsSnapshot.docs.map(d => d.data() as Transaction);
+
+            const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
+            const subprofileIncomes = new Map<string, number>(activeSubprofiles.map(s => [s.id, 0]));
+
+            allTransactions
+                .filter(t => t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId))
+                .forEach(t => {
+                    subprofileIncomes.set(t.subprofileId!, (subprofileIncomes.get(t.subprofileId!) || 0) + t.actual);
+                });
+
+            const totalIncome = Array.from(subprofileIncomes.values()).reduce((acc, income) => acc + income, 0);
+            const proportions = new Map<string, number>();
+
+            if (totalIncome > 0) {
+                subprofileIncomes.forEach((income, subId) => proportions.set(subId, income / totalIncome));
+            } else {
+                const equalShare = 1 / activeSubprofiles.length;
+                activeSubprofiles.forEach(sub => proportions.set(sub.id, equalShare));
+            }
+
+            const updatedParentData = { ...transaction, ...updatePayload };
+            await recalculateApportionedChildren(batch, transaction.id, updatedParentData, proportions);
         }
     
         await batch.commit();
     };
+
 
     const handleTogglePaid = async (transaction: Transaction) => {
         await handleFieldUpdate(transaction.id, 'paid', !transaction.paid, 'one');
@@ -298,7 +345,7 @@ export function useTransactionMutations(profile: Profile | null) {
                                 isApportioned: true,
                                 parentId: transactionId,
                                 subprofileId: subId,
-                                createdAt: serverTimestamp()
+                                createdAt: firestoreServerTimestamp()
                              });
                         }
                     });
@@ -327,13 +374,47 @@ export function useTransactionMutations(profile: Profile | null) {
     const handleSkipTransaction = async (transaction: Transaction, currentMonthString: string) => {
         if (!transaction.id) return;
         const transactionRef = doc(db, 'transactions', transaction.id);
-        await updateDoc(transactionRef, {
+        const batch = writeBatch(db);
+    
+        // 1. Marca a transação atual como "pulada"
+        batch.update(transactionRef, {
             skippedInMonths: arrayUnion(currentMonthString)
         });
+    
+        // 2. Cria uma nova transação para o próximo mês
+        const { id, skippedInMonths, ...rest } = transaction;
+        const nextDate = new Date(rest.date + 'T00:00:00');
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        rest.date = nextDate.toISOString().split('T')[0];
+    
+        if (rest.paymentDate) {
+            const nextPaymentDate = new Date(rest.paymentDate + 'T00:00:00');
+            nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+            rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
+        }
+        if (rest.dueDate) {
+            const nextDueDate = new Date(rest.dueDate + 'T00:00:00');
+            nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+            rest.dueDate = nextDueDate.toISOString().split('T')[0];
+        }
+    
+        rest.paid = false;
+        rest.createdAt = firestoreServerTimestamp();
+    
+        const newTransactionRef = doc(collection(db, 'transactions'));
+        batch.set(newTransactionRef, rest);
+    
+        await batch.commit();
     };
 
     const handleUnskipTransaction = async (transaction: Transaction, currentMonthString: string) => {
-        if (!transaction.id) return;
+        if (!transaction.id || !profile) return;
+        
+        // Verifica se o mês está fechado
+        if (profile.closedMonths?.includes(currentMonthString)) {
+            throw new Error("Não é possível reativar transações de um mês fechado.");
+        }
+
         const transactionRef = doc(db, 'transactions', transaction.id);
         await updateDoc(transactionRef, {
             skippedInMonths: arrayRemove(currentMonthString)

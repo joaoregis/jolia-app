@@ -12,12 +12,15 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 - Barra de filtros
 - Mexer na ordenção/agrupamento por rótulos
 
+- Novo modulo de filmes e series assistidos e para assistir em casal
+
+### BUGs
+
+- Data de Pagamento nao deve ser propagada pro próximo mes quando fechar o mês, já que ela ainda nao existe
+- Data de Vencimento deve ser incrementada corretamente quando gerar as transações do próximo mês
+
 ### BUGs Críticos
 
-- Nao pode permitir reativar itens de meses fechados
-- Investigar problema em que, transações parceladas, quando a parcela é skipped ou ignorada, ela não está indo para o próximo mês como deveria.
-- Investigar porque nao ta deixando eu skippar a parcela -> Parece que o campo isRecurring tem relação
-- Alterei o campo de "Data de Pagamento" e não atualizou os filhos.
   
 ---
 

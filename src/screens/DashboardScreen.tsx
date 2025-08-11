@@ -34,6 +34,7 @@ import { Plus } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
 import { SeriesEditConfirmationModal } from '../components/SeriesEditConfirmationModal';
+import { CalculationToolbar } from '../components/CalculationToolbar';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -56,7 +57,12 @@ export const DashboardScreen: React.FC = () => {
     const { labels, loading: labelsLoading } = useLabels(profileId);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
-    const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(new Set());
+    
+    // Estados de seleção separados
+    const [selectedIncomeIds, setSelectedIncomeIds] = useState<Set<string>>(new Set());
+    const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+    const [selectedIgnoredIds, setSelectedIgnoredIds] = useState<Set<string>>(new Set());
+    
     const [seriesActionState, setSeriesActionState] = useState<{ isOpen: boolean; actionType: 'edit' | 'delete'; transaction: Transaction | null }>({ isOpen: false, actionType: 'edit', transaction: null });
     const [editScope, setEditScope] = useState<'one' | 'future' | null>(null);
 
@@ -84,7 +90,9 @@ export const DashboardScreen: React.FC = () => {
     );
     
     useEffect(() => {
-        setSelectedTransactionIds(new Set());
+        setSelectedIncomeIds(new Set());
+        setSelectedExpenseIds(new Set());
+        setSelectedIgnoredIds(new Set());
     }, [activeTab, currentMonth]);
 
     useEffect(() => { setIsInitialMonthSet(false); }, [profileId]);
@@ -167,28 +175,43 @@ export const DashboardScreen: React.FC = () => {
         return true;
     }, [profile, availableMonths, currentMonth, isCurrentMonthClosed, allTransactionsPaid]);
 
-    // Handlers
-    const handleSelectionChange = useCallback((id: string, checked: boolean) => {
-        setSelectedTransactionIds(prev => {
+    // Handlers de seleção
+    const createSelectionHandler = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string, checked: boolean) => {
+        setter(prev => {
             const newSet = new Set(prev);
-            if (checked) {
-                newSet.add(id);
-            } else {
-                newSet.delete(id);
-            }
+            if (checked) newSet.add(id);
+            else newSet.delete(id);
             return newSet;
         });
-    }, []);
+    };
 
-    const handleSelectAll = useCallback((checked: boolean) => {
-        if (checked) {
-            const allIds = new Set(sortedData.despesas.map(t => t.id).concat(sortedData.receitas.map(t => t.id)));
-            setSelectedTransactionIds(allIds);
-        } else {
-            setSelectedTransactionIds(new Set());
-        }
-    }, [sortedData]);
+    const createSelectAllHandler = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, data: Transaction[]) => (checked: boolean) => {
+        if (checked) setter(new Set(data.map(item => item.id)));
+        else setter(new Set());
+    };
+    
+    const handleClearAllSelections = () => {
+        setSelectedIncomeIds(new Set());
+        setSelectedExpenseIds(new Set());
+        setSelectedIgnoredIds(new Set());
+    };
 
+    const calculationData = useMemo(() => {
+        const calculate = (ids: Set<string>, source: Transaction[]) => {
+            const selected = source.filter(t => ids.has(t.id));
+            if (selected.length === 0) return undefined;
+            return {
+                count: selected.length,
+                sumPlanned: selected.reduce((acc, t) => acc + t.planned, 0),
+                sumActual: selected.reduce((acc, t) => acc + t.actual, 0),
+            };
+        };
+        return {
+            income: calculate(selectedIncomeIds, sortedData.receitas),
+            expense: calculate(selectedExpenseIds, sortedData.despesas),
+            ignored: calculate(selectedIgnoredIds, ignoredTransactions),
+        };
+    }, [selectedIncomeIds, selectedExpenseIds, selectedIgnoredIds, sortedData, ignoredTransactions]);
 
     const changeMonth = useCallback((amount: number) => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1)), []);
     const requestSort = useCallback((key: keyof Transaction) => setSortConfig(prev => ({ key, direction: prev?.key === key && prev.direction === 'ascending' ? 'descending' : 'ascending' })), []);
@@ -400,8 +423,8 @@ export const DashboardScreen: React.FC = () => {
             try {
                 await transactionMutations.handleUnskipTransaction(t, currentMonthString);
                 showToast('Transação reativada para este mês.', 'info');
-            } catch {
-                showToast('Erro ao reativar transação.', 'error');
+            } catch(e: any) {
+                showToast(e.message || 'Erro ao reativar transação.', 'error');
             }
         },
         onTransfer: handleOpenTransferModal,
@@ -469,10 +492,9 @@ export const DashboardScreen: React.FC = () => {
                                 sortConfig={sortConfig}
                                 requestSort={requestSort}
                                 actions={transactionActions}
-                                selectedIds={selectedTransactionIds}
-                                onSelectionChange={handleSelectionChange}
-                                onSelectAll={handleSelectAll}
-                                onClearSelection={() => setSelectedTransactionIds(new Set())}
+                                selectedIds={selectedIncomeIds}
+                                onSelectionChange={createSelectionHandler(setSelectedIncomeIds)}
+                                onSelectAll={createSelectAllHandler(setSelectedIncomeIds, sortedData.receitas)}
                             />
                         )}
                         <TransactionTable
@@ -487,15 +509,27 @@ export const DashboardScreen: React.FC = () => {
                             subprofileRevenueProportions={subprofileRevenueProportions}
                             apportionmentMethod={profile.apportionmentMethod}
                             actions={transactionActions}
-                            selectedIds={selectedTransactionIds}
-                            onSelectionChange={handleSelectionChange}
-                            onSelectAll={handleSelectAll}
-                            onClearSelection={() => setSelectedTransactionIds(new Set())}
+                            selectedIds={selectedExpenseIds}
+                            onSelectionChange={createSelectionHandler(setSelectedExpenseIds)}
+                            onSelectAll={createSelectAllHandler(setSelectedExpenseIds, sortedData.despesas)}
                         />
-                        {ignoredTransactions.length > 0 && <IgnoredTransactionsTable data={ignoredTransactions} onUnskip={(t) => transactionActions.onUnskip(t)} currentMonthString={currentMonthString} activeTab={activeTab} />}
+                        {ignoredTransactions.length > 0 && 
+                            <IgnoredTransactionsTable 
+                                data={ignoredTransactions} 
+                                onUnskip={(t) => transactionActions.onUnskip(t)} 
+                                currentMonthString={currentMonthString} 
+                                activeTab={activeTab} 
+                                isCurrentMonthClosed={isCurrentMonthClosed}
+                                selectedIds={selectedIgnoredIds}
+                                onSelectionChange={createSelectionHandler(setSelectedIgnoredIds)}
+                                onSelectAll={createSelectAllHandler(setSelectedIgnoredIds, ignoredTransactions.filter(t => activeTab === 'geral' ? t.isShared : t.subprofileId === activeTab))}
+                            />
+                        }
                     </div>
                 </>
             )}
+
+            <CalculationToolbar selections={calculationData} onClearSelection={handleClearAllSelections} />
 
             {/* Modais */}
             <TransactionModal isOpen={modals.transaction.isOpen} onClose={modals.transaction.close} title={modals.transaction.initialValues?.id ? 'Editar Transação' : 'Nova Transação'}>

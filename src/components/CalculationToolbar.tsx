@@ -4,42 +4,66 @@ import React from 'react';
 import { formatCurrency } from '../lib/utils';
 import { X } from 'lucide-react';
 
-interface CalculationToolbarProps {
-    selectedCount: number;
+interface CalculationData {
+    count: number;
     sumPlanned: number;
     sumActual: number;
+}
+
+interface CalculationToolbarProps {
+    selections: {
+        income?: CalculationData;
+        expense?: CalculationData;
+        ignored?: CalculationData;
+    };
     onClearSelection: () => void;
 }
 
 export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
-    selectedCount,
-    sumPlanned,
-    sumActual,
+    selections,
     onClearSelection
 }) => {
-    if (selectedCount === 0) {
+    const totalCount = (selections.income?.count || 0) + (selections.expense?.count || 0) + (selections.ignored?.count || 0);
+
+    if (totalCount === 0) {
         return null;
     }
 
-    const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-        <div className="text-center">
-            <div className="text-xs text-text-secondary">{label}</div>
-            <div className="font-bold text-text-primary">{value}</div>
+    const Stat: React.FC<{ title: string; planned: number; actual?: number; className?: string }> = ({ title, planned, actual, className }) => (
+        <div className={`text-center px-3 py-1.5 rounded-lg ${className}`}>
+            <div className="text-xs font-bold">{title}</div>
+            <div className="text-sm">
+                {typeof actual === 'number' ? (
+                    <span className="font-semibold" title="Efetivo">{formatCurrency(actual)}</span>
+                ) : (
+                    <span className="font-semibold" title="Previsto">{formatCurrency(planned)}</span>
+                )}
+                {typeof actual === 'number' && planned !== actual && (
+                     <span className="text-xs opacity-70 ml-1" title="Previsto">({formatCurrency(planned)})</span>
+                )}
+            </div>
         </div>
     );
 
     return (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl z-50 px-4">
-            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-4 flex items-center justify-between animate-fade-in-up">
-                <div className="flex items-center gap-4">
-                    <div className="text-sm font-bold text-text-primary bg-accent/20 text-accent rounded-full px-3 py-1">
-                        {selectedCount} {selectedCount > 1 ? 'itens selecionados' : 'item selecionado'}
-                    </div>
+        <div className="fixed bottom-4 right-4 z-50">
+            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-2 flex items-center gap-3 animate-fade-in-up w-auto max-w-full">
+                <div className="text-sm font-bold text-text-primary bg-accent/20 text-accent rounded-lg px-3 py-1 whitespace-nowrap">
+                    {totalCount} {totalCount > 1 ? 'itens' : 'item'}
                 </div>
-                <div className="hidden md:flex items-center gap-12">
-                    <Stat label="Soma Prevista" value={formatCurrency(sumPlanned)} />
-                    <Stat label="Soma Efetiva" value={formatCurrency(sumActual)} />
+                
+                <div className="flex items-center gap-2">
+                    {selections.income?.count && (
+                        <Stat title="Receitas" planned={selections.income.sumPlanned} actual={selections.income.sumActual} className="bg-green-500/10 text-green-400"/>
+                    )}
+                     {selections.expense?.count && (
+                        <Stat title="Despesas" planned={selections.expense.sumPlanned} actual={selections.expense.sumActual} className="bg-red-500/10 text-red-400"/>
+                    )}
+                    {selections.ignored?.count && (
+                        <Stat title="Ignorados" planned={selections.ignored.sumPlanned} className="bg-amber-500/10 text-amber-400"/>
+                    )}
                 </div>
+
                 <button
                     onClick={onClearSelection}
                     className="p-2 rounded-full text-text-secondary hover:bg-background"
@@ -50,8 +74,8 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
             </div>
             <style>{`
                 @keyframes fade-in-up {
-                    from { opacity: 0; transform: translate(-50%, 20px); }
-                    to { opacity: 1; transform: translate(-50%, 0); }
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
                 .animate-fade-in-up {
                     animation: fade-in-up 0.3s ease-out forwards;

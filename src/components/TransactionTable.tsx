@@ -97,7 +97,7 @@ const ActionMenu: React.FC<{ item: Transaction; actions: Pick<TransactionActions
 
     return (
         <>
-            <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full text-text-secondary hover:bg-background"><MoreVertical size={18}/></button>
+            <button ref={buttonRef} onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full text-text-secondary hover:bg-background"><MoreVertical size={18} /></button>
             {isOpen && ReactDOM.createPortal(
                 <div ref={menuRef} className="fixed w-48 rounded-md shadow-lg bg-card ring-1 ring-black ring-opacity-5 z-50 border border-border animate-fade-in">
                     <div className="py-1">
@@ -112,79 +112,123 @@ const ActionMenu: React.FC<{ item: Transaction; actions: Pick<TransactionActions
     );
 };
 
-const DetailRow: React.FC<{ label: string; value: React.ReactNode; valueClassName?: string }> = ({ label, value, valueClassName }) => (
-    <div className="flex justify-between items-baseline text-sm">
-        <span className="text-text-secondary">{label}</span>
-        <span className={valueClassName}>{value}</span>
-    </div>
-);
-
 const TransactionItem: React.FC<{ item: Transaction; type: 'income' | 'expense'; isClosed: boolean; isIgnoredTable: boolean; actions: TransactionActions; onOpenNoteModal: (transaction: Transaction) => void; isSelected: boolean; onSelectionChange: (id: string, checked: boolean) => void; }> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange }) => {
     const difference = item.actual - item.planned;
     const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
     const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
     const isApportioned = item.isApportioned === true;
     const isInstallment = !!item.seriesId;
+    const [isEditingDate, setIsEditingDate] = useState<string | null>(null);
 
     return (
-        <div className={`border border-border rounded-lg mb-4 p-4 space-y-4 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
-            <div className="flex justify-between items-start">
-                 <div className="font-medium text-text-primary flex items-center gap-2 pr-2 overflow-hidden">
-                     {!isIgnoredTable && <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />}
-                     {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
-                     {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
-                     {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
-                     <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} />
-                     {item.seriesId && (
-                         <span className="text-xs text-text-secondary whitespace-nowrap">
-                             ({item.currentInstallment}/{item.totalInstallments})
-                         </span>
-                     )}
+        <div className={`border border-border rounded-lg mb-3 p-3 bg-card hover:bg-background/50 transition-colors ${isSelected ? 'bg-accent/10 border-accent' : ''}`}>
+            {/* Linha 1: Checkbox, Descrição e Menu de Ações */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 overflow-hidden flex-1">
+                    {!isIgnoredTable && <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />}
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1">
+                            {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
+                            {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
+                            {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
+                            <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} className="font-medium text-text-primary truncate" />
+                        </div>
+                        {item.seriesId && (
+                            <span className="text-xs text-text-secondary">
+                                ({item.currentInstallment}/{item.totalInstallments})
+                            </span>
+                        )}
+                    </div>
                 </div>
-                 {!isClosed && !isApportioned && !isIgnoredTable && <ActionMenu item={item} actions={actions} />}
-                 {isIgnoredTable && <button onClick={() => actions.onUnskip(item)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1"><RotateCw size={14} /> Reativar</button>}
-            </div>
-            <div className="space-y-2">
-                <DetailRow label="Efetivo" value={formatCurrency(item.actual)} valueClassName="font-bold text-lg text-text-primary" />
-                <DetailRow label="Previsto" value={formatCurrency(item.planned)} valueClassName="text-sm text-text-secondary" />
-                <DetailRow label="Diferença" value={formatCurrency(difference)} valueClassName={`text-sm font-medium ${differenceColor}`} />
-                {type === 'expense' && item.dueDate && <DetailRow label="Vencimento" value={formatShortDate(item.dueDate)} />}
-            </div>
-            <div className="border-t border-border !mt-3 !mb-2"></div>
-            <div className="flex justify-between items-center text-sm">
-                <div className="text-text-secondary">
-                    <span>{type === 'expense' ? 'Pago em' : 'Recebido em'}: </span>
-                    <span className="font-medium text-text-primary">{formatShortDate(item.paymentDate)}</span>
+                {!isClosed && !isApportioned && !isIgnoredTable && <ActionMenu item={item} actions={actions} />}
+                {isIgnoredTable && <button onClick={() => actions.onUnskip(item)} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><RotateCw size={16} /></button>}
+            </div >
+
+            {/* Linha 2: Valores */}
+            < div className="flex items-baseline justify-between mb-2 text-sm" >
+                <div className="flex flex-col">
+                    <span className="text-xs text-text-secondary">Efetivo</span>
+                    <span className="font-bold text-text-primary text-base">{formatCurrency(item.actual)}</span>
                 </div>
-                 <button onClick={() => actions.onTogglePaid(item)} className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70" disabled={isClosed || isApportioned || isIgnoredTable}>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${item.paid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                         {item.paid ? <CheckCircle className="w-4 h-4 mr-1"/> : <XCircle className="w-4 h-4 mr-1"/>}
-                         {item.paid ? 'Sim' : 'Não'}
+                <div className="flex flex-col text-right">
+                    <span className="text-xs text-text-secondary">Previsto</span>
+                    <span className="text-text-secondary">{formatCurrency(item.planned)}</span>
+                </div>
+                <div className="flex flex-col text-right">
+                    <span className="text-xs text-text-secondary">Diferença</span>
+                    <span className={`font-medium ${differenceColor}`}>{formatCurrency(difference)}</span>
+                </div>
+            </div >
+
+            <div className="border-t border-border my-2"></div>
+
+            {/* Linha 3: Datas e Status */}
+            <div className="flex items-center justify-between text-xs text-text-secondary">
+                <div className="flex flex-col gap-1">
+                    {type === 'expense' && item.dueDate && (
+                        <div className="flex items-center gap-1">
+                            <span>Venc:</span>
+                            {isEditingDate === 'due' && !isClosed && !isApportioned ? (
+                                <input
+                                    type="date"
+                                    defaultValue={item.dueDate}
+                                    autoFocus
+                                    className="bg-background border border-accent rounded px-1 py-0.5 text-text-primary w-28"
+                                    onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setIsEditingDate(null); }}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setIsEditingDate(null); } }}
+                                />
+                            ) : (
+                                <span onClick={() => !isClosed && !isApportioned && !isInstallment && setIsEditingDate('due')} className={!isClosed && !isApportioned && !isInstallment ? "cursor-pointer border-b border-dashed border-text-secondary hover:text-text-primary" : ""}>
+                                    {formatShortDate(item.dueDate)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                        <span>{type === 'expense' ? 'Pgto:' : 'Recb:'}</span>
+                        {isEditingDate === 'payment' && !isClosed && !isApportioned ? (
+                            <input
+                                type="date"
+                                defaultValue={item.paymentDate}
+                                autoFocus
+                                className="bg-background border border-accent rounded px-1 py-0.5 text-text-primary w-28"
+                                onBlur={(e) => { actions.onUpdateField(item.id, 'paymentDate', e.target.value); setIsEditingDate(null); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { actions.onUpdateField(item.id, 'paymentDate', e.currentTarget.value); setIsEditingDate(null); } }}
+                            />
+                        ) : (
+                            <span onClick={() => !isClosed && !isApportioned && !isInstallment && setIsEditingDate('payment')} className={!isClosed && !isApportioned && !isInstallment ? "cursor-pointer border-b border-dashed border-text-secondary hover:text-text-primary" : ""}>
+                                {formatShortDate(item.paymentDate)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                <button onClick={() => actions.onTogglePaid(item)} className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70" disabled={isClosed || isApportioned || isIgnoredTable}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${item.paid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                        {item.paid ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                        {item.paid ? 'Sim' : 'Não'}
                     </span>
                 </button>
             </div>
-        </div>
+        </div >
     );
 };
 
-
-// --- Componentes Principais Exportados ---
-
 interface TransactionTableProps {
-  title: string;
-  data: Transaction[];
-  labels: Label[];
-  type: 'income' | 'expense';
-  isClosed: boolean;
-  requestSort: (key: keyof Transaction) => void;
-  sortConfig: SortConfig | null;
-  actions: TransactionActions;
-  subprofileRevenueProportions?: Map<string, number>;
-  subprofiles?: Subprofile[];
-  apportionmentMethod?: 'proportional' | 'manual';
-  selectedIds: Set<string>;
-  onSelectionChange: (id: string, checked: boolean) => void;
-  onSelectAll: (checked: boolean) => void;
+    title: string;
+    data: Transaction[];
+    labels: Label[];
+    type: 'income' | 'expense';
+    isClosed: boolean;
+    requestSort: (key: keyof Transaction) => void;
+    sortConfig: SortConfig | null;
+    actions: TransactionActions;
+    subprofileRevenueProportions?: Map<string, number>;
+    subprofiles?: Subprofile[];
+    apportionmentMethod?: 'proportional' | 'manual';
+    selectedIds: Set<string>;
+    onSelectionChange: (id: string, checked: boolean) => void;
+    onSelectAll: (checked: boolean) => void;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
@@ -192,14 +236,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
     const [editingDateId, setEditingDateId] = useState<string | null>(null);
     const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
     const [labelSelectorState, setLabelSelectorState] = useState<{ isOpen: boolean; transactionId: string | null, anchorEl: HTMLElement | null }>({ isOpen: false, transactionId: null, anchorEl: null });
-    
+
     const labelsMap = useMemo(() => new Map(labels.map(l => [l.id, l])), [labels]);
     const activeLabels = useMemo(() => labels.filter(l => l.status === 'active'), [labels]);
 
     const handleOpenNoteModal = (transaction: Transaction) => setNoteModalState({ isOpen: true, transaction });
     const handleCloseNoteModal = () => setNoteModalState({ isOpen: false, transaction: null });
     const handleSaveNote = (note: string) => { if (noteModalState.transaction) actions.onSaveNote(noteModalState.transaction.id, note); };
-    
+
     const handleToggleLabel = (transactionId: string, labelId: string) => {
         const transaction = data.find(t => t.id === transactionId);
         if (!transaction) return;
@@ -209,7 +253,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
             : [...currentLabels, labelId];
         actions.onUpdateField(transactionId, 'labelIds', newLabels);
     };
-    
+
     const getSortIndicator = (key: keyof Transaction) => {
         if (!sortConfig || sortConfig.key !== key) return <ArrowUpDown size={14} className="ml-2 opacity-30 group-hover:opacity-100" />;
         const rotationClass = sortConfig.direction === 'descending' ? 'transform rotate-180' : '';
@@ -221,7 +265,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
             <button onClick={() => requestSort(sortKey)} className="flex items-center w-full group">{children} {getSortIndicator(sortKey)}</button>
         </th>
     );
-    
+
     const getApportionmentTooltipContent = (transaction: Transaction) => {
         if (!subprofiles || !subprofileRevenueProportions || !apportionmentMethod) return null;
         const activeSubprofiles = subprofiles.filter(s => s.status === 'active');
@@ -242,7 +286,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
             );
         }
         return <div className="p-1">Rateio Manual Ativado</div>;
-    }
+    };
 
     const getInstallmentTooltipContent = (item: Transaction) => {
         const totalValue = item.actual * (item.totalInstallments || 0);
@@ -251,17 +295,17 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 <p>Parcela {item.currentInstallment} de {item.totalInstallments}</p>
                 <p className="border-t border-slate-600 mt-1 pt-1">Total: <span className="font-bold">{formatCurrency(totalValue)}</span></p>
             </div>
-        )
+        );
     };
 
     const isAllSelected = data.length > 0 && data.every(item => selectedIds.has(item.id));
     const isSomeSelected = data.some(item => selectedIds.has(item.id));
-    
+
     return (
         <Card>
             <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
             <CardContent>
-                 <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
+                <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
                 <div className="md:hidden">
                     {data.length > 0 ? data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} />) : null}
                     {data.length > 0 && <div className="flex justify-between font-bold text-table-footer-text bg-table-footer p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
@@ -290,115 +334,116 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 <th scope="col" className="w-[5%] px-4 py-3 text-center">Ações</th>
                             </tr>
                         </thead>
-                       {data.length > 0 && (
-                         <tbody className="divide-y divide-border">
-                            {data.map(item => {
-                                const difference = item.actual - item.planned;
-                                const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
-                                const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
-                                const isApportioned = item.isApportioned === true;
-                                const isInstallment = !!item.seriesId;
-                                const isSelected = selectedIds.has(item.id);
-                                const itemLabels = (item.labelIds || []).map(id => labelsMap.get(id)).filter((l): l is Label => l !== undefined);
-                                return (
-                                <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-accent/10' : 'bg-card'} ${!isApportioned && 'hover:bg-background'}`}>
-                                    <td className="px-4 py-3 align-middle">
-                                        <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
-                                    </td>
-                                    <td className="px-1 py-3 align-middle">
-                                         <div className="flex items-center justify-center gap-2">
-                                            {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
-                                            {item.isShared && <Tooltip content={getApportionmentTooltipContent(item)}><Users size={14} className="text-cyan-400 flex-shrink-0 cursor-pointer"/></Tooltip>}
-                                            {item.isRecurring && !item.seriesId && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0"/></span>}
-                                            {isInstallment && (
-                                                <Tooltip content={getInstallmentTooltipContent(item)}>
-                                                    <Landmark size={14} className="text-purple-400 flex-shrink-0 cursor-pointer" />
-                                                </Tooltip>
-                                            )}
-                                            {isApportioned && <Tooltip content={<>Esta despesa é um rateio da Visão Geral<br />e não pode ser editada aqui.</>}><Info size={14} className="text-teal-400 flex-shrink-0 cursor-help" /></Tooltip>}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-middle font-medium text-text-primary">
-                                        <Tooltip content={item.description.replace('[Rateio] ', '')}>
-                                            <div className="flex items-center gap-2">
-                                                <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned || isInstallment} className="max-w-[20ch] truncate" />
-                                                {item.seriesId && (
-                                                    <span className="text-xs text-text-secondary whitespace-nowrap">
-                                                        ({item.currentInstallment}/{item.totalInstallments})
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </Tooltip>
-                                    </td>
-                                    <td className="px-4 py-3 align-middle">
-                                        <div className="flex items-center gap-1.5">
-                                            {isApportioned && <span className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap" style={{backgroundColor: '#0d9488'}}>Rateio</span>}
-                                            {itemLabels.slice(0, 1).map(label => (
-                                                <span key={label.id} style={{backgroundColor: label.color}} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{label.name}</span>
-                                            ))}
-                                            {itemLabels.length > 1 && (
-                                                <Tooltip content={<div className="flex flex-col items-start gap-1.5 p-1">{itemLabels.map(l => <span key={l.id} style={{backgroundColor: l.color}} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{l.name}</span>)}</div>}>
-                                                     <span className="px-2 py-0.5 text-xs font-medium bg-gray-500 text-white rounded-full cursor-pointer whitespace-nowrap">...</span>
-                                                </Tooltip>
-                                            )}
-                                            {!isClosed && !isApportioned && <button onClick={(e) => setLabelSelectorState({ isOpen: true, transactionId: item.id, anchorEl: e.currentTarget })} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-background hover:bg-border-color"><PlusCircle size={14} className="text-text-secondary"/></button>}
-                                        </div>
-                                    </td>
-                                    {type === 'expense' && (
-                                        <td className="px-4 py-3 align-middle">
-                                            {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
-                                                <input type="date" defaultValue={item.dueDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
-                                            ) : (
-                                                <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && item.type === 'expense' && !isInstallment && setEditingDateId(`${item.id}-due`)}>
-                                                    <span>{formatShortDate(item.dueDate)}</span>
-                                                    {!isClosed && !isApportioned && item.type === 'expense' && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                        {data.length > 0 && (
+                            <tbody className="divide-y divide-border">
+                                {data.map(item => {
+                                    const difference = item.actual - item.planned;
+                                    const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
+                                    const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
+                                    const isApportioned = item.isApportioned === true;
+                                    const isInstallment = !!item.seriesId;
+                                    const isSelected = selectedIds.has(item.id);
+                                    const itemLabels = (item.labelIds || []).map(id => labelsMap.get(id)).filter((l): l is Label => l !== undefined);
+                                    return (
+                                        <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-accent/10' : 'bg-card'} ${!isApportioned && 'hover:bg-background'}`}>
+                                            <td className="px-4 py-3 align-middle">
+                                                <Checkbox checked={isSelected} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
+                                            </td>
+                                            <td className="px-1 py-3 align-middle">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    {item.notes && <button onClick={() => handleOpenNoteModal(item)} title="Ver nota" className="flex-shrink-0"><FileText size={14} className="text-yellow-400 hover:text-yellow-300" /></button>}
+                                                    {item.isShared && <Tooltip content={getApportionmentTooltipContent(item)}><Users size={14} className="text-cyan-400 flex-shrink-0 cursor-pointer" /></Tooltip>}
+                                                    {item.isRecurring && !item.seriesId && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
+                                                    {isInstallment && (
+                                                        <Tooltip content={getInstallmentTooltipContent(item)}>
+                                                            <Landmark size={14} className="text-purple-400 flex-shrink-0 cursor-pointer" />
+                                                        </Tooltip>
+                                                    )}
+                                                    {isApportioned && <Tooltip content={<>Esta despesa é um rateio da Visão Geral<br />e não pode ser editada aqui.</>}><Info size={14} className="text-teal-400 flex-shrink-0 cursor-help" /></Tooltip>}
                                                 </div>
+                                            </td>
+                                            <td className="px-4 py-3 align-middle font-medium text-text-primary">
+                                                <Tooltip content={item.description.replace('[Rateio] ', '')}>
+                                                    <div className="flex items-center gap-2">
+                                                        <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(newValue) => actions.onUpdateField(item.id, 'description', String(newValue))} disabled={isClosed || isApportioned || isInstallment} className="max-w-[20ch] truncate" />
+                                                        {item.seriesId && (
+                                                            <span className="text-xs text-text-secondary whitespace-nowrap">
+                                                                ({item.currentInstallment}/{item.totalInstallments})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </Tooltip>
+                                            </td>
+                                            <td className="px-4 py-3 align-middle">
+                                                <div className="flex items-center gap-1.5">
+                                                    {isApportioned && <span className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap" style={{ backgroundColor: '#0d9488' }}>Rateio</span>}
+                                                    {itemLabels.slice(0, 1).map(label => (
+                                                        <span key={label.id} style={{ backgroundColor: label.color }} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{label.name}</span>
+                                                    ))}
+                                                    {itemLabels.length > 1 && (
+                                                        <Tooltip content={<div className="flex flex-col items-start gap-1.5 p-1">{itemLabels.map(l => <span key={l.id} style={{ backgroundColor: l.color }} className="px-2 py-0.5 text-xs font-medium text-white rounded-full whitespace-nowrap">{l.name}</span>)}</div>}>
+                                                            <span className="px-2 py-0.5 text-xs font-medium bg-gray-500 text-white rounded-full cursor-pointer whitespace-nowrap">...</span>
+                                                        </Tooltip>
+                                                    )}
+                                                    {!isClosed && !isApportioned && <button onClick={(e) => setLabelSelectorState({ isOpen: true, transactionId: item.id, anchorEl: e.currentTarget })} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-background hover:bg-border-color"><PlusCircle size={14} className="text-text-secondary" /></button>}
+                                                </div>
+                                            </td>
+                                            {type === 'expense' && (
+                                                <td className="px-4 py-3 align-middle">
+                                                    {editingDateId === `${item.id}-due` && !isClosed && !isApportioned ? (
+                                                        <input type="date" defaultValue={item.dueDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'dueDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'dueDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); } }} className="w-full bg-background text-text-primary p-2 rounded border border-accent" />
+                                                    ) : (
+                                                        <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && item.type === 'expense' && !isInstallment && setEditingDateId(`${item.id}-due`)}>
+                                                            <span>{formatShortDate(item.dueDate)}</span>
+                                                            {!isClosed && !isApportioned && item.type === 'expense' && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                                                        </div>
+                                                    )}
+                                                </td>
                                             )}
-                                        </td>
-                                    )}
-                                    <td className="px-4 py-3 align-middle">
-                                        {editingDateId === `${item.id}-payment` && !isClosed && !isApportioned ? (
-                                            <input type="date" defaultValue={item.paymentDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'paymentDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'paymentDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); }}} className="w-full bg-background text-text-primary p-2 rounded border border-accent"/>
-                                        ) : (
-                                            <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && !isInstallment && setEditingDateId(`${item.id}-payment`)}>
-                                                <span>{formatShortDate(item.paymentDate)}</span>
-                                                {!isClosed && !isApportioned && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed || isApportioned || isInstallment}/></td>
-                                    <td className="px-4 py-3 align-middle"><EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed || isApportioned || isInstallment}/></td>
-                                    <td className={`px-4 py-3 text-right font-bold align-middle ${differenceColor}`}>{formatCurrency(difference)}</td>
-                                    <td className="px-4 py-3 text-center align-middle">
-                                        <button onClick={() => actions.onTogglePaid(item)} className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70" disabled={isClosed || (isApportioned && type !== 'income')}>
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${item.paid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                                                {item.paid ? <CheckCircle className="w-4 h-4 mr-1"/> : <XCircle className="w-4 h-4 mr-1"/>}
-                                                {item.paid ? 'Sim' : 'Não'}
-                                            </span>
-                                        </button>
-                                    </td>
-                                    <td className="px-4 py-3 text-center align-middle">{!isClosed && !isApportioned && <ActionMenu item={item} actions={actions} />}</td>
+                                            <td className="px-4 py-3 align-middle">
+                                                {editingDateId === `${item.id}-payment` && !isClosed && !isApportioned ? (
+                                                    <input type="date" defaultValue={item.paymentDate} autoFocus onBlur={(e) => { actions.onUpdateField(item.id, 'paymentDate', e.target.value); setEditingDateId(null); }} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { if (e.key === 'Enter') actions.onUpdateField(item.id, 'paymentDate', e.currentTarget.value); setEditingDateId(null); e.currentTarget.blur(); } }} className="w-full bg-background text-text-primary p-2 rounded border border-accent" />
+                                                ) : (
+                                                    <div className="group relative w-full h-full flex items-center cursor-pointer" onClick={() => !isClosed && !isApportioned && !isInstallment && setEditingDateId(`${item.id}-payment`)}>
+                                                        <span>{formatShortDate(item.paymentDate)}</span>
+                                                        {!isClosed && !isApportioned && !isInstallment && <button className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full bg-background text-text-secondary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"><Edit size={12} /></button>}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 align-middle"><EditableCell value={item.planned} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'planned', newValue as number)} disabled={isClosed || isApportioned || isInstallment} /></td>
+                                            <td className="px-4 py-3 align-middle"><EditableCell value={item.actual} type="number" formatAsCurrency onSave={(newValue) => actions.onUpdateField(item.id, 'actual', newValue as number)} disabled={isClosed || isApportioned || isInstallment} /></td>
+                                            <td className={`px-4 py-3 text-right font-bold align-middle ${differenceColor}`}>{formatCurrency(difference)}</td>
+                                            <td className="px-4 py-3 text-center align-middle">
+                                                <button onClick={() => actions.onTogglePaid(item)} className="inline-flex items-center transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-70" disabled={isClosed || (isApportioned && type !== 'income')}>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center ${item.paid ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                                                        {item.paid ? <CheckCircle className="w-4 h-4 mr-1" /> : <XCircle className="w-4 h-4 mr-1" />}
+                                                        {item.paid ? 'Sim' : 'Não'}
+                                                    </span>
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-3 text-center align-middle">{!isClosed && !isApportioned && <ActionMenu item={item} actions={actions} />}</td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        )}
+                        {data.length > 0 && (
+                            <tfoot className="font-bold text-table-footer-text bg-table-footer">
+                                <tr>
+                                    <td colSpan={type === 'expense' ? 5 : 4} className="px-4 py-3">TOTAL</td>
+                                    <td />
+                                    <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
+                                    <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
+                                    <td colSpan={3}></td>
                                 </tr>
-                                )})}
-                        </tbody>
-                       )}
-                       {data.length > 0 && (
-                         <tfoot className="font-bold text-table-footer-text bg-table-footer">
-                            <tr>
-                                <td colSpan={type === 'expense' ? 5 : 4} className="px-4 py-3">TOTAL</td>
-                                <td />
-                                <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.planned, 0))}</td>
-                                <td className="px-4 py-3">{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</td>
-                                <td colSpan={3}></td>
-                            </tr>
-                        </tfoot>
-                       )}
+                            </tfoot>
+                        )}
                     </table>
                 </div>
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
-            </CardContent>
+            </CardContent >
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
-            <LabelSelector
+            < LabelSelector
                 isOpen={labelSelectorState.isOpen}
                 onClose={() => setLabelSelectorState({ isOpen: false, transactionId: null, anchorEl: null })}
                 availableLabels={activeLabels}
@@ -410,7 +455,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 }}
                 anchorEl={labelSelectorState.anchorEl}
             />
-        </Card>
+        </Card >
     );
 };
 
@@ -446,7 +491,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                         <thead className="text-xs text-table-header-text uppercase bg-table-header">
                             <tr>
                                 <th className="px-4 py-3 w-px">
-                                     <Checkbox
+                                    <Checkbox
                                         title="Selecionar Tudo"
                                         checked={isAllSelected}
                                         indeterminate={isSomeSelected && !isAllSelected}
@@ -462,7 +507,7 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                         <tbody className="divide-y divide-border">
                             {filteredData.map((item) => (
                                 <tr key={item.id} className={`transition-colors ${selectedIds.has(item.id) ? 'bg-accent/10' : 'bg-card'} hover:bg-background`}>
-                                     <td className="px-4 py-3 align-middle">
+                                    <td className="px-4 py-3 align-middle">
                                         <Checkbox checked={selectedIds.has(item.id)} onChange={(e) => onSelectionChange(item.id, e.target.checked)} />
                                     </td>
                                     <td className="px-4 py-3 align-middle font-medium text-text-primary">
@@ -479,8 +524,8 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                                     <td className="px-4 py-3 align-middle"><span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${item.type === 'income' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>{item.type === 'income' ? 'Receita' : 'Despesa'}</span></td>
                                     <td className="px-4 py-3 align-middle text-text-primary">{formatCurrency(item.planned)}</td>
                                     <td className="px-4 py-3 text-center align-middle">
-                                        <button 
-                                            onClick={() => onUnskip(item)} 
+                                        <button
+                                            onClick={() => onUnskip(item)}
                                             disabled={isCurrentMonthClosed}
                                             className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1 mx-auto disabled:bg-slate-400 disabled:cursor-not-allowed"
                                             title={isCurrentMonthClosed ? "Não é possível reativar em meses fechados" : "Reativar transação para este mês"}

@@ -39,28 +39,28 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
                     <span className="font-semibold" title="Previsto">{formatCurrency(planned)}</span>
                 )}
                 {typeof actual === 'number' && planned !== actual && (
-                     <span className="text-xs opacity-70 ml-1" title="Previsto">({formatCurrency(planned)})</span>
+                    <span className="text-xs opacity-70 ml-1" title="Previsto">({formatCurrency(planned)})</span>
                 )}
             </div>
         </div>
     );
 
     return (
-        <div className="fixed bottom-4 right-4 z-50">
-            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-2 flex items-center gap-3 animate-fade-in-up w-auto max-w-full">
+        <div className="fixed bottom-4 right-4 z-50 max-w-[90vw]">
+            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-2 flex flex-wrap items-center justify-center gap-3 animate-fade-in-up w-auto">
                 <div className="text-sm font-bold text-text-primary bg-accent/20 text-accent rounded-lg px-3 py-1 whitespace-nowrap">
                     {totalCount} {totalCount > 1 ? 'itens' : 'item'}
                 </div>
-                
-                <div className="flex items-center gap-2">
+
+                <div className="flex flex-wrap justify-center items-center gap-2">
                     {selections.income?.count && (
-                        <Stat title="Receitas" planned={selections.income.sumPlanned} actual={selections.income.sumActual} className="bg-green-500/10 text-green-400"/>
+                        <Stat title="Receitas" planned={selections.income.sumPlanned} actual={selections.income.sumActual} className="bg-green-500/10 text-green-400" />
                     )}
-                     {selections.expense?.count && (
-                        <Stat title="Despesas" planned={selections.expense.sumPlanned} actual={selections.expense.sumActual} className="bg-red-500/10 text-red-400"/>
+                    {selections.expense?.count && (
+                        <Stat title="Despesas" planned={selections.expense.sumPlanned} actual={selections.expense.sumActual} className="bg-red-500/10 text-red-400" />
                     )}
                     {selections.ignored?.count && (
-                        <Stat title="Ignorados" planned={selections.ignored.sumPlanned} className="bg-amber-500/10 text-amber-400"/>
+                        <Stat title="Ignorados" planned={selections.ignored.sumPlanned} className="bg-amber-500/10 text-amber-400" />
                     )}
                 </div>
 

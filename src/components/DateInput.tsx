@@ -42,7 +42,7 @@ export const DateInput: React.FC<DateInputProps> = ({ value, onChange, name, id,
                 value={value}
                 onChange={onChange}
                 required={required}
-                className="opacity-0 absolute top-0 left-0 w-full h-full pointer-events-none"
+                className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
             />
         </div>
     );

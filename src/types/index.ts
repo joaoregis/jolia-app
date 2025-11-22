@@ -4,11 +4,11 @@ import type { Theme } from "../lib/themes";
 export type { Theme } from "../lib/themes";
 
 export interface Subprofile {
-    id: string;
-    name: string;
-    status: 'active' | 'archived';
-    themeId?: string;
-    customTheme?: Theme['variables'];
+  id: string;
+  name: string;
+  status: 'active' | 'archived';
+  themeId?: string;
+  customTheme?: Theme['variables'];
 }
 
 export interface CustomTheme {
@@ -27,14 +27,14 @@ export interface Label {
 }
 
 export interface Profile {
-    id:string;
-    name: string;
-    icon: string;
-    subprofiles: Subprofile[];
-    status: 'active' | 'archived';
-    closedMonths?: string[];
-    apportionmentMethod?: 'proportional' | 'manual';
-    savedThemes?: CustomTheme[];
+  id: string;
+  name: string;
+  icon: string;
+  subprofiles: Subprofile[];
+  status: 'active' | 'archived';
+  closedMonths?: string[];
+  apportionmentMethod?: 'proportional' | 'manual';
+  savedThemes?: CustomTheme[];
 }
 
 export interface Transaction {
@@ -62,6 +62,7 @@ export interface Transaction {
   currentInstallment?: number;
   totalInstallments?: number;
   originalDate?: string;
+  generatedFutureTransactionId?: string;
 }
 
 export interface AppData {
@@ -69,36 +70,36 @@ export interface AppData {
   despesas: Transaction[];
 }
 
-export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths' | 'originalDate' | 'seriesId' | 'currentInstallment'> & {
-    isInstallmentPurchase?: boolean;
-    scope?: 'one' | 'future';
+export type TransactionFormState = Omit<Transaction, 'id' | 'profileId' | 'createdAt' | 'parentId' | 'isApportioned' | 'skippedInMonths' | 'originalDate' | 'seriesId' | 'currentInstallment' | 'generatedFutureTransactionId'> & {
+  isInstallmentPurchase?: boolean;
+  scope?: 'one' | 'future';
 };
 
 export interface SortConfig {
-    key: keyof Transaction;
-    direction: 'ascending' | 'descending';
+  key: keyof Transaction;
+  direction: 'ascending' | 'descending';
 }
 
 // Tipos para a nova funcionalidade de Wishlist
 export interface WishlistItem {
-    id: string;
-    title: string;
-    description?: string;
-    notes?: string;
-    budget?: number;
-    isDone: boolean;
-    createdAt: any; // serverTimestamp
+  id: string;
+  title: string;
+  description?: string;
+  notes?: string;
+  budget?: number;
+  isDone: boolean;
+  createdAt: any; // serverTimestamp
 }
 
 export interface Wishlist {
-    id: string;
-    name: string;
-    profileId: string;
-    // Opcional: para vincular a um subperfil específico
-    subprofileId?: string;
-    // Para listas compartilhadas (visíveis para todos no perfil)
-    isShared: boolean;
-    createdAt: any; // serverTimestamp
+  id: string;
+  name: string;
+  profileId: string;
+  // Opcional: para vincular a um subperfil específico
+  subprofileId?: string;
+  // Para listas compartilhadas (visíveis para todos no perfil)
+  isShared: boolean;
+  createdAt: any; // serverTimestamp
 }
 
 // Tipos para o sistema de Toast

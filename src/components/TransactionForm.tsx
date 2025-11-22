@@ -9,6 +9,7 @@ import { ToggleSwitch } from './ToggleSwitch';
 import { DateInput } from './DateInput';
 import { LabelSelector } from './LabelSelector';
 import { PlusCircle } from 'lucide-react';
+import { getLocalDateISOString } from '../lib/utils';
 
 interface TransactionFormProps {
     onClose: () => void;
@@ -25,7 +26,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         type: 'expense',
         planned: 0,
         actual: 0,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateISOString(),
         paymentDate: '',
         dueDate: undefined,
         paid: false,
@@ -43,7 +44,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
     const labelSelectorAnchor = useRef<HTMLButtonElement>(null);
 
     const isEditingInstallment = !!initialValues?.seriesId;
-    
+
     const activeLabels = labels.filter(l => l.status === 'active');
     const selectedLabels = (formData.labelIds || [])
         .map(id => labels.find(l => l.id === id))
@@ -51,9 +52,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
 
     useEffect(() => {
         setFormData({
-            description: '', type: 'expense', planned: 0, actual: 0, date: new Date().toISOString().split('T')[0],
+            description: '', type: 'expense', planned: 0, actual: 0, date: getLocalDateISOString(),
             paymentDate: '', dueDate: undefined, paid: false, isShared: false, isRecurring: false,
-            isInstallmentPurchase: !!initialValues?.seriesId, 
+            isInstallmentPurchase: !!initialValues?.seriesId,
             totalInstallments: initialValues?.totalInstallments || 2,
             subprofileId: undefined, labelIds: [], notes: '', ...initialValues
         });
@@ -61,7 +62,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
 
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
-        
+
         if (type === 'checkbox') {
             const checked = (e.target as HTMLInputElement).checked;
             setFormData(prev => {
@@ -75,7 +76,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                 return newState;
             });
         } else {
-             setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
@@ -102,12 +103,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
         <form onSubmit={handleSubmit} className="space-y-6">
             <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
-                <input type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3"/>
+                <input type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3" />
             </div>
 
             <div>
-                 <label className="block text-sm font-medium text-text-secondary mb-1">Rótulos</label>
-                 <div className="mt-1 flex items-center gap-2 flex-wrap">
+                <label className="block text-sm font-medium text-text-secondary mb-1">Rótulos</label>
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
                     {selectedLabels.map(label => (
                         <span key={label.id} style={{ backgroundColor: label.color }} className="px-2 py-0.5 text-xs font-medium text-white rounded-full">
                             {label.name}
@@ -129,10 +130,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                         onToggleLabel={handleToggleLabel}
                         anchorEl={labelSelectorAnchor.current}
                     />
-                 </div>
+                </div>
             </div>
-            
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Valor Previsto</label>
                     <CurrencyInput value={formData.planned} onValueChange={(newValue) => handleValueChange('planned', newValue)} />
@@ -144,19 +145,19 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
+                <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
                     <select name="type" value={formData.type} onChange={handleChange} disabled={!isSubprofileView} className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent disabled:opacity-50 p-3">
                         <option value="expense">Despesa</option>
                         <option value="income">Receita</option>
                     </select>
                 </div>
-                 <div>
+                <div>
                     <label htmlFor="date" className="block text-sm font-medium text-text-secondary mb-1">Data de Lançamento</label>
                     <DateInput id="date" name="date" value={formData.date} onChange={handleChange} required />
                 </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label htmlFor="paymentDate" className="block text-sm font-medium text-text-secondary mb-1">{formData.type === 'expense' ? 'Data de Pagamento' : 'Data de Recebimento'}</label>
@@ -169,7 +170,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                     </div>
                 )}
             </div>
-            
+
             <fieldset className="border border-border-color rounded-lg p-4">
                 <legend className="px-2 text-sm font-medium text-text-secondary">Opções</legend>
                 <div className="space-y-4">
@@ -201,7 +202,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                             {formData.isInstallmentPurchase && !isEditingInstallment && (
                                 <div className="mt-4 pl-8">
                                     <label htmlFor="totalInstallments" className="block text-sm font-medium text-text-secondary">Número de Parcelas</label>
-                                    <input type="number" id="totalInstallments" name="totalInstallments" value={formData.totalInstallments} onChange={handleChange} min="2" className="mt-1 w-full max-w-xs rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-2"/>
+                                    <input type="number" id="totalInstallments" name="totalInstallments" value={formData.totalInstallments} onChange={handleChange} min="2" className="mt-1 w-full max-w-xs rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-2" />
                                 </div>
                             )}
                             {isEditingInstallment && (

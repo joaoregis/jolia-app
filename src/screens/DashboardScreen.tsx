@@ -35,6 +35,7 @@ import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
 import { SeriesEditConfirmationModal } from '../components/SeriesEditConfirmationModal';
 import { CalculationToolbar } from '../components/CalculationToolbar';
+import { addMonths } from '../lib/utils';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -57,22 +58,22 @@ export const DashboardScreen: React.FC = () => {
     const { labels, loading: labelsLoading } = useLabels(profileId);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
-    
+
     // Estados de seleção separados
     const [selectedIncomeIds, setSelectedIncomeIds] = useState<Set<string>>(new Set());
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
     const [selectedIgnoredIds, setSelectedIgnoredIds] = useState<Set<string>>(new Set());
-    
+
     const [seriesActionState, setSeriesActionState] = useState<{ isOpen: boolean; actionType: 'edit' | 'delete'; transaction: Transaction | null }>({ isOpen: false, actionType: 'edit', transaction: null });
     const [editScope, setEditScope] = useState<'one' | 'future' | null>(null);
 
-    
+
     const transactionMutations = useTransactionMutations(profile);
     const subprofileManager = useSubprofileManager(profile);
     const { modals, contextMenu } = useDashboardState();
-    
+
     const activeTab = subprofileId || 'geral';
-    
+
     useEffect(() => {
         setActiveThemeBySubprofileId(activeTab);
         localStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
@@ -88,7 +89,7 @@ export const DashboardScreen: React.FC = () => {
         currentMonthString,
         sortConfig
     );
-    
+
     useEffect(() => {
         setSelectedIncomeIds(new Set());
         setSelectedExpenseIds(new Set());
@@ -125,7 +126,7 @@ export const DashboardScreen: React.FC = () => {
     useEffect(() => {
         if (sortConfig) localStorage.setItem(SORT_CONFIG_STORAGE_KEY, JSON.stringify(sortConfig));
     }, [sortConfig]);
-    
+
     useEffect(() => {
         if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) return;
         const recalculateApportionedExpenses = async () => {
@@ -154,9 +155,9 @@ export const DashboardScreen: React.FC = () => {
         };
         recalculateApportionedExpenses();
     }, [allTransactions, profile?.apportionmentMethod, subprofileRevenueProportions, transactionsLoading]);
-    
+
     const isCurrentMonthClosed = useMemo(() => profile?.closedMonths?.includes(currentMonthString) || false, [profile, currentMonthString]);
-    
+
     const allTransactionsPaid = useMemo(() => {
         if (activeTransactions.length === 0) return true;
         return activeTransactions.every(t => t.paid);
@@ -189,7 +190,7 @@ export const DashboardScreen: React.FC = () => {
         if (checked) setter(new Set(data.map(item => item.id)));
         else setter(new Set());
     };
-    
+
     const handleClearAllSelections = () => {
         setSelectedIncomeIds(new Set());
         setSelectedExpenseIds(new Set());
@@ -220,20 +221,20 @@ export const DashboardScreen: React.FC = () => {
         const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
         navigate(path);
     }, [profileId, navigate]);
-    
+
     const handleOpenModalForNew = useCallback(() => {
         if (isCurrentMonthClosed) return;
-    
+
         const today = new Date();
         const isViewingCurrentMonth = today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
         const defaultDate = isViewingCurrentMonth ? today : new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    
+
         const baseData = { paid: false, date: defaultDate.toISOString().split('T')[0], notes: '' };
-    
-        const initialValues = activeTab === 'geral' 
-            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false, labelIds: [] } 
+
+        const initialValues = activeTab === 'geral'
+            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false, labelIds: [] }
             : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false, labelIds: [] };
-        
+
         modals.transaction.open(initialValues);
     }, [activeTab, isCurrentMonthClosed, modals.transaction, currentMonth]);
 
@@ -254,7 +255,7 @@ export const DashboardScreen: React.FC = () => {
             modals.deleteTransaction.open(t);
         }
     }, [isCurrentMonthClosed, modals.deleteTransaction]);
-    
+
     const handleOpenTransferModal = useCallback((t: Transaction) => {
         if (isCurrentMonthClosed || t.isApportioned) return;
         modals.transfer.open(t);
@@ -295,22 +296,32 @@ export const DashboardScreen: React.FC = () => {
             }
         }
     };
-    
+
     const performCloseMonth = async () => {
         if (!profile || !canCloseMonth) return;
         modals.closeMonth.close();
         try {
-            const recurringTransactions = allTransactions.filter(t => t.isRecurring && !t.seriesId);
+            // Filtra transações recorrentes que NÃO foram puladas neste mês
+            const recurringTransactions = allTransactions.filter(t =>
+                t.isRecurring &&
+                !t.seriesId &&
+                !t.skippedInMonths?.includes(currentMonthString)
+            );
+
             if (recurringTransactions.length > 0) {
                 const batch = writeBatch(db);
                 recurringTransactions.forEach(t => {
-                    const { id, skippedInMonths, ...rest } = t;
-                    const nextLaunchDate = new Date(rest.date + 'T00:00:00'); nextLaunchDate.setMonth(nextLaunchDate.getMonth() + 1);
+                    const { id, skippedInMonths, generatedFutureTransactionId, ...rest } = t;
+
+                    // Usando addMonths para cálculo seguro
+                    const nextLaunchDate = addMonths(new Date(rest.date + 'T00:00:00'), 1);
                     rest.date = nextLaunchDate.toISOString().split('T')[0];
+
                     if (rest.paymentDate) {
-                        const nextPaymentDate = new Date(rest.paymentDate + 'T00:00:00'); nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+                        const nextPaymentDate = addMonths(new Date(rest.paymentDate + 'T00:00:00'), 1);
                         rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
                     }
+
                     rest.paid = false;
                     rest.createdAt = serverTimestamp();
                     batch.set(doc(collection(db, 'transactions')), rest);
@@ -391,7 +402,7 @@ export const DashboardScreen: React.FC = () => {
         }
         setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null });
     };
-    
+
     const transactionActions: TransactionActions = useMemo(() => ({
         onEdit: handleOpenModalForEdit,
         onDelete: handleDeleteRequest,
@@ -423,7 +434,7 @@ export const DashboardScreen: React.FC = () => {
             try {
                 await transactionMutations.handleUnskipTransaction(t, currentMonthString);
                 showToast('Transação reativada para este mês.', 'info');
-            } catch(e: any) {
+            } catch (e: any) {
                 showToast(e.message || 'Erro ao reativar transação.', 'error');
             }
         },
@@ -442,7 +453,7 @@ export const DashboardScreen: React.FC = () => {
     if (!profile) return <div>Perfil não encontrado.</div>;
 
     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-    
+
     return (
         <div className="p-4 md:p-6 lg:p-10 space-y-6">
             <DashboardHeader
@@ -465,7 +476,7 @@ export const DashboardScreen: React.FC = () => {
                 closedMonths={profile.closedMonths || []}
                 onMonthSelect={handleMonthSelect}
             />
-            
+
             <div className="border-b border-border-color">
                 <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto">
                     <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>Visão Geral</button>
@@ -477,7 +488,7 @@ export const DashboardScreen: React.FC = () => {
                     {activeSubprofiles.length < 10 && <button onClick={modals.addSubprofile.open} className="py-4 px-2 text-text-secondary hover:text-accent"><Plus size={16} /></button>}
                 </nav>
             </div>
-            
+
             {transactionsLoading ? <div className="text-center py-10 text-text-secondary">A carregar transações...</div> : (
                 <>
                     <SummaryCards data={sortedData} activeTab={activeTab} />
@@ -513,12 +524,12 @@ export const DashboardScreen: React.FC = () => {
                             onSelectionChange={createSelectionHandler(setSelectedExpenseIds)}
                             onSelectAll={createSelectAllHandler(setSelectedExpenseIds, sortedData.despesas)}
                         />
-                        {ignoredTransactions.length > 0 && 
-                            <IgnoredTransactionsTable 
-                                data={ignoredTransactions} 
-                                onUnskip={(t) => transactionActions.onUnskip(t)} 
-                                currentMonthString={currentMonthString} 
-                                activeTab={activeTab} 
+                        {ignoredTransactions.length > 0 &&
+                            <IgnoredTransactionsTable
+                                data={ignoredTransactions}
+                                onUnskip={(t) => transactionActions.onUnskip(t)}
+                                currentMonthString={currentMonthString}
+                                activeTab={activeTab}
                                 isCurrentMonthClosed={isCurrentMonthClosed}
                                 selectedIds={selectedIgnoredIds}
                                 onSelectionChange={createSelectionHandler(setSelectedIgnoredIds)}
@@ -536,10 +547,10 @@ export const DashboardScreen: React.FC = () => {
                 <TransactionForm onClose={modals.transaction.close} onSave={handleSaveTransactionWrapper} initialValues={modals.transaction.initialValues} isSubprofileView={activeTab !== 'geral'} />
             </TransactionModal>
             <AddSubprofileModal isOpen={modals.addSubprofile.isOpen} onClose={modals.addSubprofile.close} onSave={subprofileManager.handleCreateSubprofile} />
-            <EditSubprofileModal 
-                isOpen={modals.editSubprofile.isOpen} 
-                onClose={modals.editSubprofile.close} 
-                onSave={subprofileManager.handleUpdateSubprofile} 
+            <EditSubprofileModal
+                isOpen={modals.editSubprofile.isOpen}
+                onClose={modals.editSubprofile.close}
+                onSave={subprofileManager.handleUpdateSubprofile}
                 subprofile={modals.editSubprofile.subprofileToEdit}
                 profile={profile}
                 onSaveTheme={subprofileManager.handleSaveCustomTheme}

@@ -565,6 +565,10 @@ export const DashboardScreen: React.FC = () => {
             <SettingsModal isOpen={modals.settings.isOpen} onClose={modals.settings.close} onSave={handleSaveSettings} profile={profile} />
             <TransferTransactionModal isOpen={modals.transfer.isOpen} onClose={modals.transfer.close} transaction={modals.transfer.transactionToTransfer} subprofiles={activeSubprofiles} onConfirmTransfer={handleConfirmTransferWrapper} />
             <SeriesEditConfirmationModal isOpen={seriesActionState.isOpen} actionType={seriesActionState.actionType} onClose={() => setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null })} onConfirm={handleSeriesActionConfirm} />
+
+            <div className="text-center text-xs text-text-secondary opacity-50 pb-4">
+                v{__APP_VERSION__}
+            </div>
         </div>
     );
 };

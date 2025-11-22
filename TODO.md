@@ -13,14 +13,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 - Novo modulo de filmes e series assistidos e para assistir em casal
 
-### BUGs
-
-- Data de Pagamento nao deve ser propagada pro próximo mes quando fechar o mês, já que ela ainda nao existe
-- Data de Vencimento deve ser incrementada corretamente quando gerar as transações do próximo mês
-
-### BUGs Críticos
-
-  
 ---
 
 ## 🎯 Funcionalidades Principais (Core Features)

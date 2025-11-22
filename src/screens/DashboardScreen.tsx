@@ -314,13 +314,27 @@ export const DashboardScreen: React.FC = () => {
                     const { id, skippedInMonths, generatedFutureTransactionId, ...rest } = t;
 
                     // Usando addMonths para cálculo seguro
-                    const nextLaunchDate = addMonths(new Date(rest.date + 'T00:00:00'), 1);
+                    const currentDate = new Date(rest.date + 'T00:00:00');
+                    if (isNaN(currentDate.getTime())) {
+                        console.error(`Invalid date for transaction ${id}: ${rest.date}`);
+                        return;
+                    }
+                    const nextLaunchDate = addMonths(currentDate, 1);
                     rest.date = nextLaunchDate.toISOString().split('T')[0];
 
-                    if (rest.paymentDate) {
-                        const nextPaymentDate = addMonths(new Date(rest.paymentDate + 'T00:00:00'), 1);
-                        rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
+                    // Increment due date for expenses if it exists
+                    if (rest.dueDate) {
+                        const currentDueDate = new Date(rest.dueDate + 'T00:00:00');
+                        if (!isNaN(currentDueDate.getTime())) {
+                            const nextDueDate = addMonths(currentDueDate, 1);
+                            rest.dueDate = nextDueDate.toISOString().split('T')[0];
+                        } else {
+                            console.warn(`Invalid dueDate for transaction ${id}: ${rest.dueDate}`);
+                        }
                     }
+
+                    // Clear payment date since the new transaction hasn't been paid yet
+                    delete rest.paymentDate;
 
                     rest.paid = false;
                     rest.createdAt = serverTimestamp();
@@ -332,6 +346,7 @@ export const DashboardScreen: React.FC = () => {
             showToast('Mês fechado e recorrências criadas com sucesso!', 'success');
             changeMonth(1);
         } catch (error) {
+            console.error('Erro ao fechar o mês:', error);
             showToast('Ocorreu um erro ao fechar o mês.', 'error');
         }
     };

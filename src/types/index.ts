@@ -80,6 +80,17 @@ export interface SortConfig {
   direction: 'ascending' | 'descending';
 }
 
+export interface FilterConfig {
+  searchTerm?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  labelIds?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export type GroupBy = 'none' | 'label' | 'date' | 'type';
+
 // Tipos para a nova funcionalidade de Wishlist
 export interface WishlistItem {
   id: string;
@@ -109,4 +120,15 @@ export interface ToastMessage {
   id: number;
   message: string;
   type: ToastType;
+}
+
+export interface TransactionActions {
+  onEdit: (transaction: Transaction) => void;
+  onDelete: (transaction: Transaction) => void;
+  onTogglePaid: (transaction: Transaction) => void;
+  onUpdateField: (transactionId: string, field: keyof Transaction, value: any) => void;
+  onSkip: (transaction: Transaction) => void;
+  onUnskip: (transaction: Transaction) => void;
+  onTransfer: (transaction: Transaction) => void;
+  onSaveNote: (transactionId: string, note: string) => void;
 }

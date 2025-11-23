@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { updateDoc, doc, writeBatch, collection, getDocs, query, where } from 'firebase/firestore';
 import { db, serverTimestamp } from '../lib/firebase';
-import { Profile, SortConfig, Transaction, TransactionFormState } from '../types';
+import { Profile, SortConfig, Transaction, TransactionFormState, FilterConfig, TransactionActions, GroupBy } from '../types';
 import { useToast } from '../contexts/ToastContext';
 import { useProfileContext } from '../hooks/useProfileContext';
 
@@ -20,7 +20,8 @@ import { useLabels } from '../hooks/useLabels';
 // Componentes
 import { DashboardHeader } from '../components/DashboardHeader';
 import { SummaryCards } from '../components/SummaryCards';
-import { TransactionTable, IgnoredTransactionsTable, TransactionActions } from '../components/TransactionTable';
+import { TransactionTable, IgnoredTransactionsTable } from '../components/TransactionTable';
+import { TransactionFilters } from '../components/TransactionFilters';
 import { TransactionModal } from '../components/TransactionModal';
 import { TransactionForm } from '../components/TransactionForm';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -57,6 +58,8 @@ export const DashboardScreen: React.FC = () => {
     const { transactions: allTransactions, loading: transactionsLoading } = useTransactions(profileId, currentMonth);
     const { labels, loading: labelsLoading } = useLabels(profileId);
     const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+    const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
+    const [groupBy, setGroupBy] = useState<GroupBy>('none');
     const [isInitialMonthSet, setIsInitialMonthSet] = useState(false);
 
     // Estados de seleção separados
@@ -87,7 +90,8 @@ export const DashboardScreen: React.FC = () => {
         labels,
         activeTab,
         currentMonthString,
-        sortConfig
+        sortConfig,
+        filterConfig
     );
 
     useEffect(() => {
@@ -506,6 +510,14 @@ export const DashboardScreen: React.FC = () => {
 
             {transactionsLoading ? <div className="text-center py-10 text-text-secondary">A carregar transações...</div> : (
                 <>
+                    <TransactionFilters
+                        filters={filterConfig}
+                        onFilterChange={setFilterConfig}
+                        labels={labels}
+                        onClearFilters={() => setFilterConfig({})}
+                        groupBy={groupBy}
+                        onGroupByChange={setGroupBy}
+                    />
                     <SummaryCards data={sortedData} activeTab={activeTab} />
                     <div className="grid grid-cols-1 gap-6">
                         {(sortedData.receitas.length > 0 || activeTab !== 'geral') && (
@@ -521,6 +533,7 @@ export const DashboardScreen: React.FC = () => {
                                 selectedIds={selectedIncomeIds}
                                 onSelectionChange={createSelectionHandler(setSelectedIncomeIds)}
                                 onSelectAll={createSelectAllHandler(setSelectedIncomeIds, sortedData.receitas)}
+                                groupBy={groupBy}
                             />
                         )}
                         <TransactionTable
@@ -538,6 +551,7 @@ export const DashboardScreen: React.FC = () => {
                             selectedIds={selectedExpenseIds}
                             onSelectionChange={createSelectionHandler(setSelectedExpenseIds)}
                             onSelectAll={createSelectAllHandler(setSelectedExpenseIds, sortedData.despesas)}
+                            groupBy={groupBy}
                         />
                         {ignoredTransactions.length > 0 &&
                             <IgnoredTransactionsTable

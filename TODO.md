@@ -8,8 +8,9 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 - Baseado nas transações recorrentes (sem considerar parcelamentos e transações nao recorrentes), criar um "draft" ou "rascunho" baseados no último mes em que se tem registro para projetar proximos meses, ou seja, pegar exatamente a lista de receitas e despesas do último mes, sem considerar parcelamentos e transações nao recorrentes, e projetar, ou seja, nao é pra criar nada no banco de dados, é apenas para PROJETAR aquilo nos proximos meses. O texto inclusive deve aparecer em italico, e nao deve ter nenhuma opção editável, nem o botão o isPaid deve aparecer, ja que é só uma visualização de uma projeção baseada no ultimo mes usando as transações recorrente. Exemplo: qualquer mes futuro que eu entrar, deve-se buscar a última relação de receitas e despesas recorrentes que se tem registro e mostrar em draft as transações no mes futuro. Exemplo 2: o mes atual onde estao minhas transações e registros é Julho, se eu vou lá pra Novembro, quero que as recorrencias sejam projetadas no futuro, no caso no mes de novembro, mas sem criar novos registros, apenas uma projeção.
 
-- Barra de filtros
-- Mexer na ordenção/agrupamento por rótulos
+- Barra de filtros para transações de receita, despesa e skipped, podendo filtrar pelo termo, valor, rótulo, range de data e afins. É necessário um botão pra resetar os filtros para visualizar todas as transações da forma padrão.
+
+- Melhorar a ordenção e agrupamento por rótulos para facilitar a visualização de transações de diferentes maneiras
 
 - Novo modulo de filmes e series assistidos e para assistir em casal
 
@@ -70,7 +71,7 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
                 -   `isApportioned`: `false`
                 -   `isRecurring`: `false`
                 -   Adicionar um campo `cardId: string` ou `isCardBill: true` para identificar que esta transação não pode ser editada ou excluída, apenas marcada como `paid`.
-    -   **Cartão de Débito/Pix:**
+    -   **Cartão de Débito/Pix:** // Mudar isso, debit deveria contar como uma transação de despesa.
         -   As compras lançadas em cartões `debit` servem **apenas para tracking e categorização de gastos**.
         -   Elas **NÃO** geram uma transação automática no dashboard principal. O controle de saldo já é feito pelas transações de receita/despesa lançadas manualmente no dashboard.
 

@@ -66,13 +66,30 @@ describe('sortTransactions', () => {
     });
 
     it('should sort by label name ascending', () => {
-        // Labels: Food (l2), Housing (l3), Work (l1). No label (Bonus).
-        // Expected: No label (Bonus), Food (Groceries), Housing (Rent), Work (Salary)
-        // Logic: nulls last in ascending? Let's check implementation.
-        // Implementation: if aLabel === null return 1 (so nulls last).
         const result = sortTransactions(mockTransactions, { key: 'labelIds', direction: 'ascending' }, mockLabels);
         const descriptions = result.map(t => t.description);
-        // Food < Housing < Work. Bonus is null.
         expect(descriptions).toEqual(['Groceries', 'Rent', 'Salary', 'Bonus']);
+    });
+
+    it('should sort by due date ascending', () => {
+        const transactionsWithDueDates: Transaction[] = [
+            { ...mockTransactions[0], dueDate: '2023-10-15' },
+            { ...mockTransactions[1], dueDate: '2023-10-05' },
+            { ...mockTransactions[2], dueDate: undefined }, // Income or missing
+        ];
+        const result = sortTransactions(transactionsWithDueDates, { key: 'dueDate', direction: 'ascending' }, mockLabels);
+        // Expect: 2023-10-05, 2023-10-15, undefined (last)
+        expect(result.map(t => t.id)).toEqual(['2', '1', '3']);
+    });
+
+    it('should sort by payment date ascending', () => {
+        const transactionsWithPaymentDates: Transaction[] = [
+            { ...mockTransactions[0], paymentDate: '2023-10-20' },
+            { ...mockTransactions[1], paymentDate: undefined }, // Unpaid
+            { ...mockTransactions[2], paymentDate: '2023-10-10' },
+        ];
+        const result = sortTransactions(transactionsWithPaymentDates, { key: 'paymentDate', direction: 'ascending' }, mockLabels);
+        // Expect: 2023-10-10, 2023-10-20, undefined (last)
+        expect(result.map(t => t.id)).toEqual(['3', '1', '2']);
     });
 });

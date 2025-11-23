@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowUpDown, Repeat, Landmark, RotateCw } from 'lucide-react';
+import { ArrowUpDown, Landmark, Repeat, RotateCw } from 'lucide-react';
 import { Transaction, SortConfig, Subprofile, Label, TransactionActions, GroupBy } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
@@ -8,6 +8,7 @@ import { LabelSelector } from './LabelSelector';
 import { TransactionItem } from './transactions/TransactionItem';
 import { TransactionRow } from './transactions/TransactionRow';
 import { Checkbox } from './Checkbox';
+import { groupTransactions } from '../logic/grouping';
 
 interface TransactionTableProps {
     title: string;
@@ -76,27 +77,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
     const isSomeSelected = data.some(item => selectedIds.has(item.id));
 
     const groupedData = useMemo(() => {
-        if (groupBy === 'none') return null;
-
-        const groups: Record<string, Transaction[]> = {};
-
-        data.forEach(t => {
-            let key = '';
-            if (groupBy === 'label') {
-                const label = labels.find(l => t.labelIds?.includes(l.id));
-                key = label ? label.name : 'Sem Rótulo';
-            } else if (groupBy === 'date') {
-                const [year, month, day] = t.date.split('-');
-                key = `${day}/${month}/${year}`;
-            } else if (groupBy === 'type') {
-                key = t.type === 'income' ? 'Receita' : 'Despesa';
-            }
-
-            if (!groups[key]) groups[key] = [];
-            groups[key].push(t);
-        });
-
-        return groups;
+        return groupTransactions(data, groupBy, labels);
     }, [data, groupBy, labels]);
 
     return (

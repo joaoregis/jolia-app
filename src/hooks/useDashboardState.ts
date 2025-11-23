@@ -25,12 +25,18 @@ export function useDashboardState() {
     const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
 
+    const [seriesActionState, setSeriesActionState] = useState<{ isOpen: boolean; actionType: 'edit' | 'delete'; transaction: Transaction | null }>({ isOpen: false, actionType: 'edit', transaction: null });
+    const [editScope, setEditScope] = useState<'one' | 'future' | null>(null);
+
     const openTransactionModal = (initialValues?: Partial<Transaction>) => {
         setModalInitialValues(initialValues || null);
         setIsTransactionModalOpen(true);
     };
 
-    const closeTransactionModal = () => setIsTransactionModalOpen(false);
+    const closeTransactionModal = () => {
+        setIsTransactionModalOpen(false);
+        setEditScope(null);
+    };
 
     const openEditSubprofileModal = (subprofile: Subprofile) => {
         setSubprofileToEdit(subprofile);
@@ -72,6 +78,14 @@ export function useDashboardState() {
         setIsTransferModalOpen(false);
     }
 
+    const openSeriesActionModal = (actionType: 'edit' | 'delete', transaction: Transaction) => {
+        setSeriesActionState({ isOpen: true, actionType, transaction });
+    };
+
+    const closeSeriesActionModal = () => {
+        setSeriesActionState({ isOpen: false, actionType: 'edit', transaction: null });
+    };
+
 
     return {
         modals: {
@@ -85,7 +99,9 @@ export function useDashboardState() {
             settings: { isOpen: isSettingsModalOpen, open: () => setIsSettingsModalOpen(true), close: () => setIsSettingsModalOpen(false) },
             transfer: { isOpen: isTransferModalOpen, open: openTransferModal, close: closeTransferModal, transactionToTransfer },
             deleteTransaction: { isOpen: isDeleteTransactionModalOpen, open: openDeleteTransactionModal, close: closeDeleteTransactionModal, transactionToDelete },
+            seriesAction: { isOpen: seriesActionState.isOpen, actionType: seriesActionState.actionType, transaction: seriesActionState.transaction, open: openSeriesActionModal, close: closeSeriesActionModal },
         },
+        editScope: { state: editScope, set: setEditScope },
         contextMenu: {
             state: contextMenu,
             open: (x: number, y: number, subprofile: Subprofile) => setContextMenu({ x, y, subprofile }),

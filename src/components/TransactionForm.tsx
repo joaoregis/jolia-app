@@ -102,8 +102,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
-                <input type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3" />
+                <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
+                <input id="description" type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3" />
             </div>
 
             <div>

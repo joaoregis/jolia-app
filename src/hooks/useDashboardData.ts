@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { AppData, Label, Profile, SortConfig, Transaction, FilterConfig } from '../types';
-import { filterTransactions, sortTransactions } from '../logic/transactionProcessing';
+import { filterTransactions, sortTransactions, splitActiveAndIgnoredTransactions } from '../logic/transactionProcessing';
+import { calculateApportionmentProportions } from '../logic/mutationLogic';
 
 export function useDashboardData(
     allTransactions: Transaction[],
@@ -16,37 +17,11 @@ export function useDashboardData(
         const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
         if (activeSubprofiles.length === 0) return new Map<string, number>();
 
-        const subprofileIncomes = new Map<string, number>(activeSubprofiles.map(s => [s.id, 0]));
-
-        allTransactions
-            .filter(t => !(t.skippedInMonths || []).includes(currentMonthString) && t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId))
-            .forEach(t => {
-                subprofileIncomes.set(t.subprofileId!, (subprofileIncomes.get(t.subprofileId!) || 0) + t.actual);
-            });
-
-        const totalIncome = Array.from(subprofileIncomes.values()).reduce((acc, income) => acc + income, 0);
-        const proportions = new Map<string, number>();
-
-        if (totalIncome > 0) {
-            subprofileIncomes.forEach((income, subId) => proportions.set(subId, income / totalIncome));
-        } else {
-            const equalShare = 1 / activeSubprofiles.length;
-            activeSubprofiles.forEach(sub => proportions.set(sub.id, equalShare));
-        }
-        return proportions;
-    }, [allTransactions, profile, currentMonthString]);
+        return calculateApportionmentProportions(allTransactions, activeSubprofiles);
+    }, [allTransactions, profile]);
 
     const { activeTransactions, ignoredTransactions } = useMemo(() => {
-        const active: Transaction[] = [];
-        const ignored: Transaction[] = [];
-        for (const t of allTransactions) {
-            if (t.skippedInMonths?.includes(currentMonthString)) {
-                ignored.push(t);
-            } else {
-                active.push(t);
-            }
-        }
-        return { activeTransactions: active, ignoredTransactions: ignored };
+        return splitActiveAndIgnoredTransactions(allTransactions, currentMonthString);
     }, [allTransactions, currentMonthString]);
 
     const filteredActiveTransactions = useMemo(() => {

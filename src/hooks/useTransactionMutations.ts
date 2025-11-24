@@ -3,7 +3,8 @@ import { writeBatch, doc, collection, serverTimestamp as firestoreServerTimestam
 import { db } from '../lib/firebase';
 import { Transaction, TransactionFormState, Profile } from '../types';
 import { cleanUndefinedFields, generateInstallments, prepareApportionedChild } from '../lib/transactionUtils';
-import { addMonths } from '../lib/utils';
+
+import { calculateInstallmentUpdates, calculateApportionmentProportions, prepareNextRecurringTransaction } from '../logic/mutationLogic';
 
 export const useTransactionMutations = (profile: Profile | null) => {
 
@@ -60,62 +61,13 @@ export const useTransactionMutations = (profile: Profile | null) => {
                             orderBy('currentInstallment')
                         );
                         const seriesSnapshot = await getDocs(seriesQuery);
+                        const seriesTransactions = seriesSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Transaction));
 
-                        // Base date calculation for updates
-                        const baseDate = new Date(data.date + 'T00:00:00');
-                        // Removed unused basePaymentDate and baseDueDate
-                        const originalDate = new Date(currentTransaction.date + 'T00:00:00');
+                        const updates = calculateInstallmentUpdates(currentTransaction, data, seriesTransactions, activeTab);
 
-                        // Calculate offset in months if the date changed, or just update fields if not
-                        // Simplificação: Atualizar campos não-data em todas, e recalcular datas se necessário
-                        // Se o usuário mudou a data desta parcela, propagamos a diferença de meses
-
-                        // Diferença em meses entre a data original desta parcela e a nova data
-                        const monthDiff = (baseDate.getFullYear() - originalDate.getFullYear()) * 12 + (baseDate.getMonth() - originalDate.getMonth());
-
-                        seriesSnapshot.forEach((doc) => {
-                            const t = doc.data() as Transaction;
-                            // Mantém a lógica de datas relativa
-                            // Se monthDiff for 0, apenas atualiza outros campos. Se for != 0, ajusta datas.
-
-                            let newDate = t.date;
-                            let newPaymentDate = t.paymentDate;
-                            let newDueDate = t.dueDate;
-
-                            if (monthDiff !== 0) {
-                                const currentTDate = new Date(t.date + 'T00:00:00');
-                                newDate = addMonths(currentTDate, monthDiff).toISOString().split('T')[0];
-
-                                if (t.paymentDate) {
-                                    const currentTPaymentDate = new Date(t.paymentDate + 'T00:00:00');
-                                    newPaymentDate = addMonths(currentTPaymentDate, monthDiff).toISOString().split('T')[0];
-                                }
-                                if (t.dueDate) {
-                                    const currentTDueDate = new Date(t.dueDate + 'T00:00:00');
-                                    newDueDate = addMonths(currentTDueDate, monthDiff).toISOString().split('T')[0];
-                                }
-                            } else if (doc.id === id) {
-                                // Se for a transação atual e não houve mudança de mês, usa a data do form explicitamente
-                                newDate = data.date;
-                                newPaymentDate = data.paymentDate;
-                                newDueDate = data.dueDate;
-                            }
-
-                            const updatePayload = {
-                                description: data.description,
-                                type: data.type,
-                                planned: data.planned,
-                                actual: data.actual,
-                                paid: doc.id === id ? data.paid : t.paid, // Só atualiza pago na atual
-                                isShared: data.isShared,
-                                subprofileId: data.isShared ? deleteField() : data.subprofileId,
-                                labelIds: data.labelIds,
-                                notes: data.notes,
-                                date: newDate,
-                                paymentDate: newPaymentDate,
-                                dueDate: newDueDate,
-                            };
-                            batch.update(doc.ref, cleanUndefinedFields(updatePayload));
+                        updates.forEach(update => {
+                            const ref = doc(db, 'transactions', update.id);
+                            batch.update(ref, cleanUndefinedFields(update.data));
                         });
                     }
                 } else {
@@ -237,23 +189,7 @@ export const useTransactionMutations = (profile: Profile | null) => {
             const allTransactions = allTransactionsSnapshot.docs.map(d => d.data() as Transaction);
 
             const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-            const subprofileIncomes = new Map<string, number>(activeSubprofiles.map(s => [s.id, 0]));
-
-            allTransactions
-                .filter(t => t.type === 'income' && t.subprofileId && subprofileIncomes.has(t.subprofileId))
-                .forEach(t => {
-                    subprofileIncomes.set(t.subprofileId!, (subprofileIncomes.get(t.subprofileId!) || 0) + t.actual);
-                });
-
-            const totalIncome = Array.from(subprofileIncomes.values()).reduce((acc, income) => acc + income, 0);
-            const proportions = new Map<string, number>();
-
-            if (totalIncome > 0) {
-                subprofileIncomes.forEach((income, subId) => proportions.set(subId, income / totalIncome));
-            } else {
-                const equalShare = 1 / activeSubprofiles.length;
-                activeSubprofiles.forEach(sub => proportions.set(sub.id, equalShare));
-            }
+            const proportions = calculateApportionmentProportions(allTransactions, activeSubprofiles);
 
             const updatedParentData = { ...transaction, ...updatePayload };
             await recalculateApportionedChildren(batch, transaction.id, updatedParentData, proportions);
@@ -361,31 +297,21 @@ export const useTransactionMutations = (profile: Profile | null) => {
         const updatedSkippedInMonths = [...(transaction.skippedInMonths || []), currentMonthString];
 
         // 2. Cria a transação do próximo mês imediatamente
-        const { id, skippedInMonths, ...rest } = transaction;
+        const nextTransactionData = prepareNextRecurringTransaction(transaction);
         const nextTransactionRef = doc(collection(db, 'transactions'));
 
-        // Usando addMonths para cálculo seguro
-        const nextDate = addMonths(new Date(rest.date + 'T00:00:00'), 1);
-        rest.date = nextDate.toISOString().split('T')[0];
-
-        if (rest.paymentDate) {
-            const nextPaymentDate = addMonths(new Date(rest.paymentDate + 'T00:00:00'), 1);
-            rest.paymentDate = nextPaymentDate.toISOString().split('T')[0];
-        }
-        if (rest.dueDate) {
-            const nextDueDate = addMonths(new Date(rest.dueDate + 'T00:00:00'), 1);
-            rest.dueDate = nextDueDate.toISOString().split('T')[0];
-        }
-
-        rest.paid = false;
-        rest.createdAt = serverTimestamp();
+        // Add server timestamp here as it's not in the pure function
+        const dataToSave = {
+            ...nextTransactionData,
+            createdAt: serverTimestamp()
+        };
 
         // Salva a referência da futura na atual e cria a futura
         batch.update(transactionRef, {
             skippedInMonths: updatedSkippedInMonths,
             generatedFutureTransactionId: nextTransactionRef.id
         });
-        batch.set(nextTransactionRef, rest);
+        batch.set(nextTransactionRef, dataToSave);
 
         await batch.commit();
     };

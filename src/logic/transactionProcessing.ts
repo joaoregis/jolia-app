@@ -57,3 +57,16 @@ export function sortTransactions(transactions: Transaction[], sortConfig: SortCo
 
     return [...transactions].sort(sortFn);
 }
+
+export function splitActiveAndIgnoredTransactions(allTransactions: Transaction[], currentMonthString: string) {
+    const active: Transaction[] = [];
+    const ignored: Transaction[] = [];
+    for (const t of allTransactions) {
+        if (t.skippedInMonths?.includes(currentMonthString)) {
+            ignored.push(t);
+        } else {
+            active.push(t);
+        }
+    }
+    return { activeTransactions: active, ignoredTransactions: ignored };
+}

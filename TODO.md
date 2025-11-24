@@ -6,9 +6,19 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 ### Funcionalidades
 
-- Baseado nas transações recorrentes (sem considerar parcelamentos e transações nao recorrentes), criar um "draft" ou "rascunho" baseados no último mes em que se tem registro para projetar proximos meses, ou seja, pegar exatamente a lista de receitas e despesas do último mes, sem considerar parcelamentos e transações nao recorrentes, e projetar, ou seja, nao é pra criar nada no banco de dados, é apenas para PROJETAR aquilo nos proximos meses. O texto inclusive deve aparecer em italico, e nao deve ter nenhuma opção editável, nem o botão o isPaid deve aparecer, ja que é só uma visualização de uma projeção baseada no ultimo mes usando as transações recorrente. Exemplo: qualquer mes futuro que eu entrar, deve-se buscar a última relação de receitas e despesas recorrentes que se tem registro e mostrar em draft as transações no mes futuro. Exemplo 2: o mes atual onde estao minhas transações e registros é Julho, se eu vou lá pra Novembro, quero que as recorrencias sejam projetadas no futuro, no caso no mes de novembro, mas sem criar novos registros, apenas uma projeção.
+- Draft de transações 
+    - Baseado nas transações recorrentes (sem considerar parcelamentos e transações nao recorrentes), criar um "draft" ou "rascunho" baseados no último mes em que se tem registro para projetar proximos meses, ou seja, pegar exatamente a lista de receitas e despesas do último mes, sem considerar parcelamentos e transações nao recorrentes, e projetar, ou seja, nao é pra criar nada no banco de dados, é apenas para PROJETAR aquilo nos proximos meses. O texto inclusive deve aparecer em italico, e nao deve ter nenhuma opção editável, nem o botão o isPaid deve aparecer, ja que é só uma visualização de uma projeção baseada no ultimo mes usando as transações recorrente. Exemplo: qualquer mes futuro que eu entrar, deve-se buscar a última relação de receitas e despesas recorrentes que se tem registro e mostrar em draft as transações no mes futuro. Exemplo 2: o mes atual onde estao minhas transações e registros é Julho, se eu vou lá pra Novembro, quero que as recorrencias sejam projetadas no futuro, no caso no mes de novembro, mas sem criar novos registros, apenas uma projeção.
 
-- Novo modulo de filmes e series assistidos e para assistir em casal
+- Feature de mídia assistida
+    - Novo modulo de filmes e series assistidos e para assistir em casal, tracking anual de conteúdo assistido, histórico e lista para assistir, sistema de notas.
+
+### Improvements
+
+- Aumentar cobertura de testes em componentes secundários
+    - Forms complexos (TransactionForm, EditSubprofileModal)
+    - Componentes de listagem (SummaryCards, CalculationToolbar)
+- Aumentar cobertura de testes no sistema de temas, fixos e customizáveis
+- Aumentar cobertura de testes em Wishlist, Trash, ProfileSelector
 
 ---
 

@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useToast } from '../contexts/ToastContext';
 import { useProfileContext } from '../hooks/useProfileContext';
+import { useWishlistManager } from '../hooks/useWishlistManager';
 import { Wishlist, WishlistItem } from '../types';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
@@ -15,52 +14,27 @@ import { ToggleSwitch } from '../components/ToggleSwitch';
 import { WishlistFormModal } from '../components/WishlistFormModal';
 import { WishlistItemFormModal } from '../components/WishlistItemFormModal';
 
-// Hook para buscar os dados da Wishlist
-const useWishlists = (profileId?: string) => {
-    const [wishlists, setWishlists] = useState<Wishlist[]>([]);
-    const [wishlistItems, setWishlistItems] = useState<Map<string, WishlistItem[]>>(new Map());
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!profileId) {
-            setLoading(false);
-            return;
-        }
-
-        const q = query(collection(db, 'wishlists'), where('profileId', '==', profileId));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const lists = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wishlist));
-            setWishlists(lists);
-
-            lists.forEach(list => {
-                const itemsQuery = query(collection(db, `wishlists/${list.id}/items`), orderBy('createdAt', 'asc'));
-                onSnapshot(itemsQuery, (itemsSnapshot) => {
-                    const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WishlistItem));
-                    setWishlistItems(prevItems => new Map(prevItems).set(list.id, items));
-                });
-            });
-
-            setLoading(false);
-        }, () => {
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [profileId]);
-
-    return { wishlists, wishlistItems, loading };
-};
-
-
 export const WishlistScreen: React.FC = () => {
     const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const navigate = useNavigate();
     const { profile, loading: profileLoading, setActiveThemeBySubprofileId } = useProfileContext();
     const { showToast } = useToast();
-    const { wishlists, wishlistItems, loading: wishlistsLoading } = useWishlists(profileId);
-    
+
     const activeTab = subprofileId || 'geral';
+
+    // Use the extracted hook for wishlist management
+    const {
+        wishlists,
+        wishlistItems,
+        loading: wishlistsLoading,
+        addWishlist,
+        updateWishlist,
+        deleteWishlist,
+        addWishlistItem,
+        updateWishlistItem,
+        toggleItemDone,
+        deleteWishlistItem
+    } = useWishlistManager(profileId, activeTab);
 
     useEffect(() => {
         setActiveThemeBySubprofileId(activeTab);
@@ -76,16 +50,7 @@ export const WishlistScreen: React.FC = () => {
     const [selectedWishlist, setSelectedWishlist] = useState<Wishlist | null>(null);
     const [selectedWishlistItem, setSelectedWishlistItem] = useState<WishlistItem | null>(null);
 
-
     const activeSubprofiles = useMemo(() => profile?.subprofiles.filter(s => s.status === 'active') || [], [profile]);
-
-    const filteredWishlists = useMemo(() => {
-        const sorted = [...wishlists].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        if (activeTab === 'geral') {
-            return sorted.filter(w => w.isShared);
-        }
-        return sorted.filter(w => w.subprofileId === activeTab);
-    }, [wishlists, activeTab]);
 
     // --- Handlers ---
     const handleTabClick = (tabId: string) => {
@@ -96,26 +61,8 @@ export const WishlistScreen: React.FC = () => {
     };
 
     const handleAddWishlist = async (name: string) => {
-        if (!profileId) return;
         try {
-            const data: {
-                name: string;
-                profileId: string;
-                isShared: boolean;
-                subprofileId?: string;
-                createdAt: any;
-            } = {
-                name,
-                profileId,
-                isShared: activeTab === 'geral',
-                createdAt: serverTimestamp(),
-            };
-    
-            if (activeTab !== 'geral') {
-                data.subprofileId = activeTab;
-            }
-    
-            await addDoc(collection(db, 'wishlists'), data);
+            await addWishlist(name);
             showToast('Lista de desejos criada com sucesso!', 'success');
             setAddListModalOpen(false);
         } catch (error) {
@@ -126,7 +73,7 @@ export const WishlistScreen: React.FC = () => {
     const handleEditWishlist = async (newName: string) => {
         if (!selectedWishlist) return;
         try {
-            await updateDoc(doc(db, 'wishlists', selectedWishlist.id), { name: newName });
+            await updateWishlist(selectedWishlist.id, newName);
             showToast('Lista de desejos atualizada!', 'success');
             setEditListModalOpen(false);
             setSelectedWishlist(null);
@@ -134,17 +81,11 @@ export const WishlistScreen: React.FC = () => {
             showToast('Erro ao atualizar a lista.', 'error');
         }
     };
-    
+
     const handleDeleteWishlist = async () => {
         if (!selectedWishlist) return;
         try {
-            const batch = writeBatch(db);
-            const items = wishlistItems.get(selectedWishlist.id) || [];
-            items.forEach(item => {
-                batch.delete(doc(db, `wishlists/${selectedWishlist.id}/items`, item.id));
-            });
-            batch.delete(doc(db, 'wishlists', selectedWishlist.id));
-            await batch.commit();
+            await deleteWishlist(selectedWishlist.id);
             showToast('Lista de desejos excluída com sucesso.', 'success');
             setDeleteListModalOpen(false);
             setSelectedWishlist(null);
@@ -156,11 +97,7 @@ export const WishlistScreen: React.FC = () => {
     const handleAddWishlistItem = async (itemData: Omit<WishlistItem, 'id' | 'createdAt' | 'isDone'>) => {
         if (!selectedWishlist) return;
         try {
-            await addDoc(collection(db, `wishlists/${selectedWishlist.id}/items`), {
-                ...itemData,
-                isDone: false,
-                createdAt: serverTimestamp()
-            });
+            await addWishlistItem(selectedWishlist.id, itemData);
             showToast('Item adicionado à lista!', 'success');
             setAddItemModalOpen(false);
             setSelectedWishlist(null);
@@ -172,7 +109,7 @@ export const WishlistScreen: React.FC = () => {
     const handleEditWishlistItem = async (itemData: Omit<WishlistItem, 'id' | 'createdAt' | 'isDone'>) => {
         if (!selectedWishlist || !selectedWishlistItem) return;
         try {
-            await updateDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id), { ...itemData });
+            await updateWishlistItem(selectedWishlist.id, selectedWishlistItem.id, itemData);
             showToast('Item atualizado com sucesso!', 'success');
             setEditItemModalOpen(false);
             setSelectedWishlistItem(null);
@@ -184,7 +121,7 @@ export const WishlistScreen: React.FC = () => {
 
     const handleToggleDone = async (listId: string, item: WishlistItem) => {
         try {
-            await updateDoc(doc(db, `wishlists/${listId}/items`, item.id), { isDone: !item.isDone });
+            await toggleItemDone(listId, item);
             showToast(item.isDone ? 'Item marcado como não concluído.' : 'Item marcado como concluído!', 'info');
         } catch (error) {
             showToast('Erro ao atualizar o status do item.', 'error');
@@ -194,7 +131,7 @@ export const WishlistScreen: React.FC = () => {
     const handleDeleteItem = async () => {
         if (!selectedWishlist || !selectedWishlistItem) return;
         try {
-            await deleteDoc(doc(db, `wishlists/${selectedWishlist.id}/items`, selectedWishlistItem.id));
+            await deleteWishlistItem(selectedWishlist.id, selectedWishlistItem.id);
             showToast('Item excluído da lista.', 'success');
             setDeleteItemModalOpen(false);
             setSelectedWishlistItem(null);
@@ -203,7 +140,6 @@ export const WishlistScreen: React.FC = () => {
             showToast('Erro ao excluir o item.', 'error');
         }
     };
-
 
     if (profileLoading || wishlistsLoading) {
         return <div className="p-10 text-center text-text-secondary">A carregar...</div>;
@@ -228,7 +164,7 @@ export const WishlistScreen: React.FC = () => {
             </div>
         </div>
     );
-    
+
     return (
         <div className="p-4 md:p-6 lg:p-10 space-y-6">
             <style>
@@ -252,7 +188,7 @@ export const WishlistScreen: React.FC = () => {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <h2 className="text-3xl font-bold tracking-tight text-text-primary">Lista de Desejos</h2>
                 <button onClick={() => setAddListModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">
-                    <Plus size={16}/> Nova Lista
+                    <Plus size={16} /> Nova Lista
                 </button>
             </div>
 
@@ -270,8 +206,8 @@ export const WishlistScreen: React.FC = () => {
             </div>
 
             <div className="masonry-grid gap-6">
-                {filteredWishlists.length > 0 ? (
-                    filteredWishlists.map(list => (
+                {wishlists.length > 0 ? (
+                    wishlists.map(list => (
                         <div key={list.id} className="masonry-item mb-6">
                             <Card>
                                 <CardHeader className="flex justify-between items-center">
@@ -305,12 +241,12 @@ export const WishlistScreen: React.FC = () => {
             </div>
 
             {/* Modais */}
-            <WishlistFormModal 
+            <WishlistFormModal
                 isOpen={isAddListModalOpen}
                 onClose={() => setAddListModalOpen(false)}
                 onSave={handleAddWishlist}
             />
-            <WishlistFormModal 
+            <WishlistFormModal
                 isOpen={isEditListModalOpen}
                 onClose={() => { setEditListModalOpen(false); setSelectedWishlist(null); }}
                 onSave={handleEditWishlist}
@@ -321,21 +257,21 @@ export const WishlistScreen: React.FC = () => {
                 onClose={() => { setAddItemModalOpen(false); setSelectedWishlist(null); }}
                 onSave={handleAddWishlistItem}
             />
-             <WishlistItemFormModal
+            <WishlistItemFormModal
                 isOpen={isEditItemModalOpen}
                 onClose={() => { setEditItemModalOpen(false); setSelectedWishlistItem(null); setSelectedWishlist(null); }}
                 onSave={handleEditWishlistItem}
                 item={selectedWishlistItem}
             />
 
-            <ConfirmationModal 
+            <ConfirmationModal
                 isOpen={isDeleteListModalOpen}
                 onClose={() => { setDeleteListModalOpen(false); setSelectedWishlist(null); }}
                 onConfirm={handleDeleteWishlist}
                 title={`Excluir a lista "${selectedWishlist?.name}"?`}
                 message="Esta ação é irreversível e irá apagar todos os itens dentro desta lista."
             />
-            <ConfirmationModal 
+            <ConfirmationModal
                 isOpen={isDeleteItemModalOpen}
                 onClose={() => { setDeleteItemModalOpen(false); setSelectedWishlistItem(null); setSelectedWishlist(null); }}
                 onConfirm={handleDeleteItem}

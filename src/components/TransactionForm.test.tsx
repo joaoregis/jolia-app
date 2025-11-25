@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TransactionForm } from './TransactionForm';
 import { Label } from '../types';
@@ -54,7 +54,7 @@ vi.mock('./ToggleSwitch', () => ({
 }));
 
 vi.mock('./LabelSelector', () => ({
-    LabelSelector: ({ isOpen, onToggleLabel, selectedLabelIds }: any) => isOpen ? (
+    LabelSelector: ({ isOpen, onToggleLabel, selectedLabelIds: _selectedLabelIds }: any) => isOpen ? (
         <div data-testid="label-selector">
             <button onClick={() => onToggleLabel('l1')}>Select Food</button>
         </div>

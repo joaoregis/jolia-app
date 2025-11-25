@@ -12,9 +12,10 @@ const createTransaction = (amount: number, type: 'income' | 'expense'): Transact
     type,
     date: '2023-01-01',
     profileId: 'p1',
-    status: 'active',
-    createdAt: new Date(),
-    updatedAt: new Date()
+    paid: false,
+    isShared: false,
+    isRecurring: false,
+    createdAt: new Date()
 });
 
 describe('SummaryCards', () => {
@@ -27,7 +28,7 @@ describe('SummaryCards', () => {
             createTransaction(1000, 'expense'),
             createTransaction(1000.25, 'expense')
         ],
-        transacoes: [] // Not used in SummaryCards directly but part of AppData
+
     };
 
     it('should render all summary cards with correct calculated values', () => {
@@ -77,8 +78,7 @@ describe('SummaryCards', () => {
     it('should handle zero values', () => {
         const zeroData: AppData = {
             receitas: [],
-            despesas: [],
-            transacoes: []
+            despesas: []
         };
 
         render(

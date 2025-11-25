@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WishlistScreen } from './WishlistScreen';
-import { Wishlist } from '../types';
 
 // Mock react-router-dom
 const mockNavigate = vi.fn();
@@ -82,11 +81,12 @@ vi.mock('../components/ConfirmationModal', () => ({
 }));
 
 describe('WishlistScreen', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
         // Mock onSnapshot to return empty wishlists
-        const { onSnapshot } = require('firebase/firestore');
-        onSnapshot.mockImplementation((query: any, callback: any) => {
+        const firestore = await import('firebase/firestore');
+        const onSnapshot = firestore.onSnapshot as any;
+        onSnapshot.mockImplementation((_query: any, callback: any) => {
             callback({ docs: [] });
             return () => { };
         });

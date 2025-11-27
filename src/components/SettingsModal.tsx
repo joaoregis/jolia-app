@@ -25,7 +25,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div 
+            <div
                 className="bg-card rounded-lg shadow-xl w-full max-w-lg"
                 onClick={(e) => e.stopPropagation()}
             >
@@ -35,9 +35,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 <div className="p-6 space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-text-secondary">Método de Rateio de Contas da Casa</label>
-                        <p className="text-xs text-text-secondary/70 mb-2">Define como as despesas marcadas como "Da Casa" são divididas entre os subperfis.</p>
+                        <p className="text-xs text-text-secondary mb-2">Define como as despesas marcadas como "Da Casa" são divididas entre os subperfis.</p>
                         <div className="flex flex-col gap-2">
-                             <label className={`flex items-center p-3 rounded-lg cursor-pointer border-2 ${apportionmentMethod === 'manual' ? 'border-accent bg-accent/10' : 'border-border-color'}`}>
+                            <label className={`flex items-center p-3 rounded-lg cursor-pointer border-2 ${apportionmentMethod === 'manual' ? 'border-accent bg-accent/10' : 'border-border-color'}`}>
                                 <input type="radio" name="apportionment" value="manual" checked={apportionmentMethod === 'manual'} onChange={(e) => setApportionmentMethod(e.target.value as any)} className="h-4 w-4 text-accent focus:ring-accent" />
                                 <span className="ml-3 text-sm text-text-primary">Manual (Padrão)</span>
                             </label>

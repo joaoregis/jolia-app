@@ -37,7 +37,8 @@ import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
 import { SeriesEditConfirmationModal } from '../components/SeriesEditConfirmationModal';
 import { CalculationToolbar } from '../components/CalculationToolbar';
-import { addMonths } from '../lib/utils';
+
+import { prepareMonthClosingUpdates } from '../logic/monthClosingLogic';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -181,6 +182,10 @@ export const DashboardScreen: React.FC = () => {
         modals.transaction.open(initialValues);
     }, [activeTab, isCurrentMonthClosed, modals.transaction, logicState.currentMonth]);
 
+    const handleOpenTransferModal = useCallback((t: Transaction) => {
+        modals.transfer.open(t);
+    }, [modals.transfer]);
+
     const handleOpenModalForEdit = useCallback((t: Transaction) => {
         if (isCurrentMonthClosed || t.isApportioned) return;
         if (t.seriesId) {
@@ -198,11 +203,6 @@ export const DashboardScreen: React.FC = () => {
             modals.deleteTransaction.open(t);
         }
     }, [isCurrentMonthClosed, modals.deleteTransaction, modals.seriesAction]);
-
-    const handleOpenTransferModal = useCallback((t: Transaction) => {
-        if (isCurrentMonthClosed || t.isApportioned) return;
-        modals.transfer.open(t);
-    }, [isCurrentMonthClosed, modals.transfer]);
 
     const handleSaveTransactionWrapper = async (data: TransactionFormState, id?: string) => {
         try {
@@ -244,43 +244,47 @@ export const DashboardScreen: React.FC = () => {
         if (!profile || !canCloseMonth) return;
         modals.closeMonth.close();
         try {
-            const recurringTransactions = allTransactions.filter(t =>
-                t.isRecurring &&
-                !t.seriesId &&
-                !t.skippedInMonths?.includes(currentMonthString)
+            const transactionsToCreate = prepareMonthClosingUpdates(
+                allTransactions,
+                currentMonthString,
+                profile,
+                subprofileRevenueProportions
             );
 
-            if (recurringTransactions.length > 0) {
+            if (transactionsToCreate.length > 0) {
                 const batch = writeBatch(db);
-                recurringTransactions.forEach(t => {
-                    const { id, skippedInMonths, generatedFutureTransactionId, ...rest } = t;
 
-                    const currentDate = new Date(rest.date + 'T00:00:00');
-                    if (isNaN(currentDate.getTime())) {
-                        console.error(`Invalid date for transaction ${id}: ${rest.date}`);
-                        return;
+                // 1. Create refs for all parents
+                const tempIdToRefMap = new Map<string, any>();
+
+                transactionsToCreate.forEach(item => {
+                    if (item.type === 'parent') {
+                        const newDocRef = doc(collection(db, 'transactions'));
+                        tempIdToRefMap.set(item.data._tempId, newDocRef);
                     }
-                    const nextLaunchDate = addMonths(currentDate, 1);
-                    rest.date = nextLaunchDate.toISOString().split('T')[0];
+                });
 
-                    if (rest.dueDate) {
-                        const currentDueDate = new Date(rest.dueDate + 'T00:00:00');
-                        if (!isNaN(currentDueDate.getTime())) {
-                            const nextDueDate = addMonths(currentDueDate, 1);
-                            rest.dueDate = nextDueDate.toISOString().split('T')[0];
-                        } else {
-                            console.warn(`Invalid dueDate for transaction ${id}: ${rest.dueDate}`);
+                // 2. Add sets to batch
+                transactionsToCreate.forEach(item => {
+                    if (item.type === 'parent') {
+                        const docRef = tempIdToRefMap.get(item.data._tempId);
+                        const { _tempId, ...cleanData } = item.data;
+                        batch.set(docRef, cleanData);
+                    } else if (item.type === 'child') {
+                        const parentDocRef = tempIdToRefMap.get(item.parentId);
+                        if (parentDocRef) {
+                            const childDocRef = doc(collection(db, 'transactions'));
+                            const { parentId, ...cleanData } = item.data;
+                            // Update parentId to the real one
+                            const finalData = { ...cleanData, parentId: parentDocRef.id };
+                            batch.set(childDocRef, finalData);
                         }
                     }
-
-                    delete rest.paymentDate;
-
-                    rest.paid = false;
-                    rest.createdAt = serverTimestamp();
-                    batch.set(doc(collection(db, 'transactions')), rest);
                 });
+
                 await batch.commit();
             }
+
             await updateDoc(doc(db, "profiles", profile.id), { closedMonths: [...(profile.closedMonths || []), currentMonthString] });
             showToast('Mês fechado e recorrências criadas com sucesso!', 'success');
             logicHandlers.changeMonth(1);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Repeat, Users, FileText, RotateCw, CheckCircle, XCircle } from 'lucide-react';
-import { Transaction, TransactionActions, Label } from '../../types';
+import { Repeat, Users, FileText, RotateCw, CheckCircle, XCircle, Info } from 'lucide-react';
+import { Transaction, TransactionActions, Label, Subprofile } from '../../types';
 import { formatCurrency, formatShortDate } from '../../lib/utils';
 import { EditableCell } from '../EditableCell';
 import { Checkbox } from '../Checkbox';
@@ -19,9 +19,11 @@ interface TransactionRowProps {
     labels: Label[];
     onRemoveLabel: (transactionId: string, labelId: string) => void;
     onOpenLabelSelector: (transactionId: string, anchorEl: HTMLElement) => void;
+    subprofiles?: Subprofile[];
+    subprofileRevenueProportions?: Map<string, number>;
 }
 
-export const TransactionRow: React.FC<TransactionRowProps> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange, labels, onRemoveLabel, onOpenLabelSelector }) => {
+export const TransactionRow: React.FC<TransactionRowProps> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange, labels, onRemoveLabel, onOpenLabelSelector, subprofiles, subprofileRevenueProportions }) => {
     const difference = item.actual - item.planned;
     const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
     const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
@@ -44,6 +46,25 @@ export const TransactionRow: React.FC<TransactionRowProps> = ({ item, type, isCl
                     {isApportioned && (
                         <Tooltip content="Rateio da Casa">
                             <Users size={14} className="text-teal-400 flex-shrink-0" />
+                        </Tooltip>
+                    )}
+                    {item.isShared && subprofiles && subprofileRevenueProportions && (
+                        <Tooltip content={
+                            <div className="space-y-1">
+                                <div className="font-bold border-b border-border-color pb-1 mb-1">Divisão Proporcional</div>
+                                {subprofiles.map(sub => {
+                                    const proportion = subprofileRevenueProportions.get(sub.id) || 0;
+                                    const share = item.actual * proportion;
+                                    return (
+                                        <div key={sub.id} className="flex justify-between gap-4">
+                                            <span>{sub.name} ({(proportion * 100).toFixed(0)}%):</span>
+                                            <span className="font-medium">{formatCurrency(share)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        }>
+                            <Info size={14} className="text-blue-400 flex-shrink-0 cursor-help" />
                         </Tooltip>
                     )}
                     {item.notes && (

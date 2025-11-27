@@ -29,7 +29,7 @@ interface TransactionTableProps {
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
-    const { title, data, labels, type, isClosed, requestSort, sortConfig, actions, selectedIds, onSelectionChange, onSelectAll, groupBy = 'none' } = props;
+    const { title, data, labels, type, isClosed, requestSort, sortConfig, actions, selectedIds, onSelectionChange, onSelectAll, groupBy = 'none', subprofiles, subprofileRevenueProportions } = props;
     const [noteModalState, setNoteModalState] = useState<{ isOpen: boolean; transaction: Transaction | null }>({ isOpen: false, transaction: null });
     const [labelSelectorState, setLabelSelectorState] = useState<{ isOpen: boolean; transactionId: string | null, anchorEl: HTMLElement | null }>({ isOpen: false, transactionId: null, anchorEl: null });
 
@@ -104,12 +104,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                             onOpenNoteModal={handleOpenNoteModal}
                                             isSelected={selectedIds.has(item.id)}
                                             onSelectionChange={onSelectionChange}
+                                            subprofiles={subprofiles}
+                                            subprofileRevenueProportions={subprofileRevenueProportions}
                                         />
                                     ))}
                                 </div>
                             ))
                         ) : (
-                            data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} />)
+                            data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} subprofiles={subprofiles} subprofileRevenueProportions={subprofileRevenueProportions} />)
                         )
                     ) : null}
                     {data.length > 0 && <div className="flex justify-between font-bold text-table-footer-text bg-table-footer p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
@@ -162,6 +164,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                                     labels={labels}
                                                     onRemoveLabel={handleRemoveLabel}
                                                     onOpenLabelSelector={handleOpenLabelSelector}
+                                                    subprofiles={subprofiles}
+                                                    subprofileRevenueProportions={subprofileRevenueProportions}
                                                 />
                                             ))}
                                         </React.Fragment>
@@ -181,6 +185,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                             labels={labels}
                                             onRemoveLabel={handleRemoveLabel}
                                             onOpenLabelSelector={handleOpenLabelSelector}
+                                            subprofiles={subprofiles}
+                                            subprofileRevenueProportions={subprofileRevenueProportions}
                                         />
                                     ))
                                 )}
@@ -202,7 +208,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
             </CardContent >
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
-            < LabelSelector
+            <LabelSelector
                 isOpen={labelSelectorState.isOpen}
                 onClose={() => setLabelSelectorState({ isOpen: false, transactionId: null, anchorEl: null })}
                 availableLabels={activeLabels}

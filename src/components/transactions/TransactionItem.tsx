@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Repeat, Users, FileText, RotateCw, CheckCircle, XCircle } from 'lucide-react';
-import { Transaction, TransactionActions } from '../../types';
+import { Repeat, Users, FileText, RotateCw, CheckCircle, XCircle, Info } from 'lucide-react';
+import { Transaction, TransactionActions, Subprofile } from '../../types';
+import { Tooltip } from '../Tooltip';
 import { formatCurrency, formatShortDate } from '../../lib/utils';
 import { EditableCell } from '../EditableCell';
 import { Checkbox } from '../Checkbox';
@@ -15,9 +16,11 @@ interface TransactionItemProps {
     onOpenNoteModal: (transaction: Transaction) => void;
     isSelected: boolean;
     onSelectionChange: (id: string, checked: boolean) => void;
+    subprofiles?: Subprofile[];
+    subprofileRevenueProportions?: Map<string, number>;
 }
 
-export const TransactionItem: React.FC<TransactionItemProps> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange }) => {
+export const TransactionItem: React.FC<TransactionItemProps> = ({ item, type, isClosed, isIgnoredTable, actions, onOpenNoteModal, isSelected, onSelectionChange, subprofiles, subprofileRevenueProportions }) => {
     const difference = item.actual - item.planned;
     const isNegativeDiff = type === 'expense' ? difference > 0 : difference < 0;
     const differenceColor = difference === 0 ? 'text-text-secondary' : isNegativeDiff ? 'text-red-500' : 'text-green-500';
@@ -35,6 +38,25 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({ item, type, is
                         <div className="flex items-center gap-1">
                             {item.isRecurring && <span title="Transação Recorrente"><Repeat size={12} className="text-accent flex-shrink-0" /></span>}
                             {isApportioned && <span title="Rateio da Casa"><Users size={12} className="text-teal-400 flex-shrink-0" /></span>}
+                            {item.isShared && subprofiles && subprofileRevenueProportions && (
+                                <Tooltip content={
+                                    <div className="space-y-1">
+                                        <div className="font-bold border-b border-border-color pb-1 mb-1">Divisão Proporcional</div>
+                                        {subprofiles.map(sub => {
+                                            const proportion = subprofileRevenueProportions.get(sub.id) || 0;
+                                            const share = item.actual * proportion;
+                                            return (
+                                                <div key={sub.id} className="flex justify-between gap-4">
+                                                    <span>{sub.name} ({(proportion * 100).toFixed(0)}%):</span>
+                                                    <span className="font-medium">{formatCurrency(share)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                }>
+                                    <Info size={12} className="text-blue-400 flex-shrink-0 cursor-help" />
+                                </Tooltip>
+                            )}
                             {item.notes && <button onClick={() => onOpenNoteModal(item)} title="Ver nota"><FileText size={12} className="text-yellow-400 flex-shrink-0" /></button>}
                             <EditableCell value={item.description.replace('[Rateio] ', '')} onSave={(v) => actions.onUpdateField(item.id, 'description', String(v))} disabled={isClosed || isApportioned || isIgnoredTable || isInstallment} className="font-medium text-text-primary truncate" />
                         </div>

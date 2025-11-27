@@ -38,7 +38,7 @@ export const prepareMonthClosingUpdates = (
         const nextParentData = prepareNextRecurringTransaction(parent);
 
         // Assign a new ID for the parent immediately so we can link children to it
-        const newParentId = crypto.randomUUID(); // Generate a client-side ID or let Firestore do it? 
+        // Assign a new ID for the parent immediately so we can link children to it 
         // Ideally we let Firestore generate IDs, but we need the ID to link children.
         // Since we are returning data to be saved in a batch, we can't easily get the ID back 
         // unless we use doc refs in the caller. 

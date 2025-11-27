@@ -15,10 +15,12 @@ describe('prepareMonthClosingUpdates', () => {
     const mockProfile: Profile = {
         id: 'p1',
         name: 'Test Profile',
-        email: 'test@example.com',
+        icon: 'user',
+        status: 'active',
+
         subprofiles: [
-            { id: 'sub1', name: 'Sub 1', status: 'active', theme: 'blue' },
-            { id: 'sub2', name: 'Sub 2', status: 'active', theme: 'red' }
+            { id: 'sub1', name: 'Sub 1', status: 'active' },
+            { id: 'sub2', name: 'Sub 2', status: 'active' }
         ],
         apportionmentMethod: 'proportional',
         closedMonths: []
@@ -33,7 +35,7 @@ describe('prepareMonthClosingUpdates', () => {
         id: 't1',
         profileId: 'p1',
         description: 'Test Transaction',
-        amount: 100, // Legacy field
+
         planned: 100,
         actual: 100,
         date: '2023-10-15',
@@ -105,7 +107,7 @@ describe('prepareMonthClosingUpdates', () => {
     });
 
     it('should handle non-proportional profile correctly (no children generated)', () => {
-        const equalProfile = { ...mockProfile, apportionmentMethod: 'equal' as const };
+        const equalProfile = { ...mockProfile, apportionmentMethod: 'manual' as const };
         const sharedTransaction: Transaction = {
             ...baseTransaction,
             isShared: true

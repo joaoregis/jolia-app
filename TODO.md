@@ -11,9 +11,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 - Tela de investimentos
 
-- Feature de mídia assistida
-    - Novo modulo de filmes e series assistidos e para assistir em casal, tracking anual de conteúdo assistido, histórico e lista para assistir, sistema de notas.
-
 ---
 
 ## 🎯 Funcionalidades Principais (Core Features)

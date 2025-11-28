@@ -37,6 +37,7 @@ import { SettingsModal } from '../components/SettingsModal';
 import { TransferTransactionModal } from '../components/TransactionTransferModal';
 import { SeriesEditConfirmationModal } from '../components/SeriesEditConfirmationModal';
 import { CalculationToolbar } from '../components/CalculationToolbar';
+import { SwipeableTabContent } from '../components/SwipeableTabContent';
 
 import { prepareMonthClosingUpdates } from '../logic/monthClosingLogic';
 
@@ -457,54 +458,62 @@ export const DashboardScreen: React.FC = () => {
                         groupBy={logicState.groupBy}
                         onGroupByChange={logicSetters.setGroupBy}
                     />
-                    <SummaryCards data={sortedData} activeTab={activeTab} />
-                    <div className="grid grid-cols-1 gap-6">
-                        {(sortedData.receitas.length > 0 || activeTab !== 'geral') && (
+                    <SwipeableTabContent
+                        activeTabId={activeTab}
+                        tabs={[{ id: 'geral', label: 'Visão Geral' }, ...activeSubprofiles.map(s => ({ id: s.id, label: s.name }))]}
+                        onTabChange={handleTabClick}
+                    >
+                        <div className="mb-6">
+                            <SummaryCards data={sortedData} activeTab={activeTab} />
+                        </div>
+                        <div className="grid grid-cols-1 gap-6">
+                            {(sortedData.receitas.length > 0 || activeTab !== 'geral') && (
+                                <TransactionTable
+                                    title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
+                                    data={sortedData.receitas}
+                                    labels={labels}
+                                    type="income"
+                                    isClosed={isCurrentMonthClosed}
+                                    sortConfig={logicState.sortConfig}
+                                    requestSort={logicHandlers.requestSort}
+                                    actions={transactionActions}
+                                    selectedIds={logicState.selectedIncomeIds}
+                                    onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedIncomeIds)}
+                                    onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedIncomeIds, sortedData.receitas)}
+                                    groupBy={logicState.groupBy}
+                                />
+                            )}
                             <TransactionTable
-                                title={activeTab === 'geral' ? "Receitas da Casa" : "Receitas"}
-                                data={sortedData.receitas}
+                                title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
+                                data={sortedData.despesas}
                                 labels={labels}
-                                type="income"
+                                type="expense"
                                 isClosed={isCurrentMonthClosed}
                                 sortConfig={logicState.sortConfig}
                                 requestSort={logicHandlers.requestSort}
+                                subprofiles={profile.subprofiles}
+                                subprofileRevenueProportions={subprofileRevenueProportions}
+                                apportionmentMethod={profile.apportionmentMethod}
                                 actions={transactionActions}
-                                selectedIds={logicState.selectedIncomeIds}
-                                onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedIncomeIds)}
-                                onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedIncomeIds, sortedData.receitas)}
+                                selectedIds={logicState.selectedExpenseIds}
+                                onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedExpenseIds)}
+                                onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedExpenseIds, sortedData.despesas)}
                                 groupBy={logicState.groupBy}
                             />
-                        )}
-                        <TransactionTable
-                            title={activeTab === 'geral' ? 'Despesas da Casa' : 'Despesas Individuais'}
-                            data={sortedData.despesas}
-                            labels={labels}
-                            type="expense"
-                            isClosed={isCurrentMonthClosed}
-                            sortConfig={logicState.sortConfig}
-                            requestSort={logicHandlers.requestSort}
-                            subprofiles={profile.subprofiles}
-                            subprofileRevenueProportions={subprofileRevenueProportions}
-                            apportionmentMethod={profile.apportionmentMethod}
-                            actions={transactionActions}
-                            selectedIds={logicState.selectedExpenseIds}
-                            onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedExpenseIds)}
-                            onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedExpenseIds, sortedData.despesas)}
-                            groupBy={logicState.groupBy}
-                        />
-                        {ignoredTransactions.length > 0 &&
-                            <IgnoredTransactionsTable
-                                data={ignoredTransactions}
-                                onUnskip={(t) => transactionActions.onUnskip(t)}
-                                currentMonthString={currentMonthString}
-                                activeTab={activeTab}
-                                isCurrentMonthClosed={isCurrentMonthClosed}
-                                selectedIds={logicState.selectedIgnoredIds}
-                                onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedIgnoredIds)}
-                                onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedIgnoredIds, ignoredTransactions.filter(t => activeTab === 'geral' ? t.isShared : t.subprofileId === activeTab))}
-                            />
-                        }
-                    </div>
+                            {ignoredTransactions.length > 0 &&
+                                <IgnoredTransactionsTable
+                                    data={ignoredTransactions}
+                                    onUnskip={(t) => transactionActions.onUnskip(t)}
+                                    currentMonthString={currentMonthString}
+                                    activeTab={activeTab}
+                                    isCurrentMonthClosed={isCurrentMonthClosed}
+                                    selectedIds={logicState.selectedIgnoredIds}
+                                    onSelectionChange={logicHandlers.createSelectionHandler(logicSetters.setSelectedIgnoredIds)}
+                                    onSelectAll={logicHandlers.createSelectAllHandler(logicSetters.setSelectedIgnoredIds, ignoredTransactions.filter(t => activeTab === 'geral' ? t.isShared : t.subprofileId === activeTab))}
+                                />
+                            }
+                        </div>
+                    </SwipeableTabContent>
                 </>
             )}
 

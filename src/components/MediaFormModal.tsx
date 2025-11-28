@@ -337,7 +337,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                                         min="1"
                                         value={currentSeason}
                                         onChange={(e) => setCurrentSeason(parseInt(e.target.value) || 1)}
-                                        className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-text-primary text-sm"
+                                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-accent focus:ring-accent outline-none transition-all"
                                     />
                                 </div>
                                 <div>
@@ -347,7 +347,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                                         min="1"
                                         value={currentEpisode}
                                         onChange={(e) => setCurrentEpisode(parseInt(e.target.value) || 1)}
-                                        className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-text-primary text-sm"
+                                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-accent focus:ring-accent outline-none transition-all"
                                     />
                                 </div>
                             </div>
@@ -373,7 +373,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                                                 min="1"
                                                 value={episodes}
                                                 onChange={(e) => handleSeasonEpisodeChange(Number(season), parseInt(e.target.value) || 0)}
-                                                className="flex-grow bg-background border border-border rounded px-2 py-1 text-xs text-text-primary"
+                                                className="flex-grow bg-background border border-border rounded-lg px-3 py-2 text-xs text-text-primary focus:border-accent focus:ring-accent outline-none transition-all"
                                                 placeholder="Qtd Episódios"
                                             />
                                             {Object.keys(seasonEpisodes).length > 1 && (
@@ -421,7 +421,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                                     min="0"
                                     value={currentTime || ''}
                                     onChange={(e) => setCurrentTime(e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-text-primary text-sm"
+                                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-accent focus:ring-accent outline-none transition-all"
                                     placeholder="Ex: 45"
                                 />
                             </div>

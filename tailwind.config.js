@@ -22,6 +22,7 @@ export default {
         accent: {
           DEFAULT: 'var(--accent)',
           hover: 'var(--accent-hover)',
+          selected: 'var(--accent-selected)',
         },
       },
       keyframes: {

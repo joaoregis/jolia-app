@@ -29,8 +29,8 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({ filters,
 
     return (
         <div className="bg-card border border-border rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-4">
-                <div className="relative flex-1">
+            <div className="flex flex-col md:flex-row items-center gap-4 flex-wrap">
+                <div className="relative w-full md:flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
                     <input
                         type="text"
@@ -41,36 +41,37 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({ filters,
                     />
                 </div>
 
-                <div className="w-48">
-                    <Select
-                        value={groupBy}
-                        onChange={(val) => onGroupByChange(val as GroupBy)}
-                        options={[
-                            { value: 'none', label: 'Sem Agrupamento' },
-                            { value: 'label', label: 'Por Rótulo' },
-                            { value: 'date', label: 'Por Data' },
-                            { value: 'type', label: 'Por Tipo' },
-                        ]}
-                        icon={<Layers size={16} />}
-                    />
-                </div>
-
-                <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className={`p-2 rounded-md border ${isExpanded || hasActiveFilters ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-secondary hover:bg-background'}`}
-                    title="Filtros Avançados"
-                >
-                    <Filter size={20} />
-                </button>
-                {hasActiveFilters && (
+                <div className="w-full md:w-auto md:min-w-[12rem] flex gap-2">
+                    <div className="flex-1 md:flex-none md:w-48">
+                        <Select
+                            value={groupBy}
+                            onChange={(val) => onGroupByChange(val as GroupBy)}
+                            options={[
+                                { value: 'none', label: 'Sem Agrupamento' },
+                                { value: 'label', label: 'Por Rótulo' },
+                                { value: 'date', label: 'Por Data' },
+                                { value: 'type', label: 'Por Tipo' },
+                            ]}
+                            icon={<Layers size={16} />}
+                        />
+                    </div>
                     <button
-                        onClick={onClearFilters}
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-md"
-                        title="Limpar Filtros"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className={`p-2 rounded-md border ${isExpanded || hasActiveFilters ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-secondary hover:bg-background'}`}
+                        title="Filtros Avançados"
                     >
-                        <X size={20} />
+                        <Filter size={20} />
                     </button>
-                )}
+                    {hasActiveFilters && (
+                        <button
+                            onClick={onClearFilters}
+                            className="p-2 text-red-500 hover:bg-red-500/10 rounded-md"
+                            title="Limpar Filtros"
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {isExpanded && (
@@ -84,7 +85,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({ filters,
                                 placeholder="Min"
                                 value={filters.minAmount || ''}
                                 onChange={(e) => onFilterChange({ ...filters, minAmount: e.target.value ? Number(e.target.value) : undefined })}
-                                className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-text-primary"
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:border-accent focus:ring-accent outline-none transition-all"
                             />
                             <span className="text-text-secondary">-</span>
                             <input
@@ -92,7 +93,7 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({ filters,
                                 placeholder="Max"
                                 value={filters.maxAmount || ''}
                                 onChange={(e) => onFilterChange({ ...filters, maxAmount: e.target.value ? Number(e.target.value) : undefined })}
-                                className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-text-primary"
+                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:border-accent focus:ring-accent outline-none transition-all"
                             />
                         </div>
                     </div>

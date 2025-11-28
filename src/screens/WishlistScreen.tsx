@@ -13,6 +13,7 @@ import { formatCurrency } from '../lib/utils';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { WishlistFormModal } from '../components/WishlistFormModal';
 import { WishlistItemFormModal } from '../components/WishlistItemFormModal';
+import { SwipeableTabContent } from '../components/SwipeableTabContent';
 
 export const WishlistScreen: React.FC = () => {
     const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
@@ -188,40 +189,46 @@ export const WishlistScreen: React.FC = () => {
                 </nav>
             </div>
 
-            <div className="masonry-grid gap-6">
-                {wishlists.length > 0 ? (
-                    wishlists.map(list => (
-                        <div key={list.id} className="masonry-item mb-6">
-                            <Card>
-                                <CardHeader className="flex justify-between items-center">
-                                    <CardTitle className="text-lg">{list.name}</CardTitle>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => { setSelectedWishlist(list); setAddItemModalOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-accent/80 rounded-lg hover:bg-accent">
-                                            <Plus size={14} /> Adicionar Item
-                                        </button>
-                                        <button onClick={() => { setSelectedWishlist(list); setEditListModalOpen(true); }} className="text-text-secondary hover:text-accent"><Edit size={16} /></button>
-                                        <button onClick={() => { setSelectedWishlist(list); setDeleteListModalOpen(true); }} className="text-text-secondary hover:text-red-500"><Trash2 size={16} /></button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {(wishlistItems.get(list.id) || []).length > 0 ? (
-                                        (wishlistItems.get(list.id) || []).map(item => <WishlistItemComponent key={item.id} item={item} list={list} />)
-                                    ) : (
-                                        <p className="text-center py-4 text-sm text-text-secondary">Nenhum item nesta lista ainda. Adicione um!</p>
-                                    )}
-                                </CardContent>
-                            </Card>
+            <SwipeableTabContent
+                activeTabId={activeTab}
+                tabs={[{ id: 'geral', label: 'Geral (Casa)' }, ...activeSubprofiles.map(s => ({ id: s.id, label: s.name }))]}
+                onTabChange={handleTabClick}
+            >
+                <div className="masonry-grid gap-6">
+                    {wishlists.length > 0 ? (
+                        wishlists.map(list => (
+                            <div key={list.id} className="masonry-item mb-6">
+                                <Card>
+                                    <CardHeader className="flex justify-between items-center">
+                                        <CardTitle className="text-lg">{list.name}</CardTitle>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => { setSelectedWishlist(list); setAddItemModalOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-accent/80 rounded-lg hover:bg-accent">
+                                                <Plus size={14} /> Adicionar Item
+                                            </button>
+                                            <button onClick={() => { setSelectedWishlist(list); setEditListModalOpen(true); }} className="text-text-secondary hover:text-accent"><Edit size={16} /></button>
+                                            <button onClick={() => { setSelectedWishlist(list); setDeleteListModalOpen(true); }} className="text-text-secondary hover:text-red-500"><Trash2 size={16} /></button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {(wishlistItems.get(list.id) || []).length > 0 ? (
+                                            (wishlistItems.get(list.id) || []).map(item => <WishlistItemComponent key={item.id} item={item} list={list} />)
+                                        ) : (
+                                            <p className="text-center py-4 text-sm text-text-secondary">Nenhum item nesta lista ainda. Adicione um!</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-16 text-slate-500 dark:text-slate-400">
+                            <p>Nenhuma lista de desejos encontrada para esta visão.</p>
+                            <button onClick={() => setAddListModalOpen(true)} className="mt-4 text-accent font-semibold hover:underline">
+                                Crie a sua primeira lista!
+                            </button>
                         </div>
-                    ))
-                ) : (
-                    <div className="col-span-full text-center py-16 text-slate-500 dark:text-slate-400">
-                        <p>Nenhuma lista de desejos encontrada para esta visão.</p>
-                        <button onClick={() => setAddListModalOpen(true)} className="mt-4 text-accent font-semibold hover:underline">
-                            Crie a sua primeira lista!
-                        </button>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            </SwipeableTabContent>
 
             {/* Modais */}
             <WishlistFormModal

@@ -72,20 +72,20 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({ item, type, is
             </div >
 
             {/* Linha 2: Valores */}
-            < div className="flex items-baseline justify-between mb-2 text-sm" >
+            <div className="grid grid-cols-3 gap-2 mb-2 text-sm">
                 <div className="flex flex-col">
                     <span className="text-xs text-text-secondary">Efetivo</span>
-                    <span className="font-bold text-text-primary text-base">{formatCurrency(item.actual)}</span>
+                    <span className="font-bold text-text-primary text-base truncate">{formatCurrency(item.actual)}</span>
                 </div>
                 <div className="flex flex-col text-right">
                     <span className="text-xs text-text-secondary">Previsto</span>
-                    <span className="text-text-secondary">{formatCurrency(item.planned)}</span>
+                    <span className="text-text-secondary truncate">{formatCurrency(item.planned)}</span>
                 </div>
                 <div className="flex flex-col text-right">
                     <span className="text-xs text-text-secondary">Diferença</span>
-                    <span className={`font-medium ${differenceColor}`}>{formatCurrency(difference)}</span>
+                    <span className={`font-medium ${differenceColor} truncate`}>{formatCurrency(difference)}</span>
                 </div>
-            </div >
+            </div>
 
             <div className="border-t border-border my-2"></div>
 

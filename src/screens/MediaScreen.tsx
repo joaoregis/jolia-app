@@ -9,6 +9,7 @@ import { QuickRatingModal } from '../components/QuickRatingModal';
 import { StarRating } from '../components/StarRating';
 import { MonthSelector } from '../components/MonthSelector';
 import { MediaItem } from '../types';
+import { SwipeableTabContent } from '../components/SwipeableTabContent';
 
 export const MediaScreen: React.FC = () => {
     const { profileId } = useParams<{ profileId: string }>();
@@ -465,78 +466,88 @@ export const MediaScreen: React.FC = () => {
                 </button>
             </div>
 
-            {activeTab === 'watchlist' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {watchList.map(renderMediaCard)}
-                    {watchList.length === 0 && (
-                        <div className="col-span-full py-12 text-center text-text-secondary">
-                            <Film className="mx-auto h-12 w-12 mb-3 opacity-20" />
-                            <p>Nenhum item na lista para assistir.</p>
-                            <button onClick={handleAddClick} className="text-accent hover:underline mt-2">Adicionar o primeiro</button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'inprogress' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {inProgressList.map(renderMediaCard)}
-                    {inProgressList.length === 0 && (
-                        <div className="col-span-full py-12 text-center text-text-secondary">
-                            <PlayCircle className="mx-auto h-12 w-12 mb-3 opacity-20" />
-                            <p>Nenhum item em progresso.</p>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'history' && (
-                <div className="space-y-6">
-                    <div className="flex items-center justify-center bg-card p-4 rounded-xl border border-border">
-                        <MonthSelector
-                            currentMonth={historyDate}
-                            availableMonths={availableMonths}
-                            closedMonths={[]} // Not applicable for media
-                            allowYearSelection={true}
-                            onMonthSelect={(year, month) => {
-                                if (month === null) {
-                                    setIsYearView(true);
-                                    setHistoryDate(new Date(year, 0, 1));
-                                } else {
-                                    setIsYearView(false);
-                                    setHistoryDate(new Date(year, month, 1));
-                                }
-                            }}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        {isYearView && groupedHistory ? (
-                            sortedMonths.map(monthStr => {
-                                const [year, month] = monthStr.split('-').map(Number);
-                                const date = new Date(year, month - 1, 1);
-                                const monthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-                                return (
-                                    <div key={monthStr} className="space-y-2">
-                                        <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider pl-1 mt-6 mb-2 border-b border-border pb-1">
-                                            {monthName}
-                                        </h3>
-                                        {groupedHistory[monthStr].map(item => renderHistoryItem(item))}
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            filteredHistory.map(item => renderHistoryItem(item))
-                        )}
-                        {filteredHistory.length === 0 && (
-                            <div className="py-12 text-center text-text-secondary">
-                                <p>Nenhum item assistido neste período.</p>
+            <SwipeableTabContent
+                activeTabId={activeTab}
+                tabs={[
+                    { id: 'watchlist', label: 'Para Assistir' },
+                    { id: 'inprogress', label: 'Em Progresso' },
+                    { id: 'history', label: 'Histórico' }
+                ]}
+                onTabChange={(id) => setActiveTab(id as any)}
+            >
+                {activeTab === 'watchlist' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {watchList.map(renderMediaCard)}
+                        {watchList.length === 0 && (
+                            <div className="col-span-full py-12 text-center text-text-secondary">
+                                <Film className="mx-auto h-12 w-12 mb-3 opacity-20" />
+                                <p>Nenhum item na lista para assistir.</p>
+                                <button onClick={handleAddClick} className="text-accent hover:underline mt-2">Adicionar o primeiro</button>
                             </div>
                         )}
                     </div>
-                </div>
-            )}
+                )}
+
+                {activeTab === 'inprogress' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {inProgressList.map(renderMediaCard)}
+                        {inProgressList.length === 0 && (
+                            <div className="col-span-full py-12 text-center text-text-secondary">
+                                <PlayCircle className="mx-auto h-12 w-12 mb-3 opacity-20" />
+                                <p>Nenhum item em progresso.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'history' && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-center bg-card p-4 rounded-xl border border-border">
+                            <MonthSelector
+                                currentMonth={historyDate}
+                                availableMonths={availableMonths}
+                                closedMonths={[]} // Not applicable for media
+                                allowYearSelection={true}
+                                onMonthSelect={(year, month) => {
+                                    if (month === null) {
+                                        setIsYearView(true);
+                                        setHistoryDate(new Date(year, 0, 1));
+                                    } else {
+                                        setIsYearView(false);
+                                        setHistoryDate(new Date(year, month, 1));
+                                    }
+                                }}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            {isYearView && groupedHistory ? (
+                                sortedMonths.map(monthStr => {
+                                    const [year, month] = monthStr.split('-').map(Number);
+                                    const date = new Date(year, month - 1, 1);
+                                    const monthName = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                                    return (
+                                        <div key={monthStr} className="space-y-2">
+                                            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider pl-1 mt-6 mb-2 border-b border-border pb-1">
+                                                {monthName}
+                                            </h3>
+                                            {groupedHistory[monthStr].map(item => renderHistoryItem(item))}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                filteredHistory.map(item => renderHistoryItem(item))
+                            )}
+                            {filteredHistory.length === 0 && (
+                                <div className="py-12 text-center text-text-secondary">
+                                    <p>Nenhum item assistido neste período.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </SwipeableTabContent>
 
             <MediaFormModal
                 isOpen={isModalOpen}

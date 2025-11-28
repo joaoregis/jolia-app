@@ -206,8 +206,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                             </div>
                             {formData.isInstallmentPurchase && !isEditingInstallment && (
                                 <div className="mt-4 pl-8">
-                                    <label htmlFor="totalInstallments" className="block text-sm font-medium text-text-secondary">Número de Parcelas</label>
-                                    <input type="number" id="totalInstallments" name="totalInstallments" value={formData.totalInstallments} onChange={handleChange} min="2" className="mt-1 w-full max-w-xs rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-2" />
+                                    <label htmlFor="totalInstallments" className="block text-sm font-medium text-text-secondary mb-1">Número de Parcelas</label>
+                                    <input type="number" id="totalInstallments" name="totalInstallments" value={formData.totalInstallments} onChange={handleChange} min="2" className="bg-background border border-border rounded-lg px-3 py-2 text-text-primary text-sm focus:border-accent focus:ring-accent outline-none transition-all" />
                                 </div>
                             )}
                             {isEditingInstallment && (

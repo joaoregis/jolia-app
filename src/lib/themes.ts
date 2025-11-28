@@ -16,6 +16,7 @@ export interface Theme {
     '--sidebar-text-secondary': string;
     '--accent': string;
     '--accent-hover': string;
+    '--accent-selected': string;
     '--border': string;
   };
 }
@@ -41,6 +42,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#cbd5e1',
       '--accent': '#3b82f6',
       '--accent-hover': '#60a5fa',
+      '--accent-selected': '#1d4ed8',
       '--border': '#283447',
     }
   },
@@ -60,6 +62,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#475569',
       '--accent': '#2563eb',
       '--accent-hover': '#1d4ed8',
+      '--accent-selected': '#1e40af',
       '--border': '#e5e7eb',
     }
   },
@@ -80,6 +83,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#787f89',
       '--accent': '#a6c1ee', // Azul Pastel
       '--accent-hover': '#b8d0f2',
+      '--accent-selected': '#8da8d6',
       '--border': '#eef0f4',
     }
   },
@@ -99,6 +103,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#8b7d73',
       '--accent': '#ffb28b', // Pêssego Pastel
       '--accent-hover': '#ffc3a3',
+      '--accent-selected': '#e69a75',
       '--border': '#fae5d9',
     }
   },
@@ -118,6 +123,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#b0b8c4',
       '--accent': '#8eadd3', // Azul Cinza Pastel
       '--accent-hover': '#9eb8e0',
+      '--accent-selected': '#7591b5',
       '--border': '#3b4351',
     }
   },
@@ -137,6 +143,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#c4c2d4',
       '--accent': '#c7b8ea', // Lavanda Pastel
       '--accent-hover': '#d4c7f0',
+      '--accent-selected': '#a99cc7',
       '--border': '#48456a',
     }
   },
@@ -157,6 +164,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#c8e6c9',
       '--accent': '#66bb6a',
       '--accent-hover': '#81c784',
+      '--accent-selected': '#4caf50',
       '--border': '#2a4a35',
     }
   },
@@ -176,26 +184,28 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#1e40af',
       '--accent': '#2563eb',
       '--accent-hover': '#1d4ed8',
+      '--accent-selected': '#1e40af',
       '--border': '#dbeafe',
     }
   },
   manha_de_nevoa: {
     name: 'Manhã de Névoa',
     variables: {
-        '--background': '#f9fafb',
-        '--sidebar': '#ffffff',
-        '--card': '#f3f4f6',
-        '--table-header': '#f9fafb',
-        '--table-header-text': '#111827',
-        '--table-footer': '#e5e7eb',
-        '--table-footer-text': '#111827',
-        '--text-primary': '#111827',
-        '--text-secondary': '#4b5563',
-        '--sidebar-text-primary': '#111827',
-        '--sidebar-text-secondary': '#4b5563',
-        '--accent': '#14b8a6',
-        '--accent-hover': '#0d9488',
-        '--border': '#e5e7eb',
+      '--background': '#f9fafb',
+      '--sidebar': '#ffffff',
+      '--card': '#f3f4f6',
+      '--table-header': '#f9fafb',
+      '--table-header-text': '#111827',
+      '--table-footer': '#e5e7eb',
+      '--table-footer-text': '#111827',
+      '--text-primary': '#111827',
+      '--text-secondary': '#4b5563',
+      '--sidebar-text-primary': '#111827',
+      '--sidebar-text-secondary': '#4b5563',
+      '--accent': '#14b8a6',
+      '--accent-hover': '#0d9488',
+      '--accent-selected': '#0f766e',
+      '--border': '#e5e7eb',
     }
   },
   ametista_noturna: {
@@ -214,6 +224,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#e9d5ff',
       '--accent': '#a855f7',
       '--accent-hover': '#c084fc',
+      '--accent-selected': '#9333ea',
       '--border': '#50366b',
     }
   },
@@ -233,6 +244,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#fecaca',
       '--accent': '#ef4444',
       '--accent-hover': '#f87171',
+      '--accent-selected': '#dc2626',
       '--border': '#881337',
     }
   },
@@ -252,6 +264,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#9d174d',
       '--accent': '#ec4899',
       '--accent-hover': '#db2777',
+      '--accent-selected': '#be185d',
       '--border': '#fbcfe8',
     }
   },
@@ -271,6 +284,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#9a3412',
       '--accent': '#f97316',
       '--accent-hover': '#ea580c',
+      '--accent-selected': '#c2410c',
       '--border': '#fed7aa',
     }
   },
@@ -290,10 +304,11 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#92400e',
       '--accent': '#f59e0b',
       '--accent-hover': '#d97706',
+      '--accent-selected': '#b45309',
       '--border': '#fde68a',
     }
   },
-   brisa_citrica: {
+  brisa_citrica: {
     name: 'Brisa Cítrica',
     variables: {
       '--background': '#f7fee7',
@@ -309,6 +324,7 @@ export const themes: ThemePalette = {
       '--sidebar-text-secondary': '#3f6212',
       '--accent': '#84cc16',
       '--accent-hover': '#65a30d',
+      '--accent-selected': '#4d7c0f',
       '--border': '#d9f99d',
     }
   },

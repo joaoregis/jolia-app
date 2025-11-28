@@ -83,6 +83,7 @@ describe('useSubprofileManager', () => {
             '--sidebar-text-secondary': '#ff0000',
             '--accent': '#ff0000',
             '--accent-hover': '#ff0000',
+            '--accent-selected': '#ff0000',
             '--border': '#ff0000'
         };
 
@@ -112,6 +113,7 @@ describe('useSubprofileManager', () => {
                     '--sidebar-text-secondary': '#000',
                     '--accent': '#000',
                     '--accent-hover': '#000',
+                    '--accent-selected': '#000',
                     '--border': '#000'
                 }
             }]

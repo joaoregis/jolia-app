@@ -89,7 +89,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
         <div className="relative" ref={wrapperRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="font-semibold text-center text-text-secondary flex items-center gap-2 hover:text-text-primary transition-colors"
+                className="font-semibold text-center text-text-primary flex items-center gap-2 hover:text-accent transition-colors"
             >
                 <span>{formattedCurrentMonth}</span>
                 <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
@@ -97,7 +97,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
 
             {isOpen && (
                 <div className="absolute left-1/2 -translate-x-1/2 z-10 mt-2 w-56">
-                    <div className="w-full origin-top rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-border-color max-h-60 overflow-y-auto animate-zoom-in">
+                    <div className="w-full origin-top rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-border max-h-60 overflow-y-auto animate-zoom-in">
                         <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="menu-button">
                             {sortedYears.map(year => (
                                 <div key={year} className="overflow-hidden">
@@ -113,7 +113,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
                                             {allowYearSelection && (
                                                 <button
                                                     onClick={() => handleYearSelect(Number(year))}
-                                                    className="w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md text-text-primary hover:bg-background font-medium mb-1"
+                                                    className="w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md text-text-primary hover:bg-accent/10 font-medium mb-1 transition-colors"
                                                 >
                                                     <span>Todo o ano de {year}</span>
                                                 </button>
@@ -129,9 +129,9 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
                                                     <button
                                                         key={monthStr}
                                                         onClick={() => handleSelect(monthStr)}
-                                                        className={`w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md ${isCurrent
+                                                        className={`w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md transition-colors ${isCurrent
                                                             ? 'bg-accent text-white'
-                                                            : 'text-text-primary hover:bg-background'
+                                                            : 'text-text-primary hover:bg-accent/10'
                                                             }`}
                                                         role="menuitem"
                                                     >

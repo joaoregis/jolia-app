@@ -171,8 +171,8 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                 data.ratings = ratings;
             }
 
-            if (status === 'in_progress' && !isEpisodic) {
-                data.currentTime = currentTime;
+            if (status === 'in_progress' && type !== 'series' && !isEpisodic) {
+                data.currentTime = currentTime || 0;
             }
 
             if (type === 'series' || isEpisodic) {

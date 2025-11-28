@@ -87,7 +87,9 @@ describe('TransactionTable', () => {
             />
         );
 
-        expect(screen.getByText('Nenhuma transação encontrada nesta categoria.')).toBeInTheDocument();
+        const emptyMessages = screen.getAllByText('Nenhuma transação encontrada nesta categoria.');
+        expect(emptyMessages.length).toBeGreaterThan(0);
+        expect(emptyMessages[0]).toBeInTheDocument();
     });
 
     it('should call requestSort when clicking header', async () => {
@@ -112,7 +114,9 @@ describe('TransactionTable', () => {
 
         // Desktop view has the header
         const descriptionHeaders = screen.getAllByText('Descrição');
-        const descriptionHeader = descriptionHeaders[0].closest('button');
+        // Find the one that is inside a button (sortable header)
+        const descriptionHeader = descriptionHeaders.find(el => el.closest('button'));
+
         if (descriptionHeader) {
             await user.click(descriptionHeader);
             expect(requestSort).toHaveBeenCalledWith('description');
@@ -139,9 +143,9 @@ describe('TransactionTable', () => {
             />
         );
 
-        // Use getByTitle to target the specific "Selecionar Tudo" checkbox
-        const selectAllCheckbox = screen.getByTitle('Selecionar Tudo');
-        await user.click(selectAllCheckbox);
+        // Use getAllByTitle because there might be one for mobile and one for desktop
+        const selectAllCheckboxes = screen.getAllByTitle('Selecionar Tudo');
+        await user.click(selectAllCheckboxes[0]);
 
         expect(onSelectAll).toHaveBeenCalledWith(true);
     });

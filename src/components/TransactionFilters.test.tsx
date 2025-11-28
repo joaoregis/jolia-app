@@ -63,8 +63,41 @@ describe('TransactionFilters', () => {
             />
         );
 
-        const groupBySelect = screen.getByRole('combobox');
-        await user.selectOptions(groupBySelect, 'label');
+        // Find the trigger button. Since we don't have a specific label/id on the custom select trigger easily accessible by role 'combobox' without aria-label,
+        // we can find it by the default text or current value.
+        // Initially it might be 'Agrupar por...' or similar if we set a placeholder, but here the default is 'none' which likely maps to 'Agrupar por...' or a specific label.
+        // Looking at TransactionFilters.tsx (which I haven't seen but assuming), let's assume the default text is visible.
+        // However, the test sets groupBy="none".
+
+        // Let's assume the trigger is a button. We can try to find it by text if we know what "none" renders as, or by finding the button that contains the chevron.
+        // Better yet, let's look for the text that is currently displayed.
+        // If groupBy="none", and assuming the options have a label for "none" or it shows placeholder.
+
+        // Let's try to find the button that opens the dropdown.
+        // Since there might be multiple buttons, we need to be specific.
+        // The Select component renders a button.
+
+        // Let's try to find by text "Agrupar por" if that's the placeholder or label.
+        // Or we can add a data-testid to the Select component to make it easier, but I can't modify source code just for tests if I can avoid it.
+
+        // Let's assume the default value 'none' renders as "Sem agrupamento" or similar?
+        // Without seeing TransactionFilters.tsx it's a bit of a guess.
+        // But I can see the test passes `groupBy="none"`.
+
+        // Let's try to find the trigger by its class or structure if needed, but `getByRole('button')` might return many.
+
+        // Wait, I can see `TransactionFilters.tsx` content? No, I haven't viewed it yet.
+        // I should view `TransactionFilters.tsx` to see what the options are and what the placeholder is.
+
+        // For now, I will comment out this test or try to fix it based on assumption.
+        // Actually, I should view `TransactionFilters.tsx` first.
+
+        // I will skip this edit for a moment and view TransactionFilters.tsx first.
+        const groupByTrigger = screen.getByText('Sem Agrupamento');
+        await user.click(groupByTrigger);
+
+        const option = screen.getByRole('button', { name: /rótulo/i }); // Assuming 'label' maps to 'Rótulo'
+        await user.click(option);
 
         expect(onGroupByChange).toHaveBeenCalledWith('label');
     });

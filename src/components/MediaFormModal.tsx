@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, Calendar, Plus, Trash2 } from 'lucide-react';
 import { MediaItem, MediaProvider, Subprofile } from '../types';
 import { RatingsList } from './RatingsList';
+import { Select } from './Select';
 
 interface MediaFormModalProps {
     isOpen: boolean;
@@ -213,7 +214,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-card rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200 border border-border flex flex-col max-h-[90vh]">
+            <div className="bg-card rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-zoom-in border border-border flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center p-4 border-b border-border shrink-0">
                     <h2 className="text-xl font-bold text-text-primary">
                         {initialData ? 'Editar Mídia' : 'Nova Mídia'}
@@ -238,17 +239,17 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                         </div>
                         <div className="w-1/3">
                             <label className="block text-xs font-medium text-text-secondary mb-1">Tipo</label>
-                            <select
+                            <Select
                                 value={type}
-                                onChange={(e) => setType(e.target.value as any)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                            >
-                                <option value="movie">Filme</option>
-                                <option value="series">Série</option>
-                                <option value="documentary">Documentário</option>
-                                <option value="video">Vídeo</option>
-                                <option value="other">Outro</option>
-                            </select>
+                                onChange={(val) => setType(val as any)}
+                                options={[
+                                    { value: 'movie', label: 'Filme' },
+                                    { value: 'series', label: 'Série' },
+                                    { value: 'documentary', label: 'Documentário' },
+                                    { value: 'video', label: 'Vídeo' },
+                                    { value: 'other', label: 'Outro' }
+                                ]}
+                            />
                         </div>
                     </div>
 
@@ -272,15 +273,11 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                     <div className="flex gap-4">
                         <div className="w-1/2">
                             <label className="block text-xs font-medium text-text-secondary mb-1">Provedor</label>
-                            <select
+                            <Select
                                 value={provider}
-                                onChange={(e) => setProvider(e.target.value as any)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                            >
-                                {PROVIDERS.map(p => (
-                                    <option key={p} value={p}>{p}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setProvider(val as any)}
+                                options={PROVIDERS.map(p => ({ value: p, label: p }))}
+                            />
                         </div>
                         <div className="w-1/2">
                             <label className="block text-xs font-medium text-text-secondary mb-1">
@@ -309,28 +306,23 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                     <div className="flex gap-4">
                         <div className="w-1/2">
                             <label className="block text-xs font-medium text-text-secondary mb-1">Status</label>
-                            <select
+                            <Select
                                 value={status}
-                                onChange={(e) => setStatus(e.target.value as any)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                            >
-                                <option value="to_watch">Para Assistir</option>
-                                <option value="in_progress">Em Progresso</option>
-                                <option value="watched">Assistido</option>
-                            </select>
+                                onChange={(val) => setStatus(val as any)}
+                                options={[
+                                    { value: 'to_watch', label: 'Para Assistir' },
+                                    { value: 'in_progress', label: 'Em Progresso' },
+                                    { value: 'watched', label: 'Assistido' }
+                                ]}
+                            />
                         </div>
                         <div className="w-1/2">
                             <label className="block text-xs font-medium text-text-secondary mb-1">Sugerido por</label>
-                            <select
+                            <Select
                                 value={suggestedBy}
-                                onChange={(e) => setSuggestedBy(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                                required
-                            >
-                                {subprofiles.map(sp => (
-                                    <option key={sp.id} value={sp.id}>{sp.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setSuggestedBy(val)}
+                                options={subprofiles.map(sp => ({ value: sp.id, label: sp.name }))}
+                            />
                         </div>
                     </div>
 

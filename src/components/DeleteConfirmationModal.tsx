@@ -36,7 +36,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             {/* CORREÇÃO: Aplicado um tema padrão de light/dark mode para garantir consistência visual */}
-            <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50 rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
+            <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-50 rounded-lg shadow-xl w-full max-w-md animate-zoom-in">
                 <div className="p-6">
                     <div className="text-center">
                         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
@@ -44,7 +44,7 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                         </div>
                         <h3 className="mt-5 text-lg font-medium">{title}</h3>
                         <div className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                           {message}
+                            {message}
                         </div>
                     </div>
                     <input
@@ -78,15 +78,6 @@ export const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = (
                     </button>
                 </div>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.2s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

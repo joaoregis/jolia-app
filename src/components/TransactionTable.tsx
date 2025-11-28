@@ -1,3 +1,5 @@
+// src/components/TransactionTable.tsx
+
 import React, { useState, useMemo } from 'react';
 import { ArrowUpDown, Landmark, Repeat, RotateCw } from 'lucide-react';
 import { Transaction, SortConfig, Subprofile, Label, TransactionActions, GroupBy } from '../types';
@@ -77,20 +79,38 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
     const isSomeSelected = data.some(item => selectedIds.has(item.id));
 
     const groupedData = useMemo(() => {
+        if (groupBy === 'none') return null;
         return groupTransactions(data, groupBy, labels);
     }, [data, groupBy, labels]);
 
     return (
-        <Card>
-            <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
-            <CardContent>
-                <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
-                <div className="md:hidden">
+        <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>{title}</CardTitle>
+                <div className="text-sm text-text-secondary">
+                    {data.length} transações
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                {/* Mobile View */}
+                <div className="md:hidden p-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox
+                                title="Selecionar Tudo"
+                                checked={isAllSelected}
+                                indeterminate={isSomeSelected && !isAllSelected}
+                                onChange={(e) => onSelectAll(e.target.checked)}
+                            />
+                            <span className="text-sm font-medium text-text-secondary">Selecionar Tudo</span>
+                        </label>
+                    </div>
+
                     {data.length > 0 ? (
                         groupedData ? (
                             Object.entries(groupedData).map(([groupName, transactions]) => (
-                                <div key={groupName} className="mb-4">
-                                    <div className="bg-muted/50 px-4 py-2 font-medium rounded-t-lg text-sm text-text-secondary">
+                                <div key={groupName} className="mb-6">
+                                    <div className="bg-muted/50 px-4 py-2 font-medium rounded-t-lg text-sm text-text-secondary mb-2">
                                         {groupName} ({transactions.length})
                                     </div>
                                     {transactions.map(item => (
@@ -111,11 +131,35 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                                 </div>
                             ))
                         ) : (
-                            data.map(item => <TransactionItem key={item.id} item={item} type={type} isClosed={isClosed} isIgnoredTable={false} actions={actions} onOpenNoteModal={handleOpenNoteModal} isSelected={selectedIds.has(item.id)} onSelectionChange={onSelectionChange} subprofiles={subprofiles} subprofileRevenueProportions={subprofileRevenueProportions} />)
+                            data.map(item => (
+                                <TransactionItem
+                                    key={item.id}
+                                    item={item}
+                                    type={type}
+                                    isClosed={isClosed}
+                                    isIgnoredTable={false}
+                                    actions={actions}
+                                    onOpenNoteModal={handleOpenNoteModal}
+                                    isSelected={selectedIds.has(item.id)}
+                                    onSelectionChange={onSelectionChange}
+                                    subprofiles={subprofiles}
+                                    subprofileRevenueProportions={subprofileRevenueProportions}
+                                />
+                            ))
                         )
-                    ) : null}
-                    {data.length > 0 && <div className="flex justify-between font-bold text-table-footer-text bg-table-footer p-4 rounded-lg mt-4"><span>TOTAL</span><span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span></div>}
+                    ) : (
+                        <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>
+                    )}
+
+                    {data.length > 0 && (
+                        <div className="flex justify-between font-bold text-table-footer-text bg-table-footer p-4 rounded-lg mt-4">
+                            <span>TOTAL</span>
+                            <span>{formatCurrency(data.reduce((acc, i) => acc + i.actual, 0))}</span>
+                        </div>
+                    )}
                 </div>
+
+                {/* Desktop View */}
                 <div className="w-full overflow-x-auto hidden md:block">
                     <table className="w-full text-sm text-left text-text-secondary table-auto">
                         <thead className="text-xs text-table-header-text uppercase bg-table-header">
@@ -206,7 +250,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                     </table>
                 </div>
                 {data.length === 0 && <div className="text-center py-10 text-text-secondary">Nenhuma transação encontrada nesta categoria.</div>}
-            </CardContent >
+            </CardContent>
             {noteModalState.isOpen && <NoteModal isOpen={noteModalState.isOpen} onClose={handleCloseNoteModal} onSave={handleSaveNote} initialNote={noteModalState.transaction?.notes} />}
             <LabelSelector
                 isOpen={labelSelectorState.isOpen}
@@ -220,7 +264,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = (props) => {
                 }}
                 anchorEl={labelSelectorState.anchorEl}
             />
-        </Card >
+        </Card>
     );
 };
 

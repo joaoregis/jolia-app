@@ -32,8 +32,8 @@ export const TransferTransactionModal: React.FC<TransferTransactionModalProps> =
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-      <div 
-        className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up"
+      <div
+        className="bg-card rounded-lg shadow-xl w-full max-w-md animate-zoom-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border-color">
@@ -48,7 +48,7 @@ export const TransferTransactionModal: React.FC<TransferTransactionModalProps> =
             <span>Transferir: </span>
             <span className="font-bold text-text-primary block truncate">{transaction.description}</span>
           </div>
-          
+
           <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
             {/* Opção para transferir para a Visão Geral (Perfil Principal) */}
             {!isCurrentlyInMain && (
@@ -89,15 +89,6 @@ export const TransferTransactionModal: React.FC<TransferTransactionModalProps> =
             Cancelar
           </button>
         </div>
-        <style>{`
-            @keyframes fade-in-up {
-                from { opacity: 0; transform: scale(0.95); }
-                to { opacity: 1; transform: scale(1); }
-            }
-            .animate-fade-in-up {
-                animation: fade-in-up 0.2s ease-out forwards;
-            }
-        `}</style>
       </div>
     </div>
   );

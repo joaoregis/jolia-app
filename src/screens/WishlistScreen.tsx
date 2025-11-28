@@ -6,7 +6,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useProfileContext } from '../hooks/useProfileContext';
 import { useWishlistManager } from '../hooks/useWishlistManager';
 import { Wishlist, WishlistItem } from '../types';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, PlusCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { formatCurrency } from '../lib/utils';
@@ -166,33 +166,16 @@ export const WishlistScreen: React.FC = () => {
     );
 
     return (
-        <div className="p-4 md:p-6 lg:p-10 space-y-6">
-            <style>
-                {`
-                    @media (min-width: 768px) {
-                        .masonry-grid {
-                            column-count: 2;
-                        }
-                    }
-                    @media (min-width: 1280px) {
-                        .masonry-grid {
-                            column-count: 3;
-                        }
-                    }
-                    .masonry-item {
-                        break-inside: avoid-column;
-                        page-break-inside: avoid;
-                    }
-                `}
-            </style>
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <h2 className="text-3xl font-bold tracking-tight text-text-primary">Lista de Desejos</h2>
-                <button onClick={() => setAddListModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover">
-                    <Plus size={16} /> Nova Lista
+        <div className="container mx-auto px-4 py-8 pb-24 md:pb-8">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-text-primary">Lista de Desejos</h1>
+                <button onClick={() => setAddListModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors">
+                    <PlusCircle size={20} />
+                    <span className="hidden sm:inline">Nova Lista</span>
                 </button>
             </div>
 
-            <div className="border-b border-border-color">
+            <div className="border-b border-border-color mb-6">
                 <nav className="-mb-px flex space-x-2 md:space-x-6 overflow-x-auto">
                     <button onClick={() => handleTabClick('geral')} className={`whitespace-nowrap py-4 px-1 md:px-2 border-b-2 font-medium text-sm ${activeTab === 'geral' ? 'text-accent border-accent' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>
                         Geral (Casa)

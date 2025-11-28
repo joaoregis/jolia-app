@@ -97,7 +97,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
             setCustomTheme(subprofile.customTheme);
         }
     }, [subprofile, isOpen]);
-    
+
     useEffect(() => {
         if (selectedThemeId !== 'custom') {
             setCustomTheme(undefined);
@@ -109,13 +109,13 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
 
         let baseThemeVariables = themes.default.variables;
         const savedTheme = profile?.savedThemes?.find(t => t.id === selectedThemeId);
-        
+
         if (savedTheme) {
             baseThemeVariables = savedTheme.variables;
         } else if (themes[selectedThemeId]) {
             baseThemeVariables = themes[selectedThemeId].variables;
         }
-        
+
         setCustomTheme(baseThemeVariables);
         setSelectedThemeId('custom');
     };
@@ -127,7 +127,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
             onClose();
         }
     };
-    
+
     const handleSaveTheme = (themeName: string) => {
         if (customTheme) {
             onSaveTheme(themeName, customTheme);
@@ -135,7 +135,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
             setIsSaveThemeModalOpen(false);
         }
     };
-    
+
     const handleDeleteTheme = (themeId: string) => {
         onDeleteTheme(themeId);
         showToast(`Tema excluído.`, 'info');
@@ -154,17 +154,19 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
     } else if (themes[selectedThemeId]) {
         previewTheme = themes[selectedThemeId];
     }
-    
+
     if (selectedThemeId === 'custom' && customTheme) {
-        previewTheme = { name: "Customizado", variables: customTheme };
+        previewTheme = { name: 'Custom', variables: customTheme };
     }
+
     const modalStyle = { ...previewTheme.variables as React.CSSProperties };
 
     return (
         <>
             <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-                <div 
-                    className="bg-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]"
+                <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-zoom-in"
                     style={modalStyle}
                 >
                     <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border-color">
@@ -173,7 +175,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
                             <X size={24} />
                         </button>
                     </div>
-                    
+
                     <div className="flex-grow overflow-y-auto p-6 space-y-6">
                         <div>
                             <label htmlFor="subprofileName" className="block text-sm font-medium text-text-secondary">
@@ -190,9 +192,9 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
                             />
                         </div>
 
-                        <ThemeSelector 
-                            selectedThemeId={selectedThemeId} 
-                            onSelect={setSelectedThemeId} 
+                        <ThemeSelector
+                            selectedThemeId={selectedThemeId}
+                            onSelect={setSelectedThemeId}
                             savedThemes={profile?.savedThemes || []}
                             onDeleteTheme={handleDeleteTheme}
                         />
@@ -200,7 +202,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
                         <div className="border-t border-border-color my-4"></div>
 
                         <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4">
                                 <input
                                     type="radio"
                                     id="theme-custom"
@@ -236,7 +238,7 @@ export const EditSubprofileModal: React.FC<EditSubprofileModalProps> = ({ isOpen
                     </div>
                 </div>
             </div>
-            <SaveThemeModal 
+            <SaveThemeModal
                 isOpen={isSaveThemeModalOpen}
                 onClose={() => setIsSaveThemeModalOpen(false)}
                 onSave={handleSaveTheme}

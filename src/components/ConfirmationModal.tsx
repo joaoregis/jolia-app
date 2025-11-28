@@ -37,8 +37,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in">
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-zoom-in">
                 <div className="p-6 text-center">
                     <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
                         <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -52,7 +52,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <button
                         type="button"
                         className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
-                        onClick={onConfirm} // CORREÇÃO: Apenas chama onConfirm. A lógica de fechar o modal fica na função que é passada para onConfirm.
+                        onClick={onConfirm}
                     >
                         Confirmar
                     </button>
@@ -65,15 +65,6 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     </button>
                 </div>
             </div>
-             <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.2s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

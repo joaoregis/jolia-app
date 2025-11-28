@@ -47,7 +47,7 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
 
     return (
         <div className="fixed bottom-4 right-4 z-50 max-w-[90vw]">
-            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-2 flex flex-wrap items-center justify-center gap-3 animate-fade-in-up w-auto">
+            <div className="bg-card border border-border-color rounded-xl shadow-2xl p-2 flex flex-wrap items-center justify-center gap-3 animate-slide-up w-auto">
                 <div className="text-sm font-bold text-text-primary bg-accent/20 text-accent rounded-lg px-3 py-1 whitespace-nowrap">
                     {totalCount} {totalCount > 1 ? 'itens' : 'item'}
                 </div>
@@ -72,15 +72,6 @@ export const CalculationToolbar: React.FC<CalculationToolbarProps> = ({
                     <X size={20} />
                 </button>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

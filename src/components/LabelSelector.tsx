@@ -36,7 +36,7 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isOpen, onClose, anchorEl]);
-    
+
     useEffect(() => {
         if (isOpen && popoverRef.current && anchorEl) {
             const rect = anchorEl.getBoundingClientRect();
@@ -49,7 +49,6 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
 
     return ReactDOM.createPortal(
         <div ref={popoverRef} className="fixed z-50 w-64 bg-card border border-border-color rounded-lg shadow-lg p-2 animate-fade-in">
-             <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.1s ease-out forwards; } `}</style>
             <div className="max-h-60 overflow-y-auto space-y-1">
                 {availableLabels.map(label => {
                     const isSelected = selectedLabelIds.includes(label.id);
@@ -67,7 +66,7 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
                         </div>
                     );
                 })}
-                 {availableLabels.length === 0 && (
+                {availableLabels.length === 0 && (
                     <p className="text-center text-xs text-text-secondary p-4">Nenhum rótulo criado. Vá para as Configurações para adicionar.</p>
                 )}
             </div>

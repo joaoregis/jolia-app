@@ -17,7 +17,7 @@ const icons = {
 
 const Toast: React.FC<ToastProps> = ({ toast, onClose }) => {
     return (
-        <div className="bg-card text-text-primary rounded-lg shadow-lg p-4 flex items-start gap-4 animate-fade-in-right">
+        <div className="bg-card text-text-primary rounded-lg shadow-lg p-4 flex items-start gap-4 animate-slide-in-right">
             <div className="flex-shrink-0">{icons[toast.type]}</div>
             <div className="flex-grow text-sm">{toast.message}</div>
             <button onClick={onClose} className="text-text-secondary hover:opacity-75">
@@ -26,7 +26,6 @@ const Toast: React.FC<ToastProps> = ({ toast, onClose }) => {
         </div>
     );
 };
-
 
 interface ToastContainerProps {
     toasts: ToastMessage[];
@@ -39,15 +38,6 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeTo
             {toasts.map(toast => (
                 <Toast key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
             ))}
-            <style>{`
-                @keyframes fade-in-right {
-                    from { opacity: 0; transform: translateX(20px); }
-                    to { opacity: 1; transform: translateX(0); }
-                }
-                .animate-fade-in-right {
-                    animation: fade-in-right 0.3s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

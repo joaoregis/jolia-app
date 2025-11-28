@@ -53,10 +53,10 @@ export const AddSubprofileModal: React.FC<AddSubprofileModalProps> = ({ isOpen, 
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div 
+            <div
                 onClick={(e) => e.stopPropagation()}
                 // CORREÇÃO: Estrutura flexível com altura máxima
-                className="bg-card rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[90vh]"
+                className="bg-card rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[90vh] animate-zoom-in"
                 style={modalStyle}
             >
                 {/* Cabeçalho Fixo */}

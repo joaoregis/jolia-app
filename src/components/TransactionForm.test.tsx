@@ -213,8 +213,12 @@ describe('TransactionForm', () => {
         expect(screen.queryByText('Data de Vencimento')).not.toBeInTheDocument();
 
         // Change to expense
-        const typeSelect = screen.getByRole('combobox');
-        await user.selectOptions(typeSelect, 'expense');
+        // Change to expense
+        const typeTrigger = screen.getByRole('button', { name: /receita/i });
+        await user.click(typeTrigger);
+
+        const expenseOption = screen.getByRole('button', { name: /despesa/i });
+        await user.click(expenseOption);
 
         expect(screen.getByText('Data de Vencimento')).toBeInTheDocument();
     });

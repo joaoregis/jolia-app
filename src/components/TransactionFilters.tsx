@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, X, Layers } from 'lucide-react';
+import { Select } from './Select';
 import { FilterConfig, Label, GroupBy } from '../types';
 
 interface TransactionFiltersProps {
@@ -40,18 +41,18 @@ export const TransactionFilters: React.FC<TransactionFiltersProps> = ({ filters,
                     />
                 </div>
 
-                <div className="flex items-center gap-2 bg-background border border-border rounded-md px-3 py-2">
-                    <Layers size={16} className="text-text-secondary" />
-                    <select
+                <div className="w-48">
+                    <Select
                         value={groupBy}
-                        onChange={(e) => onGroupByChange(e.target.value as GroupBy)}
-                        className="bg-transparent text-sm text-text-primary outline-none cursor-pointer"
-                    >
-                        <option value="none" className="bg-card text-text-primary">Sem Agrupamento</option>
-                        <option value="label" className="bg-card text-text-primary">Por Rótulo</option>
-                        <option value="date" className="bg-card text-text-primary">Por Data</option>
-                        <option value="type" className="bg-card text-text-primary">Por Tipo</option>
-                    </select>
+                        onChange={(val) => onGroupByChange(val as GroupBy)}
+                        options={[
+                            { value: 'none', label: 'Sem Agrupamento' },
+                            { value: 'label', label: 'Por Rótulo' },
+                            { value: 'date', label: 'Por Data' },
+                            { value: 'type', label: 'Por Tipo' },
+                        ]}
+                        icon={<Layers size={16} />}
+                    />
                 </div>
 
                 <button

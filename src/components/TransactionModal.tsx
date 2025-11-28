@@ -24,15 +24,11 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
     if (!isOpen) return null;
 
     return (
-        <div 
-            className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
-        >
-            <div 
-                className="bg-card rounded-lg shadow-xl w-full max-w-lg flex flex-col max-h-[90vh] animate-fade-in-up"
-            >
-                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border-color">
-                    <h3 className="text-xl font-semibold text-text-primary">{title}</h3>
-                    <button onClick={onClose} className="text-text-secondary hover:opacity-75">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh] animate-zoom-in">
+                <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-border-color">
+                    <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-text-secondary hover:bg-background transition-colors">
                         <X size={24} />
                     </button>
                 </div>
@@ -41,15 +37,6 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                     {children}
                 </div>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

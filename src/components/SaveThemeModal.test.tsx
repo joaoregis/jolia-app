@@ -16,7 +16,7 @@ describe('SaveThemeModal', () => {
             />
         );
 
-        expect(screen.queryByText('Salvar Tema Personalizado')).not.toBeInTheDocument();
+        expect(screen.queryByText('Salvar Tema')).not.toBeInTheDocument();
     });
 
     it('should render when isOpen is true', () => {
@@ -28,7 +28,7 @@ describe('SaveThemeModal', () => {
             />
         );
 
-        expect(screen.getByText('Salvar Tema Personalizado')).toBeInTheDocument();
+        expect(screen.getByText('Salvar Tema')).toBeInTheDocument();
         expect(screen.getByLabelText('Nome do Tema')).toBeInTheDocument();
     });
 

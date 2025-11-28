@@ -8,6 +8,7 @@ import { CurrencyInput } from './CurrencyInput';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DateInput } from './DateInput';
 import { LabelSelector } from './LabelSelector';
+import { Select } from './Select';
 import { PlusCircle } from 'lucide-react';
 import { getLocalDateISOString } from '../lib/utils';
 
@@ -101,9 +102,27 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="md:col-span-1">
+                    <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
+                    <Select
+                        value={formData.type}
+                        onChange={(value) => setFormData(prev => ({ ...prev, type: value as 'income' | 'expense' }))}
+                        options={[
+                            { value: 'expense', label: 'Despesa' },
+                            { value: 'income', label: 'Receita' }
+                        ]}
+                    />
+                </div>
+                <div className="md:col-span-3">
+                    <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
+                    <input id="description" type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3" />
+                </div>
+            </div>
+
             <div>
-                <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Descrição</label>
-                <input id="description" type="text" name="description" value={formData.description} onChange={handleChange} required className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent p-3" />
+                <label htmlFor="date" className="block text-sm font-medium text-text-secondary mb-1">Data</label>
+                <DateInput id="date" name="date" value={formData.date} onChange={handleChange} />
             </div>
 
             <div>
@@ -141,20 +160,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSav
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-1">Valor Efetivo</label>
                     <CurrencyInput value={formData.actual} onValueChange={(newValue) => handleValueChange('actual', newValue)} />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-1">Tipo</label>
-                    <select name="type" value={formData.type} onChange={handleChange} disabled={!isSubprofileView} className="mt-1 block w-full rounded-md border-border-color shadow-sm bg-card text-text-primary focus:border-accent focus:ring-accent disabled:opacity-50 p-3">
-                        <option value="expense">Despesa</option>
-                        <option value="income">Receita</option>
-                    </select>
-                </div>
-                <div>
-                    <label htmlFor="date" className="block text-sm font-medium text-text-secondary mb-1">Data de Lançamento</label>
-                    <DateInput id="date" name="date" value={formData.date} onChange={handleChange} required />
                 </div>
             </div>
 

@@ -23,13 +23,6 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     const formattedCurrentMonth = useMemo(() => {
-        // If currentMonth is just a year (month is 0, day is 1, but we need to check if it represents a whole year context)
-        // Actually, the parent controls what currentMonth is.
-        // If we want to show "2024" instead of "Janeiro 2024", we need to know if a month is selected.
-        // But currentMonth is a Date object, so it always has a month.
-        // We might need a way to know if "All Year" is selected.
-        // For now, let's just format it normally. If the parent passes a Date representing the year, it will show a month.
-        // Ideally, the parent should pass `selectedYear` and `selectedMonth` separately, but to keep it simple:
         return currentMonth.toLocaleDateString('pt-BR', {
             month: 'long',
             year: 'numeric',
@@ -103,8 +96,8 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
             </button>
 
             {isOpen && (
-                <>
-                    <div className="absolute left-1/2 -translate-x-1/2 z-10 mt-2 w-56 origin-top rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-border-color max-h-60 overflow-y-auto animate-fade-in-scale-up">
+                <div className="absolute left-1/2 -translate-x-1/2 z-10 mt-2 w-56">
+                    <div className="w-full origin-top rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-border-color max-h-60 overflow-y-auto animate-zoom-in">
                         <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="menu-button">
                             {sortedYears.map(year => (
                                 <div key={year} className="overflow-hidden">
@@ -137,8 +130,8 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
                                                         key={monthStr}
                                                         onClick={() => handleSelect(monthStr)}
                                                         className={`w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md ${isCurrent
-                                                                ? 'bg-accent text-white'
-                                                                : 'text-text-primary hover:bg-background'
+                                                            ? 'bg-accent text-white'
+                                                            : 'text-text-primary hover:bg-background'
                                                             }`}
                                                         role="menuitem"
                                                     >
@@ -153,22 +146,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({
                             ))}
                         </div>
                     </div>
-                    <style>{`
-                        @keyframes fadeInScaleUp {
-                            from { 
-                                opacity: 0; 
-                                transform: translate(-50%, -10px) scale(0.95); 
-                            }
-                            to { 
-                                opacity: 1; 
-                                transform: translate(-50%, 0) scale(1); 
-                            }
-                        }
-                        .animate-fade-in-scale-up {
-                            animation: fadeInScaleUp 0.15s ease-out forwards;
-                        }
-                    `}</style>
-                </>
+                </div>
             )}
         </div>
     );

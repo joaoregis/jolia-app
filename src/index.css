@@ -16,14 +16,17 @@
     width: 8px;
     height: 8px;
   }
+
   ::-webkit-scrollbar-track {
     background-color: var(--sidebar);
   }
+
   ::-webkit-scrollbar-thumb {
     background-color: var(--border);
     border-radius: 10px;
     border: 2px solid var(--sidebar);
   }
+
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--accent);
   }
@@ -33,7 +36,26 @@
   .text-with-shadow {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
   }
+
   .text-shadow-none {
     text-shadow: none;
+  }
+
+  /* Masonry Grid Styles */
+  @media (min-width: 768px) {
+    .masonry-grid {
+      column-count: 2;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .masonry-grid {
+      column-count: 3;
+    }
+  }
+
+  .masonry-item {
+    break-inside: avoid-column;
+    page-break-inside: avoid;
   }
 }

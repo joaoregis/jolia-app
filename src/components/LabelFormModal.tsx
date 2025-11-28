@@ -40,7 +40,7 @@ export const LabelFormModal: React.FC<LabelFormModalProps> = ({ isOpen, onClose,
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-zoom-in" onClick={(e) => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border-color">
                         <h3 className="text-xl font-semibold text-text-primary">
@@ -77,15 +77,6 @@ export const LabelFormModal: React.FC<LabelFormModalProps> = ({ isOpen, onClose,
                     </div>
                 </form>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

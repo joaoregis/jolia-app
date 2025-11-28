@@ -38,7 +38,7 @@ const Tooltip: React.FC<{ content: string, children: React.ReactNode }> = ({ con
         if (isVisible && triggerRef.current && tooltipRef.current) {
             const { top, left, width } = triggerRef.current.getBoundingClientRect();
             const { width: tooltipWidth } = tooltipRef.current.getBoundingClientRect();
-            
+
             tooltipRef.current.style.left = `${left + window.scrollX + width / 2 - tooltipWidth / 2}px`;
             tooltipRef.current.style.top = `${top + window.scrollY - tooltipRef.current.offsetHeight - 8}px`;
         }
@@ -197,12 +197,12 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                         <div className="w-1/4 bg-sidebar p-3 flex flex-col justify-between">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <Briefcase className="text-accent" size={24}/>
+                                    <Briefcase className="text-accent" size={24} />
                                     <h1 className="text-lg font-bold text-sidebar-text-primary">Jolia</h1>
                                 </div>
                                 <div className="mt-6 space-y-2">
                                     <div className="flex items-center gap-2 p-2 rounded bg-accent text-white">
-                                        <Home size={16}/>
+                                        <Home size={16} />
                                         <span className="text-sm">Dashboard</span>
                                     </div>
                                     <p className="text-sm text-sidebar-text-secondary p-2">Menu Item</p>
@@ -214,7 +214,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                         <div className="w-3/4 flex flex-col">
                             <div className="bg-sidebar p-3 border-b border-border flex justify-between items-center">
                                 <div className="flex items-center gap-1.5 text-sm text-sidebar-text-secondary">
-                                    <span>Nossa Casa</span> <ChevronRight size={14}/> <span>Finanças</span>
+                                    <span>Nossa Casa</span> <ChevronRight size={14} /> <span>Finanças</span>
                                 </div>
                                 <div className="w-6 h-6 rounded-full bg-background"></div>
                             </div>
@@ -227,7 +227,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                                     <table className="w-full text-left text-xs">
                                         <thead className="text-table-header-text bg-table-header">
                                             <tr>
-                                                <th className="p-2">Descrição <ArrowUpDown size={10} className="inline"/></th>
+                                                <th className="p-2">Descrição <ArrowUpDown size={10} className="inline" /></th>
                                                 <th className="p-2">Valor</th>
                                             </tr>
                                         </thead>
@@ -245,7 +245,6 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ customTheme, o
                     </div>
                 </div>
             </div>
-             <style>{` @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } } .animate-fade-in { animation: fade-in 0.2s ease-out forwards; } `}</style>
         </div>
     );
 };

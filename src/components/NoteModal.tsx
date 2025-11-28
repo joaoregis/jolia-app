@@ -1,7 +1,7 @@
 // src/components/NoteModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface NoteModalProps {
     isOpen: boolean;
@@ -28,41 +28,39 @@ export const NoteModal: React.FC<NoteModalProps> = ({ isOpen, onClose, onSave, i
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-fade-in-up">
+            <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-zoom-in">
                 <div className="flex justify-between items-center p-4 border-b border-border-color">
-                    <h3 className="text-xl font-semibold text-text-primary">Nota da Transação</h3>
+                    <h3 className="text-lg font-medium text-text-primary">Anotações</h3>
                     <button onClick={onClose} className="text-text-secondary hover:opacity-75">
-                        <X size={24} />
+                        <X size={20} />
                     </button>
                 </div>
-                <div className="p-6">
+                <div className="p-4">
                     <textarea
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        rows={6}
-                        className="w-full p-2 mt-1 font-mono text-sm border rounded-md bg-background text-text-primary border-border-color focus:ring-accent focus:border-accent"
+                        className="w-full h-32 bg-background border border-border-color rounded px-3 py-2 text-text-primary focus:ring-2 focus:ring-accent focus:border-transparent outline-none resize-none"
                         placeholder="Adicione uma observação..."
                         autoFocus
                     />
                 </div>
-                <div className="flex justify-end gap-3 p-4 bg-background/50 rounded-b-lg">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg bg-card text-text-primary hover:opacity-80 border border-border-color">
-                        Cancelar
+                <div className="bg-background px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg border-t border-border-color">
+                    <button
+                        type="button"
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-accent text-base font-medium text-white hover:bg-accent-hover focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
+                        onClick={handleSave}
+                    >
+                        Salvar
                     </button>
-                    <button type="button" onClick={handleSave} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg bg-accent hover:bg-accent-hover">
-                        <Save size={16} /> Salvar Nota
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-border-color shadow-sm px-4 py-2 bg-card text-base font-medium text-text-primary hover:opacity-80 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+                        onClick={onClose}
+                    >
+                        Cancelar
                     </button>
                 </div>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: scale(0.95); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.2s ease-out forwards;
-                }
-            `}</style>
         </div>
     );
 };

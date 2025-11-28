@@ -21,7 +21,7 @@ interface DashboardHeaderProps {
     onOpenSettings?: () => void;
     availableMonths: string[];
     closedMonths: string[];
-    onMonthSelect: (year: number, month: number) => void;
+    onMonthSelect: (year: number, month: number | null) => void;
 }
 
 const ActionMenu: React.FC<Pick<DashboardHeaderProps, 'onExport' | 'onImport' | 'isCurrentMonthClosed' | 'activeTab'>> =

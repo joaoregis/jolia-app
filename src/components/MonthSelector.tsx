@@ -7,19 +7,35 @@ interface MonthSelectorProps {
     currentMonth: Date;
     availableMonths: string[]; // "YYYY-MM"
     closedMonths: string[];   // "YYYY-MM"
-    onMonthSelect: (year: number, month: number) => void;
+    onMonthSelect: (year: number, month: number | null) => void;
+    allowYearSelection?: boolean;
 }
 
-export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, availableMonths, closedMonths, onMonthSelect }) => {
+export const MonthSelector: React.FC<MonthSelectorProps> = ({
+    currentMonth,
+    availableMonths,
+    closedMonths,
+    onMonthSelect,
+    allowYearSelection = false
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
     const wrapperRef = useRef<HTMLDivElement>(null);
 
-    const formattedCurrentMonth = currentMonth.toLocaleDateString('pt-BR', {
-        month: 'long',
-        year: 'numeric',
-    }).replace(/^\w/, c => c.toUpperCase());
-    
+    const formattedCurrentMonth = useMemo(() => {
+        // If currentMonth is just a year (month is 0, day is 1, but we need to check if it represents a whole year context)
+        // Actually, the parent controls what currentMonth is.
+        // If we want to show "2024" instead of "Janeiro 2024", we need to know if a month is selected.
+        // But currentMonth is a Date object, so it always has a month.
+        // We might need a way to know if "All Year" is selected.
+        // For now, let's just format it normally. If the parent passes a Date representing the year, it will show a month.
+        // Ideally, the parent should pass `selectedYear` and `selectedMonth` separately, but to keep it simple:
+        return currentMonth.toLocaleDateString('pt-BR', {
+            month: 'long',
+            year: 'numeric',
+        }).replace(/^\w/, c => c.toUpperCase());
+    }, [currentMonth]);
+
     const currentMonthString = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
     useEffect(() => {
@@ -31,6 +47,11 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
     const handleSelect = (monthString: string) => {
         const [year, month] = monthString.split('-').map(Number);
         onMonthSelect(year, month - 1);
+        setIsOpen(false);
+    };
+
+    const handleYearSelect = (year: number) => {
+        onMonthSelect(year, null);
         setIsOpen(false);
     };
 
@@ -56,7 +77,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [wrapperRef]);
-    
+
     const groupedMonths = useMemo(() => {
         const sorted = [...availableMonths].sort((a, b) => b.localeCompare(a));
         return sorted.reduce((acc, monthStr) => {
@@ -80,7 +101,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
                 <span>{formattedCurrentMonth}</span>
                 <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {isOpen && (
                 <>
                     <div className="absolute left-1/2 -translate-x-1/2 z-10 mt-2 w-56 origin-top rounded-md bg-card shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-border-color max-h-60 overflow-y-auto animate-fade-in-scale-up">
@@ -96,6 +117,14 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
                                     </button>
                                     <div className={`transition-[max-height,padding] duration-300 ease-in-out overflow-hidden ${expandedYears.has(year) ? 'max-h-96 pb-2' : 'max-h-0'}`}>
                                         <div className="pl-4">
+                                            {allowYearSelection && (
+                                                <button
+                                                    onClick={() => handleYearSelect(Number(year))}
+                                                    className="w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md text-text-primary hover:bg-background font-medium mb-1"
+                                                >
+                                                    <span>Todo o ano de {year}</span>
+                                                </button>
+                                            )}
                                             {groupedMonths[year].map(monthStr => {
                                                 const [yearNum, monthNum] = monthStr.split('-');
                                                 const date = new Date(Number(yearNum), Number(monthNum) - 1, 1);
@@ -107,11 +136,10 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
                                                     <button
                                                         key={monthStr}
                                                         onClick={() => handleSelect(monthStr)}
-                                                        className={`w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md ${
-                                                            isCurrent 
-                                                                ? 'bg-accent text-white' 
+                                                        className={`w-full text-left flex items-center justify-between px-4 py-2 text-sm rounded-md ${isCurrent
+                                                                ? 'bg-accent text-white'
                                                                 : 'text-text-primary hover:bg-background'
-                                                        }`}
+                                                            }`}
                                                         role="menuitem"
                                                     >
                                                         <span>{formatted}</span>

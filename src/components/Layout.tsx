@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { User } from 'firebase/auth';
-import { Briefcase, Home, LogOut, ChevronLeft, Gift, Settings } from 'lucide-react';
+import { Briefcase, Home, LogOut, ChevronLeft, Gift, Settings, Film } from 'lucide-react';
 import { Header } from './Header';
 import { ProfileProvider } from '../contexts/ProfileContext';
 
@@ -19,7 +19,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
     const location = useLocation();
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    
+
     const [isCollapsed, setIsCollapsed] = useState(() => {
         try {
             const savedState = localStorage.getItem(COLLAPSED_STATE_STORAGE_KEY);
@@ -40,30 +40,31 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
     const subprofilePath = subprofileId ? `/${subprofileId}` : '';
 
     const navItems = [
-        { href: `/profile/${profileId}${subprofilePath}`, icon: Home, label: 'Dashboard' },
+        { href: `/profile/${profileId}${subprofilePath}`, icon: Home, label: 'Controle Financeiro' },
         { href: `/profile/${profileId}/wishlist${subprofilePath}`, icon: Gift, label: 'Lista de Desejos' },
+        { href: `/profile/${profileId}/media`, icon: Film, label: 'Entretenimento' },
     ];
 
-    const NavLink: React.FC<{ href: string; icon: React.ElementType; label: string; isActive: boolean; isCollapsed: boolean; }> = 
-    ({ href, icon: Icon, label, isActive, isCollapsed }) => (
-        <a 
-            href={href} 
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
+    const NavLink: React.FC<{ href: string; icon: React.ElementType; label: string; isActive: boolean; isCollapsed: boolean; }> =
+        ({ href, icon: Icon, label, isActive, isCollapsed }) => (
+            <a
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
                 ${isActive ? 'bg-accent text-white' : 'text-sidebar-text-secondary hover:bg-background'}
                 ${isCollapsed ? 'justify-center' : ''}
             `}
-            title={isCollapsed ? label : undefined}
-        >
-            <Icon size={20}/>
-            {!isCollapsed && <span>{label}</span>}
-        </a>
-    );
+                title={isCollapsed ? label : undefined}
+            >
+                <Icon size={20} />
+                {!isCollapsed && <span>{label}</span>}
+            </a>
+        );
 
     return (
         <ProfileProvider>
             <div className="flex h-screen overflow-hidden bg-background font-sans">
                 {isMobileMenuOpen && (
-                    <div 
+                    <div
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="fixed inset-0 bg-black/60 z-30 lg:hidden"
                         aria-hidden="true"
@@ -81,33 +82,36 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                             <Briefcase className="text-accent h-8 w-8 flex-shrink-0" />
                             {!isCollapsed && <h1 className="text-2xl font-bold text-sidebar-text-primary whitespace-nowrap">Jolia</h1>}
                         </div>
-                        
-                        <nav className="space-y-2">
-                        {navItems.map(item => {
-                            const isDashboardRoute = !location.pathname.includes('wishlist') && !location.pathname.includes('settings');
-                            const isWishlistRoute = location.pathname.includes('wishlist');
-                            
-                            let isActive = false;
-                            if (item.label === 'Dashboard') {
-                                isActive = isDashboardRoute;
-                            } else if (item.label === 'Lista de Desejos') {
-                                isActive = isWishlistRoute;
-                            }
 
-                            return (
-                                <NavLink 
+                        <nav className="space-y-2">
+                            {navItems.map(item => {
+                                const isDashboardRoute = !location.pathname.includes('wishlist') && !location.pathname.includes('settings') && !location.pathname.includes('media');
+                                const isWishlistRoute = location.pathname.includes('wishlist');
+                                const isMediaRoute = location.pathname.includes('media');
+
+                                let isActive = false;
+                                if (item.label === 'Controle Financeiro') {
+                                    isActive = isDashboardRoute;
+                                } else if (item.label === 'Lista de Desejos') {
+                                    isActive = isWishlistRoute;
+                                } else if (item.label === 'Entretenimento') {
+                                    isActive = isMediaRoute;
+                                }
+
+                                return (
+                                    <NavLink
                                         key={item.label}
                                         href={item.href}
                                         icon={item.icon}
                                         label={item.label}
                                         isCollapsed={isCollapsed}
                                         isActive={isActive}
-                                />
-                            )
+                                    />
+                                )
                             })}
                         </nav>
                     </div>
-                    
+
                     <div className="space-y-2 border-t border-border pt-4">
                         <NavLink
                             href={`/profile/${profileId}/settings`}
@@ -122,7 +126,7 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                         </button>
                     </div>
 
-                    <button 
+                    <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
                         className="absolute -right-3 top-16 hidden lg:flex items-center justify-center w-6 h-6 bg-accent text-white rounded-full hover:bg-accent-hover focus:outline-none"
                         title={isCollapsed ? "Expandir menu" : "Recolher menu"}
@@ -130,9 +134,9 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
                         <ChevronLeft className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} size={16} />
                     </button>
                 </aside>
-                
+
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header 
+                    <Header
                         onMenuClick={() => setIsMobileMenuOpen(true)}
                         user={user}
                     />

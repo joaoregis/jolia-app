@@ -20,10 +20,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, user }) => {
         if (!profile) return 'Dashboard';
 
         const parts: React.ReactNode[] = [<span key="profile">{profile.name}</span>];
-        
+
         if (location.pathname.includes('/wishlist')) {
             parts.push(<ChevronRight key="sep1" size={16} />);
             parts.push(<span key="page">Lista de Desejos</span>);
+        } else if (location.pathname.includes('/media')) {
+            parts.push(<ChevronRight key="sep1" size={16} />);
+            parts.push(<span key="page">Entretenimento</span>);
         } else {
             parts.push(<ChevronRight key="sep1" size={16} />);
             parts.push(<span key="page">Finanças</span>);
@@ -55,9 +58,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, user }) => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-3 text-sm text-sidebar-text-secondary">
+                    <div className="flex items-center gap-3 text-sm text-sidebar-text-secondary">
                         <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
-                            <UserIcon size={18} className="text-text-secondary"/>
+                            <UserIcon size={18} className="text-text-secondary" />
                         </div>
                         <span className="hidden md:inline">{user?.email}</span>
                     </div>

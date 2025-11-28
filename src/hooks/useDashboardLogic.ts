@@ -59,7 +59,8 @@ export function useDashboardLogic(
         setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + amount, 1));
     }, []);
 
-    const handleMonthSelect = useCallback((year: number, month: number) => {
+    const handleMonthSelect = useCallback((year: number, month: number | null) => {
+        if (month === null) month = 0; // Default to January if year selected (not supported in dashboard yet)
         setCurrentMonth(new Date(year, month, 1));
     }, []);
 

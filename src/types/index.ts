@@ -132,3 +132,45 @@ export interface TransactionActions {
   onTransfer: (transaction: Transaction) => void;
   onSaveNote: (transactionId: string, note: string) => void;
 }
+
+// Tipos para a feature de Mídia Assistida
+export type MediaProvider = 'Netflix' | 'Prime Video' | 'Disney+' | 'HBO Max' | 'Apple TV+' | 'Cinema' | 'Youtube' | 'Outro';
+
+export type MediaType = 'movie' | 'series' | 'documentary' | 'video' | 'other';
+
+export interface MediaItem {
+  id: string;
+  title: string;
+  type: MediaType;
+  provider: MediaProvider;
+  providerDetail?: string; // Para quando for 'Outro'
+  link?: string; // Link para assistir
+  suggestedBy: string; // ID do subperfil
+
+  // Series/Episodic fields
+  currentSeason?: number;
+  currentEpisode?: number;
+  totalEpisodes?: number; // Deprecated in favor of seasonEpisodes
+  seasonEpisodes?: Record<number, number>; // Season Number -> Episode Count
+  totalSeasons?: number;
+
+  // Movie/Standalone fields
+  currentTime?: number; // Em minutos
+  duration?: number; // Em minutos
+
+  createdAt: any; // serverTimestamp
+  profileId: string; // Vinculado ao perfil principal (ambiente compartilhado)
+
+  // Status e Avaliação
+  status: 'to_watch' | 'in_progress' | 'watched';
+  ratings?: Record<string, number>; // SubprofileID -> Rating (0-10)
+
+  // Histórico
+  watchedDate?: string; // YYYY-MM (para filmes/itens únicos)
+  watchedSeasons?: Record<number, string>; // Season Number -> YYYY-MM (para séries)
+
+  // Legacy support
+  isWatched?: boolean;
+  rating?: number;
+  displayDate?: string; // Helper para exibição no histórico
+}

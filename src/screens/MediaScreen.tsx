@@ -224,6 +224,80 @@ export const MediaScreen: React.FC = () => {
         return Object.keys(groupedHistory).sort().reverse();
     }, [groupedHistory]);
 
+    const renderHistoryItem = (item: MediaItem) => {
+        const uniqueKey = (item as any).displaySeason
+            ? `${item.id}-s${(item as any).displaySeason}`
+            : item.id;
+
+        return (
+            <div key={uniqueKey} className="bg-card border border-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                        {item.type === 'movie' && <Film size={24} />}
+                        {item.type === 'series' && <Tv size={24} />}
+                        {item.type === 'documentary' && <FileText size={24} />}
+                        {item.type === 'video' && <Video size={24} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-text-primary truncate">{item.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+                            {getProviderBadge(item.provider)}
+                            <span className="hidden sm:inline">•</span>
+                            <span>
+                                {item.type === 'movie' && 'Filme'}
+                                {item.type === 'series' && 'Série'}
+                                {item.type === 'documentary' && 'Doc'}
+                                {item.type === 'video' && 'Vídeo'}
+                            </span>
+                            {(item as any).displaySeason ? (
+                                <>
+                                    <span>•</span>
+                                    <span className="text-accent whitespace-nowrap">Temp {(item as any).displaySeason}</span>
+                                </>
+                            ) : (
+                                item.currentSeason && (
+                                    <>
+                                        <span>•</span>
+                                        <span className="text-accent whitespace-nowrap">S{item.currentSeason}:E{item.currentEpisode || 1}</span>
+                                    </>
+                                )
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto border-t md:border-t-0 border-border pt-3 md:pt-0">
+                    <div className="flex items-center gap-2">
+                        {/* Show average rating or a star icon */}
+                        {item.ratings && Object.values(item.ratings).length > 0 ? (
+                            <div className="flex items-center gap-1 bg-accent/5 px-2 py-1 rounded">
+                                <StarRating
+                                    rating={Object.values(item.ratings).reduce((a, b) => a + b, 0) / Object.values(item.ratings).length}
+                                    readOnly
+                                    size={14}
+                                />
+                                <span className="text-xs text-text-secondary">({Object.values(item.ratings).length})</span>
+                            </div>
+                        ) : (
+                            <span className="text-xs text-text-secondary">Sem nota</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => handleQuickRatingClick(item, (item as any).displaySeason)} className="p-2 text-text-secondary hover:text-yellow-500 rounded-lg" title="Avaliar rapidamente">
+                            <Star size={18} />
+                        </button>
+                        <button onClick={() => handleEditClick(item)} className="p-2 text-text-secondary hover:text-accent rounded-lg">
+                            <Edit2 size={18} />
+                        </button>
+                        <button onClick={() => handleToggleWatched(item)} className="p-2 text-green-500 hover:text-green-600 rounded-lg" title="Marcar como não assistido">
+                            <CheckCircle size={18} fill="currentColor" className="text-green-100" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const renderMediaCard = (item: MediaItem) => (
         <div key={item.id} className="bg-card border border-border rounded-xl p-0 shadow-sm hover:shadow-md transition-all group relative flex flex-col h-full overflow-hidden">
             {/* Header / Banner Area */}
@@ -448,141 +522,12 @@ export const MediaScreen: React.FC = () => {
                                         <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider pl-1 mt-6 mb-2 border-b border-border pb-1">
                                             {monthName}
                                         </h3>
-                                        {groupedHistory[monthStr].map(item => (
-                                            <div key={item.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between hover:shadow-sm transition-shadow">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                                                        {item.type === 'movie' && <Film size={24} />}
-                                                        {item.type === 'series' && <Tv size={24} />}
-                                                        {item.type === 'documentary' && <FileText size={24} />}
-                                                        {item.type === 'video' && <Video size={24} />}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-text-primary">{item.title}</h3>
-                                                        <div className="flex items-center gap-2 text-sm text-text-secondary">
-                                                            {getProviderBadge(item.provider)}
-                                                            <span>•</span>
-                                                            <span>
-                                                                {item.type === 'movie' && 'Filme'}
-                                                                {item.type === 'series' && 'Série'}
-                                                                {item.type === 'documentary' && 'Documentário'}
-                                                                {item.type === 'video' && 'Vídeo'}
-                                                            </span>
-                                                            {(item as any).displaySeason ? (
-                                                                <>
-                                                                    <span>•</span>
-                                                                    <span className="text-accent">Temporada {(item as any).displaySeason}</span>
-                                                                </>
-                                                            ) : (
-                                                                item.currentSeason && (
-                                                                    <>
-                                                                        <span>•</span>
-                                                                        <span className="text-accent">S{item.currentSeason}:E{item.currentEpisode || 1}</span>
-                                                                    </>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-6">
-                                                    <div className="hidden md:flex items-center gap-2">
-                                                        {/* Show average rating or a star icon */}
-                                                        {item.ratings && Object.values(item.ratings).length > 0 ? (
-                                                            <div className="flex items-center gap-1 bg-accent/5 px-2 py-1 rounded">
-                                                                <StarRating
-                                                                    rating={Object.values(item.ratings).reduce((a, b) => a + b, 0) / Object.values(item.ratings).length}
-                                                                    readOnly
-                                                                    size={14}
-                                                                />
-                                                                <span className="text-xs text-text-secondary">({Object.values(item.ratings).length})</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-xs text-text-secondary">Sem nota</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <button onClick={() => handleQuickRatingClick(item, (item as any).displaySeason)} className="p-2 text-text-secondary hover:text-yellow-500 rounded-lg" title="Avaliar rapidamente">
-                                                            <Star size={18} />
-                                                        </button>
-                                                        <button onClick={() => handleEditClick(item)} className="p-2 text-text-secondary hover:text-accent rounded-lg">
-                                                            <Edit2 size={18} />
-                                                        </button>
-                                                        <button onClick={() => handleToggleWatched(item)} className="p-2 text-green-500 hover:text-green-600 rounded-lg" title="Marcar como não assistido">
-                                                            <CheckCircle size={18} fill="currentColor" className="text-green-100" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                        {groupedHistory[monthStr].map(item => renderHistoryItem(item))}
                                     </div>
                                 );
                             })
                         ) : (
-                            filteredHistory.map(item => (
-                                <div key={item.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                                            {item.type === 'movie' && <Film size={24} />}
-                                            {item.type === 'series' && <Tv size={24} />}
-                                            {item.type === 'documentary' && <FileText size={24} />}
-                                            {item.type === 'video' && <Video size={24} />}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-text-primary">{item.title}</h3>
-                                            <div className="flex items-center gap-2 text-sm text-text-secondary">
-                                                {getProviderBadge(item.provider)}
-                                                <span>•</span>
-                                                <span>
-                                                    {item.type === 'movie' && 'Filme'}
-                                                    {item.type === 'series' && 'Série'}
-                                                    {item.type === 'documentary' && 'Documentário'}
-                                                    {item.type === 'video' && 'Vídeo'}
-                                                </span>
-                                                {(item as any).displaySeason ? (
-                                                    <>
-                                                        <span>•</span>
-                                                        <span className="text-accent">Temporada {(item as any).displaySeason}</span>
-                                                    </>
-                                                ) : (
-                                                    item.currentSeason && (
-                                                        <>
-                                                            <span>•</span>
-                                                            <span className="text-accent">S{item.currentSeason}:E{item.currentEpisode || 1}</span>
-                                                        </>
-                                                    )
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-6">
-                                        <div className="hidden md:flex items-center gap-2">
-                                            {/* Show average rating or a star icon */}
-                                            {item.ratings && Object.values(item.ratings).length > 0 ? (
-                                                <div className="flex items-center gap-1 bg-accent/5 px-2 py-1 rounded">
-                                                    <StarRating
-                                                        rating={Object.values(item.ratings).reduce((a, b) => a + b, 0) / Object.values(item.ratings).length}
-                                                        readOnly
-                                                        size={14}
-                                                    />
-                                                    <span className="text-xs text-text-secondary">({Object.values(item.ratings).length})</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-text-secondary">Sem nota</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => handleEditClick(item)} className="p-2 text-text-secondary hover:text-accent rounded-lg">
-                                                <Edit2 size={18} />
-                                            </button>
-                                            <button onClick={() => handleToggleWatched(item)} className="p-2 text-green-500 hover:text-green-600 rounded-lg" title="Marcar como não assistido">
-                                                <CheckCircle size={18} fill="currentColor" className="text-green-100" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
+                            filteredHistory.map(item => renderHistoryItem(item))
                         )}
                         {filteredHistory.length === 0 && (
                             <div className="py-12 text-center text-text-secondary">

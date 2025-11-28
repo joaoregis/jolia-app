@@ -99,10 +99,15 @@ export const useMediaManager = (profileId?: string) => {
             // 2. Series with Per-Season History
             if (item.type === 'series' && item.watchedSeasons) {
                 Object.entries(item.watchedSeasons).forEach(([season, date]) => {
+                    const seasonNum = Number(season);
+                    // Use season-specific ratings if available, otherwise fall back to global ratings (or empty)
+                    const seasonSpecificRatings = item.seasonRatings?.[seasonNum] || item.ratings;
+
                     entries.push({
                         ...item,
-                        displaySeason: Number(season),
-                        displayDate: date
+                        displaySeason: seasonNum,
+                        displayDate: date,
+                        ratings: seasonSpecificRatings // Override ratings for this entry
                     });
                 });
             }

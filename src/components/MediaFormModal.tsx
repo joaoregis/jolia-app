@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, Calendar, Plus, Trash2 } from 'lucide-react';
 import { MediaItem, MediaProvider, Subprofile } from '../types';
-import { StarRating } from './StarRating';
+import { RatingsList } from './RatingsList';
 
 interface MediaFormModalProps {
     isOpen: boolean;
@@ -419,7 +419,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                     )}
 
                     {/* Standalone/Movie In Progress */}
-                    {!isEpisodic && status === 'in_progress' && (
+                    {type !== 'series' && !isEpisodic && status === 'in_progress' && (
                         <div className="bg-accent/5 p-3 rounded-lg border border-accent/20">
                             <label className="block text-xs font-medium text-text-secondary mb-1">Tempo Assistido (minutos)</label>
                             <div className="flex items-center gap-2">
@@ -455,18 +455,11 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
 
                             <div>
                                 <label className="block text-xs font-medium text-text-secondary mb-2">Avaliações</label>
-                                <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                                    {subprofiles.map(sp => (
-                                        <div key={sp.id} className="flex items-center justify-between bg-background/50 p-2 rounded border border-border/50">
-                                            <span className="text-sm text-text-primary">{sp.name}</span>
-                                            <StarRating
-                                                rating={ratings[sp.id] || 0}
-                                                onChange={(r) => handleRatingChange(sp.id, r)}
-                                                size={16}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
+                                <RatingsList
+                                    subprofiles={subprofiles}
+                                    ratings={ratings}
+                                    onRatingChange={handleRatingChange}
+                                />
                             </div>
                         </div>
                     )}

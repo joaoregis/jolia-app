@@ -164,6 +164,7 @@ export interface MediaItem {
   // Status e Avaliação
   status: 'to_watch' | 'in_progress' | 'watched';
   ratings?: Record<string, number>; // SubprofileID -> Rating (0-10)
+  seasonRatings?: Record<number, Record<string, number>>; // Season Number -> { SubprofileID -> Rating }
 
   // Histórico
   watchedDate?: string; // YYYY-MM (para filmes/itens únicos)

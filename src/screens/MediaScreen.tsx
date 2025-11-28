@@ -1,10 +1,11 @@
 // src/screens/MediaScreen.tsx
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Plus, Minus, Film, Tv, Trash2, Edit2, CheckCircle, ExternalLink, Clock, FileText, Video, PlayCircle } from 'lucide-react';
+import { Plus, Minus, Film, Tv, Trash2, Edit2, CheckCircle, ExternalLink, Clock, FileText, Video, PlayCircle, Star } from 'lucide-react';
 import { useMediaManager } from '../hooks/useMediaManager';
 import { useProfileContext } from '../hooks/useProfileContext';
 import { MediaFormModal } from '../components/MediaFormModal';
+import { QuickRatingModal } from '../components/QuickRatingModal';
 import { StarRating } from '../components/StarRating';
 import { MonthSelector } from '../components/MonthSelector';
 import { MediaItem } from '../types';
@@ -26,6 +27,41 @@ export const MediaScreen: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'watchlist' | 'inprogress' | 'history'>('watchlist');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<MediaItem | undefined>(undefined);
+    const [quickRatingItem, setQuickRatingItem] = useState<{ item: MediaItem, season?: number } | undefined>(undefined);
+
+    // ...
+
+    const handleQuickRatingClick = (item: MediaItem, season?: number) => {
+        setQuickRatingItem({ item, season });
+    };
+
+    const handleQuickRatingSave = async (mediaId: string, ratings: Record<string, number>, season?: number) => {
+        if (season) {
+            // Update specific season ratings
+            // We need to construct the update object carefully for Firestore dot notation
+            // But since updateMedia takes Partial<MediaItem>, we might need to cast or handle it in useMediaManager
+            // Actually, useMediaManager's updateMedia just calls updateDoc.
+            // So we can pass `[`seasonRatings.${season}`]: ratings` if we were calling updateDoc directly.
+            // However, updateMedia expects Partial<MediaItem>.
+            // Let's assume we can pass a nested object update or we need to fetch, merge and save.
+            // A better approach for Firestore nested map updates via our hook:
+
+            // We'll read the current item from the list to get existing seasonRatings
+            const currentItem = historyList.find(i => i.id === mediaId) || watchList.find(i => i.id === mediaId) || inProgressList.find(i => i.id === mediaId);
+            if (!currentItem) return;
+
+            const currentSeasonRatings = currentItem.seasonRatings || {};
+            const updatedSeasonRatings = {
+                ...currentSeasonRatings,
+                [season]: ratings
+            };
+
+            await updateMedia(mediaId, { seasonRatings: updatedSeasonRatings });
+        } else {
+            await updateMedia(mediaId, { ratings });
+        }
+        setQuickRatingItem(undefined);
+    };
 
     // History filters
     const [historyDate, setHistoryDate] = useState(new Date());
@@ -89,6 +125,8 @@ export const MediaScreen: React.FC = () => {
             await addMedia(data);
         }
     };
+
+
 
     const handleIncrementEpisode = async (item: MediaItem, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -464,6 +502,9 @@ export const MediaScreen: React.FC = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex items-center gap-2">
+                                                        <button onClick={() => handleQuickRatingClick(item, (item as any).displaySeason)} className="p-2 text-text-secondary hover:text-yellow-500 rounded-lg" title="Avaliar rapidamente">
+                                                            <Star size={18} />
+                                                        </button>
                                                         <button onClick={() => handleEditClick(item)} className="p-2 text-text-secondary hover:text-accent rounded-lg">
                                                             <Edit2 size={18} />
                                                         </button>
@@ -559,6 +600,17 @@ export const MediaScreen: React.FC = () => {
                 initialData={editingItem}
                 subprofiles={profile?.subprofiles || []}
             />
+
+            {quickRatingItem && (
+                <QuickRatingModal
+                    isOpen={!!quickRatingItem}
+                    onClose={() => setQuickRatingItem(undefined)}
+                    mediaItem={quickRatingItem.item}
+                    season={quickRatingItem.season}
+                    subprofiles={profile?.subprofiles || []}
+                    onSave={handleQuickRatingSave}
+                />
+            )}
         </div>
     );
 };

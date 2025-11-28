@@ -10,7 +10,7 @@ vi.mock('firebase/firestore', () => ({
     addDoc: vi.fn().mockResolvedValue({ id: 'new-id' }),
     updateDoc: vi.fn().mockResolvedValue(undefined),
     deleteDoc: vi.fn().mockResolvedValue(undefined),
-    doc: vi.fn(),
+    doc: vi.fn().mockReturnValue({ id: 'doc-id' }),
     query: vi.fn(),
     where: vi.fn(),
     orderBy: vi.fn(),
@@ -128,6 +128,8 @@ describe('useMediaManager', () => {
         await act(async () => {
             await result.current.updateStatus(item, 'watched', { rating: 5, watchedDate: '2023-10' });
         });
+
+
 
         expect(updateDoc).toHaveBeenCalledWith(
             expect.anything(),

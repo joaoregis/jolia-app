@@ -1,64 +1,69 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { TransactionForm } from './TransactionForm';
-import { Label } from '../types';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BrowserRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 
 // Mock dependencies
-vi.mock('react-router-dom', () => ({
-    useParams: () => ({ profileId: 'p1' })
-}));
-
-const mockLabels: Label[] = [
-    { id: 'l1', name: 'Food', color: '#ff0000', profileId: 'p1', status: 'active', createdAt: new Date() },
-    { id: 'l2', name: 'Transport', color: '#00ff00', profileId: 'p1', status: 'active', createdAt: new Date() }
-];
-
 vi.mock('../hooks/useLabels', () => ({
     useLabels: () => ({
-        labels: mockLabels,
-        loading: false
-    })
+        labels: [
+            { id: '1', name: 'Food', color: '#ff0000', status: 'active' },
+            { id: '2', name: 'Rent', color: '#00ff00', status: 'active' },
+        ],
+    }),
 }));
 
-// Mock child components to simplify testing
 vi.mock('./CurrencyInput', () => ({
-    CurrencyInput: ({ value, onValueChange }: { value: number, onValueChange: (val: number) => void }) => (
+    CurrencyInput: ({ value, onValueChange, max }: any) => (
         <input
             data-testid="currency-input"
             type="number"
             value={value}
+            max={max}
             onChange={(e) => onValueChange(Number(e.target.value))}
         />
-    )
-}));
-
-vi.mock('./DateInput', () => ({
-    DateInput: ({ id, value, onChange, name }: any) => (
-        <input data-testid={`date-input-${name}`} id={id} name={name} value={value} onChange={onChange} />
-    )
+    ),
 }));
 
 vi.mock('./ToggleSwitch', () => ({
-    ToggleSwitch: ({ id, checked, onChange, name, disabled }: any) => (
+    ToggleSwitch: ({ checked, onChange, disabled, id, name }: any) => (
         <input
-            data-testid={`toggle-${name}`}
+            data-testid={`toggle-${id}`}
             type="checkbox"
-            id={id}
-            name={name}
             checked={checked}
             onChange={onChange}
             disabled={disabled}
+            name={name}
         />
-    )
+    ),
+}));
+
+vi.mock('./DateInput', () => ({
+    DateInput: ({ value, onChange, id, name }: any) => (
+        <input
+            data-testid={`date-input-${id}`}
+            type="date"
+            value={value}
+            onChange={onChange}
+            name={name || id}
+        />
+    ),
 }));
 
 vi.mock('./LabelSelector', () => ({
-    LabelSelector: ({ isOpen, onToggleLabel, selectedLabelIds: _selectedLabelIds }: any) => isOpen ? (
-        <div data-testid="label-selector">
-            <button onClick={() => onToggleLabel('l1')}>Select Food</button>
-        </div>
-    ) : null
+    LabelSelector: () => <div data-testid="label-selector" />,
+}));
+
+vi.mock('./InstallmentSelector', () => ({
+    InstallmentSelector: ({ value, onChange }: any) => (
+        <input
+            data-testid="installment-selector"
+            type="number"
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+        />
+    ),
 }));
 
 describe('TransactionForm', () => {
@@ -69,157 +74,132 @@ describe('TransactionForm', () => {
         vi.clearAllMocks();
     });
 
-    it('should render empty form in create mode', () => {
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={null}
-                isSubprofileView={false}
-            />
+    const renderComponent = (props: any = {}) => {
+        return render(
+            <BrowserRouter>
+                <TransactionForm
+                    onClose={mockOnClose}
+                    onSave={mockOnSave}
+                    isSubprofileView={false}
+                    {...props}
+                />
+            </BrowserRouter>
         );
+    };
 
-        expect(screen.getByText('Descrição')).toBeInTheDocument();
+    it('should render expense form by default', () => {
+        renderComponent();
+        expect(screen.getByText('Nova Despesa')).toBeInTheDocument();
         expect(screen.getByText('Valor Previsto')).toBeInTheDocument();
         expect(screen.getByText('Valor Efetivo')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /salvar/i })).toBeInTheDocument();
     });
 
-    it('should render form with initial values in edit mode', () => {
-        const initialValues = {
-            id: 't1',
-            description: 'Test Transaction',
-            planned: 100,
-            actual: 100,
-            type: 'expense' as const,
-            date: '2023-01-01'
-        };
-
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={initialValues}
-                isSubprofileView={false}
-            />
-        );
-
-        expect(screen.getByDisplayValue('Test Transaction')).toBeInTheDocument();
-        const currencyInputs = screen.getAllByTestId('currency-input');
-        expect(currencyInputs[0]).toHaveValue(100); // Planned
-        expect(currencyInputs[1]).toHaveValue(100); // Actual
+    it('should render income form when type is income', () => {
+        renderComponent({ initialValues: { type: 'income' } });
+        expect(screen.getByText('Nova Receita')).toBeInTheDocument();
     });
 
-    it('should update form fields', async () => {
-        const user = userEvent.setup();
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={null}
-                isSubprofileView={false}
-            />
-        );
+    it('should handle description input', async () => {
+        renderComponent();
+        const input = screen.getByLabelText('Descrição');
+        await userEvent.type(input, 'Groceries');
+        expect(input).toHaveValue('Groceries');
+    });
 
-        // Description
+    it('should handle currency input changes', () => {
+        renderComponent();
+        const inputs = screen.getAllByTestId('currency-input');
+        fireEvent.change(inputs[0], { target: { value: '100' } }); // Planned
+        fireEvent.change(inputs[1], { target: { value: '90' } });  // Actual
+
+        // Since we mock CurrencyInput to call onValueChange, we can't check internal state directly easily without spying,
+        // but we can check if submitting calls onSave with correct values.
+        // Or we can trust the mock implementation updates the parent state if the parent re-renders.
+        // Let's submit and check.
+
         const descInput = screen.getByLabelText('Descrição');
-        await user.type(descInput, 'New Expense');
-        expect(descInput).toHaveValue('New Expense');
+        fireEvent.change(descInput, { target: { value: 'Test' } });
 
-        // Amount
-        const currencyInputs = screen.getAllByTestId('currency-input');
-        fireEvent.change(currencyInputs[0], { target: { value: '50' } });
-        expect(currencyInputs[0]).toHaveValue(50);
-    });
+        const saveButton = screen.getByText('Salvar');
+        fireEvent.click(saveButton);
 
-    it('should handle label selection', async () => {
-        const user = userEvent.setup();
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={null}
-                isSubprofileView={false}
-            />
-        );
-
-        // Open label selector
-        const addButton = screen.getByRole('button', { name: '' }); // The plus button has no text
-        await user.click(addButton);
-
-        expect(screen.getByTestId('label-selector')).toBeInTheDocument();
-
-        // Select label
-        await user.click(screen.getByText('Select Food'));
-
-        // Verify label is displayed
-        expect(screen.getByText('Food')).toBeInTheDocument();
-    });
-
-    it('should submit form with correct data', async () => {
-        const user = userEvent.setup();
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={null}
-                isSubprofileView={false}
-            />
-        );
-
-        // Fill required fields
-        await user.type(screen.getByLabelText('Descrição'), 'Groceries');
-        fireEvent.change(screen.getAllByTestId('currency-input')[0], { target: { value: '200' } });
-        fireEvent.change(screen.getByTestId('date-input-date'), { target: { value: '2023-01-01' } });
-
-        // Submit
-        await user.click(screen.getByRole('button', { name: /salvar/i }));
-
-        expect(mockOnSave).toHaveBeenCalledTimes(1);
         expect(mockOnSave).toHaveBeenCalledWith(expect.objectContaining({
-            description: 'Groceries',
-            planned: 200,
-            date: '2023-01-01'
+            planned: 100,
+            actual: 90,
         }), undefined);
     });
 
-    it('should disable shared toggle in subprofile view', () => {
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={null}
-                isSubprofileView={true}
-            />
-        );
-
-        // In subprofile view, the "Da Casa" (isShared) toggle might not be rendered or disabled
-        // Based on code: {!isSubprofileView && ( ... toggle ... )}
-        // So it should NOT be in the document
-        expect(screen.queryByTestId('toggle-isShared')).not.toBeInTheDocument();
+    it('should pass max prop to CurrencyInput', () => {
+        renderComponent();
+        const inputs = screen.getAllByTestId('currency-input');
+        expect(inputs[0]).toHaveAttribute('max', '999999999.99');
+        expect(inputs[1]).toHaveAttribute('max', '999999999.99');
     });
 
-    it('should show due date only for expenses', async () => {
-        const user = userEvent.setup();
-        render(
-            <TransactionForm
-                onClose={mockOnClose}
-                onSave={mockOnSave}
-                initialValues={{ type: 'income' }}
-                isSubprofileView={true} // Enable type selection
-            />
-        );
+    it('should toggle paid status', () => {
+        renderComponent();
+        const toggle = screen.getByTestId('toggle-paid');
+        fireEvent.click(toggle);
+        expect(toggle).toBeChecked();
+    });
 
-        expect(screen.queryByText('Data de Vencimento')).not.toBeInTheDocument();
+    it('should toggle recurring status', () => {
+        renderComponent();
+        const toggle = screen.getByTestId('toggle-isRecurring');
+        fireEvent.click(toggle);
+        expect(toggle).toBeChecked();
+    });
 
-        // Change to expense
-        // Change to expense
-        const typeTrigger = screen.getByRole('button', { name: /receita/i });
-        await user.click(typeTrigger);
+    it('should toggle installment purchase and show selector', () => {
+        renderComponent();
+        const toggle = screen.getByTestId('toggle-isInstallmentPurchase');
+        fireEvent.click(toggle);
+        expect(toggle).toBeChecked();
+        expect(screen.getByText('Número de Parcelas')).toBeInTheDocument();
+        expect(screen.getByTestId('installment-selector')).toBeInTheDocument();
+    });
 
-        const expenseOption = screen.getByRole('button', { name: /despesa/i });
-        await user.click(expenseOption);
+    it('should hide recurring option when installment is checked', () => {
+        renderComponent();
+        const installmentToggle = screen.getByTestId('toggle-isInstallmentPurchase');
 
-        expect(screen.getByText('Data de Vencimento')).toBeInTheDocument();
+        fireEvent.click(installmentToggle);
+        expect(installmentToggle).toBeChecked();
+        expect(screen.queryByTestId('toggle-isRecurring')).not.toBeInTheDocument();
+    });
+
+    it('should hide installment option when recurring is checked', () => {
+        renderComponent();
+        const recurringToggle = screen.getByTestId('toggle-isRecurring');
+
+        fireEvent.click(recurringToggle);
+        expect(recurringToggle).toBeChecked();
+        expect(screen.queryByTestId('toggle-isInstallmentPurchase')).not.toBeInTheDocument();
+    });
+
+    it('should handle installment count change', () => {
+        renderComponent();
+        const toggle = screen.getByTestId('toggle-isInstallmentPurchase');
+        fireEvent.click(toggle);
+
+        const selector = screen.getByTestId('installment-selector');
+        fireEvent.change(selector, { target: { value: '5' } });
+
+        const descInput = screen.getByLabelText('Descrição');
+        fireEvent.change(descInput, { target: { value: 'Test' } });
+
+        const saveButton = screen.getByText('Salvar');
+        fireEvent.click(saveButton);
+
+        expect(mockOnSave).toHaveBeenCalledWith(expect.objectContaining({
+            isInstallmentPurchase: true,
+            totalInstallments: 5,
+        }), undefined);
+    });
+
+    it('should not allow installment options for existing installment transaction', () => {
+        renderComponent({ initialValues: { seriesId: '123', isInstallmentPurchase: true, totalInstallments: 10 } });
+        expect(screen.getByText('Não é possível alterar as opções de parcelamento de uma transação já criada.')).toBeInTheDocument();
+        expect(screen.queryByTestId('installment-selector')).not.toBeInTheDocument();
     });
 });

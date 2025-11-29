@@ -1,25 +1,53 @@
 // src/components/CurrencyInput.tsx
 
-import React from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 
-interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'size'> {
+interface CurrencyInputProps {
     value: number;
     onValueChange: (value: number) => void;
-    size?: 'normal' | 'small';
+    size?: 'normal' | 'large' | 'small';
+    max?: number;
+    className?: string;
+    [key: string]: any;
 }
 
-export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onValueChange, size = 'normal', className, ...props }) => {
+export const CurrencyInput: React.FC<CurrencyInputProps> = ({
+    value,
+    onValueChange,
+    size = 'normal',
+    max,
+    className,
+    ...props
+}) => {
+    const [displayValue, setDisplayValue] = useState('');
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const rawValue = e.target.value.replace(/\D/g, '');
-        const newValue = Number(rawValue) / 100;
-        onValueChange(newValue);
+    useEffect(() => {
+        setDisplayValue(formatValue(value));
+    }, [value]);
+
+    const formatValue = (val: number) => {
+        if (val === 0) return '0,00';
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(val);
     };
 
-    const displayValue = new Intl.NumberFormat('pt-BR', {
-        style: 'decimal',
-        minimumFractionDigits: 2,
-    }).format(value);
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+        let inputValue = e.target.value;
+
+        // Remove non-numeric characters
+        const numericValue = inputValue.replace(/\D/g, '');
+
+        // Convert to number (divide by 100 for cents)
+        let numberValue = Number(numericValue) / 100;
+
+        if (max !== undefined && numberValue > max) {
+            numberValue = max;
+        }
+
+        onValueChange(numberValue);
+    };
 
     const isSmall = size === 'small';
     const containerClasses = "relative group w-full";

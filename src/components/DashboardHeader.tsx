@@ -1,6 +1,6 @@
 // src/components/DashboardHeader.tsx
 import React from 'react';
-import { ChevronLeft, ChevronRight, Lock, ShieldCheck, Download, Upload, PlusCircle, MoreVertical, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, ShieldCheck, Download, Upload, MoreVertical, Settings, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { MonthSelector } from './MonthSelector';
 
 interface DashboardHeaderProps {
@@ -17,7 +17,8 @@ interface DashboardHeaderProps {
     handleCloseMonthAttempt: () => void;
     onExport: () => void;
     onImport: () => void;
-    onNewTransaction: () => void;
+    onNewExpense: () => void;
+    onNewIncome: () => void;
     onOpenSettings?: () => void;
     availableMonths: string[];
     closedMonths: string[];
@@ -60,7 +61,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
     const {
         profileName,
         changeMonth,
-        onNewTransaction,
+        onNewExpense,
+        onNewIncome,
         onOpenSettings,
         ...rest
     } = props;
@@ -79,7 +81,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
                     </button>
                 </div>
 
-                {/* CORREÇÃO: Trocado para grid para garantir o alinhamento central */}
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 mt-2 md:mt-1">
                     <button onClick={() => changeMonth(-1)} className="p-1 rounded-full text-text-secondary hover:bg-accent hover:text-white disabled:opacity-30 disabled:cursor-not-allowed" disabled={!props.canGoToPreviousMonth} title="Mês anterior">
                         <ChevronLeft size={20} />
@@ -100,7 +101,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap md:flex-nowrap">
                 {props.isCurrentMonthClosed ? (
                     <span className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-background text-text-secondary border border-border-color"><ShieldCheck size={16} /> Mês Fechado</span>
                 ) : (
@@ -114,11 +115,29 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = (props) => {
                 <div className="md:hidden">
                     <ActionMenu {...rest} isCurrentMonthClosed={props.isCurrentMonthClosed} />
                 </div>
-                <button onClick={onNewTransaction} className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent rounded-lg hover:bg-accent-hover disabled:opacity-50" disabled={props.isCurrentMonthClosed}>
-                    <PlusCircle size={16} />
-                    <span className="md:hidden">Nova</span>
-                    <span className="hidden lg:inline">Nova Transação</span>
-                </button>
+
+                <div className="flex gap-2 w-full md:w-auto">
+                    {props.activeTab !== 'geral' && (
+                        <button
+                            onClick={onNewIncome}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                            disabled={props.isCurrentMonthClosed}
+                        >
+                            <ArrowUpCircle size={16} />
+                            <span className="hidden lg:inline">Receita</span>
+                            <span className="lg:hidden">Rec.</span>
+                        </button>
+                    )}
+                    <button
+                        onClick={onNewExpense}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        disabled={props.isCurrentMonthClosed}
+                    >
+                        <ArrowDownCircle size={16} />
+                        <span className="hidden lg:inline">Despesa</span>
+                        <span className="lg:hidden">Desp.</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -162,12 +162,7 @@ export const DashboardScreen: React.FC = () => {
         };
     }, [logicState.selectedIncomeIds, logicState.selectedExpenseIds, logicState.selectedIgnoredIds, sortedData, ignoredTransactions]);
 
-    const handleTabClick = useCallback((tabId: string) => {
-        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
-        navigate(path);
-    }, [profileId, navigate]);
-
-    const handleOpenModalForNew = useCallback(() => {
+    const handleOpenModalForNew = useCallback((type: 'income' | 'expense') => {
         if (isCurrentMonthClosed) return;
 
         const today = new Date();
@@ -177,11 +172,16 @@ export const DashboardScreen: React.FC = () => {
         const baseData = { paid: false, date: defaultDate.toISOString().split('T')[0], notes: '' };
 
         const initialValues = activeTab === 'geral'
-            ? { ...baseData, type: 'expense' as const, isShared: true, isRecurring: false, labelIds: [] }
-            : { ...baseData, subprofileId: activeTab, isShared: false, type: 'expense' as const, isRecurring: false, labelIds: [] };
+            ? { ...baseData, type, isShared: true, isRecurring: false, labelIds: [] }
+            : { ...baseData, subprofileId: activeTab, isShared: false, type, isRecurring: false, labelIds: [] };
 
         modals.transaction.open(initialValues);
     }, [activeTab, isCurrentMonthClosed, modals.transaction, logicState.currentMonth]);
+
+    const handleTabClick = useCallback((tabId: string) => {
+        const path = tabId === 'geral' ? `/profile/${profileId}` : `/profile/${profileId}/${tabId}`;
+        navigate(path);
+    }, [profileId, navigate]);
 
     const handleOpenTransferModal = useCallback((t: Transaction) => {
         modals.transfer.open(t);
@@ -429,7 +429,8 @@ export const DashboardScreen: React.FC = () => {
                 handleCloseMonthAttempt={() => canCloseMonth && modals.closeMonth.open()}
                 onExport={modals.export.open}
                 onImport={modals.import.open}
-                onNewTransaction={handleOpenModalForNew}
+                onNewExpense={() => handleOpenModalForNew('expense')}
+                onNewIncome={() => handleOpenModalForNew('income')}
                 onOpenSettings={modals.settings.open}
                 availableMonths={availableMonths}
                 closedMonths={profile.closedMonths || []}

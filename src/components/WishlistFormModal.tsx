@@ -1,6 +1,7 @@
 // src/components/WishlistFormModal.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save } from 'lucide-react';
 import { Wishlist } from '../types';
 
@@ -20,6 +21,16 @@ export const WishlistFormModal: React.FC<WishlistFormModalProps> = ({ isOpen, on
         }
     }, [isOpen, wishlist]);
 
+    useLayoutEffect(() => {
+        if (isOpen) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [isOpen]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (name.trim()) {
@@ -29,7 +40,7 @@ export const WishlistFormModal: React.FC<WishlistFormModalProps> = ({ isOpen, on
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div className="bg-card rounded-lg shadow-xl w-full max-w-md animate-zoom-in">
                 <form onSubmit={handleSubmit}>
@@ -66,6 +77,7 @@ export const WishlistFormModal: React.FC<WishlistFormModalProps> = ({ isOpen, on
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

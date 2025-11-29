@@ -1,5 +1,6 @@
 // src/components/MediaFormModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Clock, Calendar, Plus, Trash2 } from 'lucide-react';
 import { MediaItem, MediaProvider, Subprofile } from '../types';
 import { RatingsList } from './RatingsList';
@@ -112,6 +113,16 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
         }
     }, [isOpen, initialData, subprofiles]);
 
+    useLayoutEffect(() => {
+        if (isOpen) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [isOpen]);
+
     const handleRatingChange = (subprofileId: string, rating: number) => {
         setRatings(prev => ({
             ...prev,
@@ -212,7 +223,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
             <div className="bg-card rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-zoom-in border border-border flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center p-4 border-b border-border shrink-0">
@@ -474,6 +485,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

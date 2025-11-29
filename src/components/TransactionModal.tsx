@@ -1,6 +1,7 @@
 // src/components/TransactionModal.tsx
 
 import React, { useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface TransactionModalProps {
@@ -23,7 +24,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
             <div className="bg-card rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh] animate-zoom-in">
                 <div className="flex-shrink-0 flex justify-between items-center p-6 border-b border-border-color">
@@ -37,6 +38,7 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onCl
                     {children}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

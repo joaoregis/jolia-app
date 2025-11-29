@@ -11,8 +11,6 @@ Este documento descreve as próximas funcionalidades e melhorias planeadas para 
 
 - Tela de investimentos
 
-- Separar botao de Nova Transação para ter Nova Receita e Nova Despesa (facilitar para o usuario)
-
 ---
 
 ## 🎯 Funcionalidades Principais (Core Features)

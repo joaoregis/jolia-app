@@ -8,6 +8,8 @@ import { MediaFormModal } from '../components/MediaFormModal';
 import { QuickRatingModal } from '../components/QuickRatingModal';
 import { StarRating } from '../components/StarRating';
 import { MonthSelector } from '../components/MonthSelector';
+import { useToast } from '../contexts/ToastContext';
+import { Sparkles } from '../components/Sparkles';
 import { MediaItem } from '../types';
 import { SwipeableTabContent } from '../components/SwipeableTabContent';
 
@@ -25,10 +27,17 @@ export const MediaScreen: React.FC = () => {
         loading
     } = useMediaManager(profileId);
 
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<'watchlist' | 'inprogress' | 'history'>('watchlist');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<MediaItem | undefined>(undefined);
     const [quickRatingItem, setQuickRatingItem] = useState<{ item: MediaItem, season?: number } | undefined>(undefined);
+    const [sparkleState, setSparkleState] = useState<{ id: string, type: 'small' | 'large' } | null>(null);
+
+    const triggerSparkles = (id: string, type: 'small' | 'large' = 'small') => {
+        setSparkleState({ id, type });
+        setTimeout(() => setSparkleState(null), 2500);
+    };
 
     // ...
 
@@ -61,6 +70,7 @@ export const MediaScreen: React.FC = () => {
         } else {
             await updateMedia(mediaId, { ratings });
         }
+        showToast('Avaliação salva com sucesso!', 'success');
         setQuickRatingItem(undefined);
     };
 
@@ -95,6 +105,7 @@ export const MediaScreen: React.FC = () => {
     const handleDeleteClick = async (id: string) => {
         if (window.confirm('Tem certeza que deseja excluir este item?')) {
             await deleteMedia(id);
+            showToast('Mídia removida com sucesso.', 'info');
         }
     };
 
@@ -107,23 +118,42 @@ export const MediaScreen: React.FC = () => {
                 watchedDate: new Date().toISOString().slice(0, 7)
             });
             setIsModalOpen(true);
+            // Sparkles will be triggered after save in handleFormSubmit if status changed to watched, 
+            // but here we are just opening the modal.
         } else {
             if (window.confirm('Marcar como não assistido?')) {
                 await updateStatus(item, 'to_watch');
+                showToast('Marcado como não assistido.', 'info');
             }
         }
     };
 
     const handleFormSubmit = async (data: any) => {
         if (editingItem && editingItem.id) {
-            if (data.status !== editingItem.status) {
+            // Find the original item to check for status changes
+            const originalItem = watchList.find(i => i.id === editingItem.id) ||
+                inProgressList.find(i => i.id === editingItem.id) ||
+                historyList.find(i => i.id === editingItem.id);
+
+            const currentStatus = originalItem ? originalItem.status : editingItem.status;
+
+            if (data.status !== currentStatus) {
                 const { status, ...otherData } = data;
-                await updateStatus(editingItem, status, otherData);
+                // Use originalItem if available to ensure we work with the current DB state
+                await updateStatus(originalItem || editingItem, status, otherData);
+                if (status === 'watched') {
+                    triggerSparkles(editingItem.id, 'large');
+                    showToast('Parabéns! Mídia concluída!', 'success');
+                } else {
+                    showToast('Status atualizado com sucesso.', 'success');
+                }
             } else {
                 await updateMedia(editingItem.id, data);
+                showToast('Mídia atualizada com sucesso.', 'success');
             }
         } else {
             await addMedia(data);
+            showToast('Nova mídia adicionada!', 'success');
         }
     };
 
@@ -149,6 +179,8 @@ export const MediaScreen: React.FC = () => {
                         currentEpisode: 1,
                         status: 'in_progress'
                     });
+                    triggerSparkles(item.id, 'large');
+                    showToast(`Temporada ${item.currentSeason} concluída! Iniciando Temporada ${nextSeason}.`, 'success');
                 }
             } else {
                 // End of series
@@ -160,6 +192,7 @@ export const MediaScreen: React.FC = () => {
                         watchedDate: new Date().toISOString().slice(0, 7)
                     });
                     setIsModalOpen(true);
+                    // Sparkles will be triggered in handleFormSubmit
                 }
             }
         } else {
@@ -169,6 +202,8 @@ export const MediaScreen: React.FC = () => {
                 updates.status = 'in_progress';
             }
             await updateMedia(item.id, updates);
+            triggerSparkles(item.id, 'small');
+            showToast(`Episódio ${nextEpisode} registrado!`, 'success');
         }
     };
 
@@ -178,6 +213,7 @@ export const MediaScreen: React.FC = () => {
 
         const prevEpisode = item.currentEpisode - 1;
         await updateMedia(item.id, { currentEpisode: prevEpisode });
+        showToast(`Voltou para o episódio ${prevEpisode}.`, 'info');
     };
 
     const getProviderBadge = (provider: string) => {
@@ -301,6 +337,10 @@ export const MediaScreen: React.FC = () => {
 
     const renderMediaCard = (item: MediaItem) => (
         <div key={item.id} className="bg-card border border-border rounded-xl p-0 shadow-sm hover:shadow-md transition-all group relative flex flex-col h-full overflow-hidden">
+            <Sparkles
+                active={sparkleState?.id === item.id && sparkleState?.type === 'small'}
+                type="small"
+            />
             {/* Header / Banner Area */}
             <div className="p-4 pb-2">
                 <div className="flex justify-between items-start mb-1">
@@ -567,6 +607,12 @@ export const MediaScreen: React.FC = () => {
                     onSave={handleQuickRatingSave}
                 />
             )}
+
+            <Sparkles
+                active={sparkleState?.type === 'large'}
+                type="large"
+                duration={2000}
+            />
         </div>
     );
 };

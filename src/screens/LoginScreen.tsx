@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
     signInWithEmailAndPassword,
     AuthError
 } from 'firebase/auth';
@@ -25,7 +25,7 @@ export const LoginScreen: React.FC = () => {
         } catch (e) {
             const authError = e as AuthError;
             if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
-                 setError('Email ou senha incorretos.');
+                setError('Email ou senha incorretos.');
             } else if (authError.code === 'auth/invalid-email') {
                 setError('O formato do email é inválido.');
             }
@@ -37,19 +37,19 @@ export const LoginScreen: React.FC = () => {
     };
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--background)] p-4">
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center">
-                    <Briefcase className="mx-auto h-12 w-auto text-blue-500" />
-                    <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    <Briefcase className="mx-auto h-12 w-auto text-[var(--accent)]" />
+                    <h2 className="mt-6 text-3xl font-bold tracking-tight text-[var(--text-primary)]">
                         Aceda à sua conta
                     </h2>
                 </div>
 
-                <div className="rounded-xl bg-white dark:bg-slate-800 p-8 shadow-lg">
+                <div className="rounded-xl bg-[var(--card)] p-8 shadow-lg border border-[var(--border)]">
                     <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
                                 Email
                             </label>
                             <div className="mt-1">
@@ -61,13 +61,13 @@ export const LoginScreen: React.FC = () => {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="block w-full appearance-none rounded-md border border-slate-300 px-3 py-2 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
+                                    className="block w-full appearance-none rounded-md border border-[var(--border)] px-3 py-2 placeholder-[var(--text-secondary)] shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-[var(--accent)] bg-[var(--background)] text-[var(--text-primary)]"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label htmlFor="password"className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
                                 Senha
                             </label>
                             <div className="mt-1">
@@ -79,13 +79,13 @@ export const LoginScreen: React.FC = () => {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full appearance-none rounded-md border border-slate-300 px-3 py-2 placeholder-slate-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600"
+                                    className="block w-full appearance-none rounded-md border border-[var(--border)] px-3 py-2 placeholder-[var(--text-secondary)] shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-[var(--accent)] bg-[var(--background)] text-[var(--text-primary)]"
                                 />
                             </div>
                         </div>
-                        
+
                         {error && (
-                             <div className="rounded-md bg-red-50 p-4">
+                            <div className="rounded-md bg-red-50 p-4">
                                 <p className="text-sm font-medium text-red-800">{error}</p>
                             </div>
                         )}
@@ -94,7 +94,7 @@ export const LoginScreen: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                className="flex w-full justify-center rounded-md border border-transparent bg-[var(--accent)] py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-[var(--accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 disabled:opacity-50 transition-colors"
                             >
                                 {loading ? 'A entrar...' : 'Entrar'}
                             </button>

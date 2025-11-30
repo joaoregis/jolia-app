@@ -29,21 +29,21 @@ export const themes: ThemePalette = {
   default: {
     name: 'Padrão Escuro',
     variables: {
-      '--background': '#0f172a',
-      '--sidebar': '#1e293b',
-      '--card': '#162033',
-      '--table-header': '#1e293b',
-      '--table-header-text': '#f8fafc',
-      '--table-footer': '#1e293b',
-      '--table-footer-text': '#f8fafc',
-      '--text-primary': '#f8fafc',
-      '--text-secondary': '#cbd5e1',
-      '--sidebar-text-primary': '#f8fafc',
-      '--sidebar-text-secondary': '#cbd5e1',
-      '--accent': '#3b82f6',
-      '--accent-hover': '#60a5fa',
-      '--accent-selected': '#1d4ed8',
-      '--border': '#283447',
+      '--background': '#18181b', // Zinc 900
+      '--sidebar': '#27272a', // Zinc 800
+      '--card': '#27272a', // Zinc 800
+      '--table-header': '#27272a', // Zinc 800
+      '--table-header-text': '#f4f4f5', // Zinc 100
+      '--table-footer': '#27272a', // Zinc 800
+      '--table-footer-text': '#f4f4f5', // Zinc 100
+      '--text-primary': '#f4f4f5', // Zinc 100
+      '--text-secondary': '#a1a1aa', // Zinc 400
+      '--sidebar-text-primary': '#f4f4f5', // Zinc 100
+      '--sidebar-text-secondary': '#a1a1aa', // Zinc 400
+      '--accent': '#0d9488', // Teal 600 (Dark Aqua)
+      '--accent-hover': '#14b8a6', // Teal 500
+      '--accent-selected': '#0f766e', // Teal 700
+      '--border': '#3f3f46', // Zinc 700
     }
   },
   padrao_claro: {

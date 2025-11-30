@@ -20,8 +20,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ user, loading, c
     if (loading) {
         // Mostra uma tela de carregamento animada enquanto o estado de autenticação é verificado
         return (
-            <div className="flex h-screen flex-col items-center justify-center bg-slate-100 dark:bg-slate-900 text-slate-500">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-solid border-accent border-t-transparent"></div>
+            <div className="flex h-screen flex-col items-center justify-center bg-[var(--background)] text-[var(--text-secondary)]">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-solid border-[var(--accent)] border-t-transparent"></div>
                 <p className="mt-4 text-lg font-medium">A verificar autenticação...</p>
             </div>
         );

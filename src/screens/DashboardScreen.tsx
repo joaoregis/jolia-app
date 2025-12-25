@@ -184,6 +184,20 @@ export const DashboardScreen: React.FC = () => {
         };
     }, [logicState.selectedIncomeIds, logicState.selectedExpenseIds, logicState.selectedIgnoredIds, sortedData, ignoredTransactions]);
 
+    const selectedTransactions = useMemo(() => {
+        const selected: Transaction[] = [];
+        if (logicState.selectedIncomeIds.size > 0) {
+            selected.push(...sortedData.receitas.filter(t => logicState.selectedIncomeIds.has(t.id)));
+        }
+        if (logicState.selectedExpenseIds.size > 0) {
+            selected.push(...sortedData.despesas.filter(t => logicState.selectedExpenseIds.has(t.id)));
+        }
+        if (logicState.selectedIgnoredIds.size > 0) {
+            selected.push(...ignoredTransactions.filter(t => logicState.selectedIgnoredIds.has(t.id)));
+        }
+        return selected;
+    }, [logicState.selectedIncomeIds, logicState.selectedExpenseIds, logicState.selectedIgnoredIds, sortedData, ignoredTransactions]);
+
     const handleOpenModalForNew = useCallback((type: 'income' | 'expense') => {
         if (isCurrentMonthClosed) return;
 
@@ -238,13 +252,19 @@ export const DashboardScreen: React.FC = () => {
         }
     };
 
-    const handleConfirmTransferWrapper = async (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => {
+    const handleConfirmTransferWrapper = async (destination: { type: 'subprofile' | 'main'; id?: string }) => {
+        const transactions = modals.transfer.transactionsToTransfer;
+        if (!transactions || transactions.length === 0) return;
+
         try {
-            await transactionMutations.handleConfirmTransfer(transactionId, destination, subprofileRevenueProportions);
-            showToast('Transação transferida com sucesso!', 'success');
+            const promises = transactions.map(t => transactionMutations.handleConfirmTransfer(t.id, destination, subprofileRevenueProportions));
+            await Promise.all(promises);
+
+            showToast(`${transactions.length > 1 ? 'Transações transferidas' : 'Transação transferida'} com sucesso!`, 'success');
             modals.transfer.close();
+            logicHandlers.resetSelections();
         } catch (error) {
-            showToast('Erro ao transferir transação.', 'error');
+            showToast('Erro ao transferir.', 'error');
         }
     };
 
@@ -253,13 +273,46 @@ export const DashboardScreen: React.FC = () => {
         if (transactionToDelete) {
             try {
                 await transactionMutations.performDelete(transactionToDelete, scope);
-                showToast('Transação(ões) excluída(s) com sucesso!', 'success');
+                showToast('Transação excluída com sucesso!', 'success');
             } catch (error) {
                 showToast('Erro ao excluir transação.', 'error');
             } finally {
                 modals.deleteTransaction.close();
                 modals.seriesAction.close();
             }
+        }
+    };
+
+    const handleBatchDelete = async (transactions: Transaction[]) => {
+        try {
+            const promises = transactions.map(t => transactionMutations.performDelete(t, 'one')); // Batch actions don't support future series edits currently
+            await Promise.all(promises);
+            showToast(`${transactions.length} itens excluídos com sucesso!`, 'success');
+            logicHandlers.resetSelections();
+        } catch (error) {
+            showToast('Erro ao excluir itens em massa.', 'error');
+        }
+    };
+
+    const handleBatchSkip = async (transactions: Transaction[]) => {
+        try {
+            const promises = transactions.map(t => transactionMutations.handleSkipTransaction(t, currentMonthString));
+            await Promise.all(promises);
+            showToast(`${transactions.length} itens ignorados neste mês!`, 'info');
+            logicHandlers.resetSelections();
+        } catch (error) {
+            showToast('Erro ao ignorar itens em massa.', 'error');
+        }
+    };
+
+    const handleBatchUnskip = async (transactions: Transaction[]) => {
+        try {
+            const promises = transactions.map(t => transactionMutations.handleUnskipTransaction(t, currentMonthString));
+            await Promise.all(promises);
+            showToast(`${transactions.length} itens reativados com sucesso!`, 'success');
+            logicHandlers.resetSelections();
+        } catch (error) {
+            showToast('Erro ao reativar itens em massa.', 'error');
         }
     };
 
@@ -563,7 +616,15 @@ export const DashboardScreen: React.FC = () => {
                 </>
             )}
 
-            <CalculationToolbar selections={calculationData} onClearSelection={logicHandlers.handleClearAllSelections} />
+            <CalculationToolbar
+                selections={calculationData}
+                selectedTransactions={selectedTransactions}
+                onClearSelection={logicHandlers.handleClearAllSelections}
+                onBatchTransfer={modals.transfer.open}
+                onBatchDelete={handleBatchDelete}
+                onBatchSkip={handleBatchSkip}
+                onBatchUnskip={handleBatchUnskip}
+            />
 
             {/* Modais */}
             <TransactionModal isOpen={modals.transaction.isOpen} onClose={modals.transaction.close} title={modals.transaction.initialValues?.id ? 'Editar Transação' : 'Nova Transação'}>
@@ -586,7 +647,13 @@ export const DashboardScreen: React.FC = () => {
             <ExportModal isOpen={modals.export.isOpen} onClose={modals.export.close} profile={profile} activeSubprofileId={activeTab} allTransactions={allTransactions} />
             {contextMenu.state && <SubprofileContextMenu subprofile={contextMenu.state.subprofile} x={contextMenu.state.x} y={contextMenu.state.y} onClose={contextMenu.close} onEdit={(sub) => { modals.editSubprofile.open(sub); contextMenu.close(); }} onArchive={(sub) => { modals.archiveSubprofile.open(sub); contextMenu.close(); }} />}
             <SettingsModal isOpen={modals.settings.isOpen} onClose={modals.settings.close} onSave={handleSaveSettings} profile={profile} />
-            <TransferTransactionModal isOpen={modals.transfer.isOpen} onClose={modals.transfer.close} transaction={modals.transfer.transactionToTransfer} subprofiles={activeSubprofiles} onConfirmTransfer={handleConfirmTransferWrapper} />
+            <TransferTransactionModal
+                isOpen={modals.transfer.isOpen}
+                onClose={modals.transfer.close}
+                transactions={modals.transfer.transactionsToTransfer}
+                subprofiles={activeSubprofiles}
+                onConfirmTransfer={handleConfirmTransferWrapper}
+            />
             <SeriesEditConfirmationModal isOpen={modals.seriesAction.isOpen} actionType={modals.seriesAction.actionType} onClose={modals.seriesAction.close} onConfirm={handleSeriesActionConfirm} />
 
             <div className="text-center text-xs text-text-secondary opacity-50 pb-4">

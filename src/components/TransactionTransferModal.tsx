@@ -7,28 +7,35 @@ import { Transaction, Subprofile } from '../types';
 interface TransferTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transaction: Transaction | null;
+  transactions: Transaction[];
   subprofiles: Subprofile[];
-  onConfirmTransfer: (transactionId: string, destination: { type: 'subprofile' | 'main'; id?: string }) => void;
+  onConfirmTransfer: (destination: { type: 'subprofile' | 'main'; id?: string }) => void;
 }
 
 export const TransferTransactionModal: React.FC<TransferTransactionModalProps> = ({
   isOpen,
   onClose,
-  transaction,
+  transactions,
   subprofiles,
   onConfirmTransfer,
 }) => {
-  if (!isOpen || !transaction) return null;
+  if (!isOpen || transactions.length === 0) return null;
 
   const handleTransfer = (destination: { type: 'subprofile' | 'main'; id?: string }) => {
-    onConfirmTransfer(transaction.id, destination);
+    onConfirmTransfer(destination);
     onClose();
   };
 
-  // Filtra os subperfis para não mostrar o subperfil de origem
-  const availableSubprofiles = subprofiles.filter(sp => sp.id !== transaction.subprofileId);
-  const isCurrentlyInMain = !transaction.subprofileId || transaction.isShared;
+  // Determine common origin to filter options (optional, but good UX)
+  // If all transactions are from valid subprofile X, don't show X as destination?
+  // If mixed, show all.
+  const commonSubprofileId = transactions.every(t => t.subprofileId === transactions[0].subprofileId)
+    ? transactions[0].subprofileId
+    : null;
+
+  const isAllMain = transactions.every(t => !t.subprofileId || t.isShared);
+
+  const availableSubprofiles = subprofiles.filter(sp => sp.id !== commonSubprofileId);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
@@ -37,7 +44,9 @@ export const TransferTransactionModal: React.FC<TransferTransactionModalProps> =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border-color">
-          <h2 className="text-lg font-semibold text-text-primary">Transferir Transação</h2>
+          <h2 className="text-lg font-semibold text-text-primary">
+            {transactions.length > 1 ? `Transferir ${transactions.length} Transações` : 'Transferir Transação'}
+          </h2>
           <button onClick={onClose} className="p-1 rounded-full text-text-secondary hover:bg-background">
             <X size={20} />
           </button>
@@ -46,12 +55,14 @@ export const TransferTransactionModal: React.FC<TransferTransactionModalProps> =
         <div className="p-6 space-y-4">
           <div className="text-sm text-text-secondary">
             <span>Transferir: </span>
-            <span className="font-bold text-text-primary block truncate">{transaction.description}</span>
+            <span className="font-bold text-text-primary block truncate">
+              {transactions.length === 1 ? transactions[0].description : `${transactions.length} itens selecionados`}
+            </span>
           </div>
 
           <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
             {/* Opção para transferir para a Visão Geral (Perfil Principal) */}
-            {!isCurrentlyInMain && (
+            {!isAllMain && (
               <button
                 onClick={() => handleTransfer({ type: 'main' })}
                 className="w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors hover:bg-background border border-border-color"

@@ -20,7 +20,7 @@ export function useDashboardState() {
 
     const [modalInitialValues, setModalInitialValues] = useState<Partial<Transaction> | null>(null);
     const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-    const [transactionToTransfer, setTransactionToTransfer] = useState<Transaction | null>(null);
+    const [transactionsToTransfer, setTransactionsToTransfer] = useState<Transaction[]>([]);
     const [subprofileToArchive, setSubprofileToArchive] = useState<Subprofile | null>(null);
     const [subprofileToEdit, setSubprofileToEdit] = useState<Subprofile | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subprofile: Subprofile } | null>(null);
@@ -68,13 +68,13 @@ export function useDashboardState() {
         setIsDeleteTransactionModalOpen(false);
     }
 
-    const openTransferModal = (transaction: Transaction) => {
-        setTransactionToTransfer(transaction);
+    const openTransferModal = (transactions: Transaction | Transaction[]) => {
+        setTransactionsToTransfer(Array.isArray(transactions) ? transactions : [transactions]);
         setIsTransferModalOpen(true);
     }
 
     const closeTransferModal = () => {
-        setTransactionToTransfer(null);
+        setTransactionsToTransfer([]);
         setIsTransferModalOpen(false);
     }
 
@@ -97,7 +97,7 @@ export function useDashboardState() {
             export: { isOpen: isExportModalOpen, open: () => setIsExportModalOpen(true), close: () => setIsExportModalOpen(false) },
             closeMonth: { isOpen: isCloseMonthModalOpen, open: () => setIsCloseMonthModalOpen(true), close: () => setIsCloseMonthModalOpen(false) },
             settings: { isOpen: isSettingsModalOpen, open: () => setIsSettingsModalOpen(true), close: () => setIsSettingsModalOpen(false) },
-            transfer: { isOpen: isTransferModalOpen, open: openTransferModal, close: closeTransferModal, transactionToTransfer },
+            transfer: { isOpen: isTransferModalOpen, open: openTransferModal, close: closeTransferModal, transactionsToTransfer },
             deleteTransaction: { isOpen: isDeleteTransactionModalOpen, open: openDeleteTransactionModal, close: closeDeleteTransactionModal, transactionToDelete },
             seriesAction: { isOpen: seriesActionState.isOpen, actionType: seriesActionState.actionType, transaction: seriesActionState.transaction, open: openSeriesActionModal, close: closeSeriesActionModal },
         },

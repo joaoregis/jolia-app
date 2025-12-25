@@ -5,12 +5,24 @@ import { CalculationToolbar } from './CalculationToolbar';
 
 describe('CalculationToolbar', () => {
     const mockOnClearSelection = vi.fn();
+    const mockOnBatchTransfer = vi.fn();
+    const mockOnBatchDelete = vi.fn();
+    const mockOnBatchSkip = vi.fn();
+    const mockOnBatchUnskip = vi.fn();
+    const defaultProps = {
+        selectedTransactions: [],
+        onClearSelection: mockOnClearSelection,
+        onBatchTransfer: mockOnBatchTransfer,
+        onBatchDelete: mockOnBatchDelete,
+        onBatchSkip: mockOnBatchSkip,
+        onBatchUnskip: mockOnBatchUnskip
+    };
 
     it('should not render when total count is 0', () => {
         render(
             <CalculationToolbar
                 selections={{}}
-                onClearSelection={mockOnClearSelection}
+                {...defaultProps}
             />
         );
 
@@ -23,7 +35,7 @@ describe('CalculationToolbar', () => {
                 selections={{
                     income: { count: 2, sumPlanned: 200, sumActual: 200 }
                 }}
-                onClearSelection={mockOnClearSelection}
+                {...defaultProps}
             />
         );
 
@@ -39,7 +51,7 @@ describe('CalculationToolbar', () => {
                     income: { count: 1, sumPlanned: 100, sumActual: 100 },
                     expense: { count: 1, sumPlanned: 50, sumActual: 60 }
                 }}
-                onClearSelection={mockOnClearSelection}
+                {...defaultProps}
             />
         );
 
@@ -63,7 +75,7 @@ describe('CalculationToolbar', () => {
                 selections={{
                     ignored: { count: 3, sumPlanned: 300, sumActual: 0 }
                 }}
-                onClearSelection={mockOnClearSelection}
+                {...defaultProps}
             />
         );
 
@@ -79,7 +91,7 @@ describe('CalculationToolbar', () => {
                 selections={{
                     income: { count: 1, sumPlanned: 100, sumActual: 100 }
                 }}
-                onClearSelection={mockOnClearSelection}
+                {...defaultProps}
             />
         );
 

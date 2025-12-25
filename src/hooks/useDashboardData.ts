@@ -17,6 +17,15 @@ export function useDashboardData(
         const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
         if (activeSubprofiles.length === 0) return new Map<string, number>();
 
+        if (profile.apportionmentMethod === 'percentage' && profile.subprofileApportionmentPercentages) {
+            const map = new Map<string, number>();
+            activeSubprofiles.forEach(sub => {
+                const percentage = profile.subprofileApportionmentPercentages?.[sub.id] || 0;
+                map.set(sub.id, percentage / 100);
+            });
+            return map;
+        }
+
         return calculateApportionmentProportions(allTransactions, activeSubprofiles);
     }, [allTransactions, profile]);
 

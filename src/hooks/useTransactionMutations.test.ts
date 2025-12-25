@@ -146,4 +146,37 @@ describe('useTransactionMutations', () => {
         expect(batch.update).toHaveBeenCalled();
         expect(batch.commit).toHaveBeenCalled();
     });
+
+    it('should create apportioned children when saving shared transaction with percentage mode', async () => {
+        const profileWithPercentages: Profile = {
+            ...mockProfile,
+            apportionmentMethod: 'percentage',
+            subprofileApportionmentPercentages: { 's1': 40, 's2': 60 },
+            subprofiles: [{ id: 's1', name: 'S1', status: 'active' }, { id: 's2', name: 'S2', status: 'active' }]
+        };
+
+        const { result } = renderHook(() => useTransactionMutations(profileWithPercentages));
+
+        const formData: any = {
+            description: 'Shared Cost',
+            planned: 100,
+            actual: 100,
+            date: '2023-01-01',
+            type: 'expense',
+            isShared: true
+        };
+
+        const proportions = new Map<string, number>();
+        proportions.set('s1', 0.4);
+        proportions.set('s2', 0.6);
+
+        await act(async () => {
+            await result.current.handleSaveTransaction(formData, undefined, proportions);
+        });
+
+        const batch = firestore.writeBatch(db);
+        // 1 call for parent, 2 calls for children
+        expect(batch.set).toHaveBeenCalledTimes(3);
+        expect(batch.commit).toHaveBeenCalled();
+    });
 });

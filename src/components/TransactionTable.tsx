@@ -23,7 +23,7 @@ interface TransactionTableProps {
     actions: TransactionActions;
     subprofileRevenueProportions?: Map<string, number>;
     subprofiles?: Subprofile[];
-    apportionmentMethod?: 'proportional' | 'manual';
+    apportionmentMethod?: 'proportional' | 'manual' | 'percentage';
     selectedIds: Set<string>;
     onSelectionChange: (id: string, checked: boolean) => void;
     onSelectAll: (checked: boolean) => void;

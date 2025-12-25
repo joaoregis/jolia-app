@@ -86,7 +86,7 @@ export const useTransactionMutations = (profile: Profile | null) => {
                     batch.update(docRef, cleanUndefinedFields(finalData));
 
                     // Lógica de rateio proporcional (se necessário)
-                    if (profile.apportionmentMethod === 'proportional' && data.isShared && !currentTransaction.isApportioned) {
+                    if ((profile.apportionmentMethod === 'proportional' || profile.apportionmentMethod === 'percentage') && data.isShared && !currentTransaction.isApportioned) {
                         const updatedParentData = { ...currentTransaction, ...finalData };
                         // Recalcula filhos se for pai compartilhado
                         if (subprofileRevenueProportions) {
@@ -96,7 +96,7 @@ export const useTransactionMutations = (profile: Profile | null) => {
                 }
 
             } else { // 3. Criando uma nova transação simples (não parcelada)
-                if (profile.apportionmentMethod === 'proportional' && data.isShared) {
+                if ((profile.apportionmentMethod === 'proportional' || profile.apportionmentMethod === 'percentage') && data.isShared) {
                     // Cria pai
                     const parentDocRef = doc(transactionsRef);
                     const parentId = parentDocRef.id;
@@ -181,15 +181,27 @@ export const useTransactionMutations = (profile: Profile | null) => {
             });
         }
 
-        const isProportionalSharedParent = transaction.isShared && !transaction.isApportioned && profile.apportionmentMethod === 'proportional';
+        const isProportionalSharedParent = transaction.isShared && !transaction.isApportioned && (profile.apportionmentMethod === 'proportional' || profile.apportionmentMethod === 'percentage');
 
         if (isProportionalSharedParent) {
-            const allTransactionsQuery = query(collection(db, 'transactions'), where('profileId', '==', profile.id));
-            const allTransactionsSnapshot = await getDocs(allTransactionsQuery);
-            const allTransactions = allTransactionsSnapshot.docs.map(d => d.data() as Transaction);
+            let proportions: Map<string, number>;
 
-            const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
-            const proportions = calculateApportionmentProportions(allTransactions, activeSubprofiles);
+            if (profile.apportionmentMethod === 'percentage' && profile.subprofileApportionmentPercentages) {
+                proportions = new Map<string, number>();
+                // Only consider active subprofiles for safety, or all? Usually active.
+                const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
+                activeSubprofiles.forEach(sub => {
+                    const percentage = profile.subprofileApportionmentPercentages?.[sub.id] || 0;
+                    proportions.set(sub.id, percentage / 100);
+                });
+            } else {
+                const allTransactionsQuery = query(collection(db, 'transactions'), where('profileId', '==', profile.id));
+                const allTransactionsSnapshot = await getDocs(allTransactionsQuery);
+                const allTransactions = allTransactionsSnapshot.docs.map(d => d.data() as Transaction);
+
+                const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
+                proportions = calculateApportionmentProportions(allTransactions, activeSubprofiles);
+            }
 
             const updatedParentData = { ...transaction, ...updatePayload };
             await recalculateApportionedChildren(batch, transaction.id, updatedParentData, proportions);
@@ -253,7 +265,7 @@ export const useTransactionMutations = (profile: Profile | null) => {
                     isShared: true
                 });
 
-                if (profile.apportionmentMethod === 'proportional' && subprofileRevenueProportions) {
+                if ((profile.apportionmentMethod === 'proportional' || profile.apportionmentMethod === 'percentage') && subprofileRevenueProportions) {
                     const activeSubprofiles = profile.subprofiles.filter(s => s.status === 'active');
                     const newParentData = { ...originalTransaction, isShared: true, subprofileId: undefined };
 

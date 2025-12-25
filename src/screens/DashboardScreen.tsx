@@ -97,15 +97,36 @@ export const DashboardScreen: React.FC = () => {
     }, [activeTab, logicState.currentMonth, logicHandlers]);
 
     useEffect(() => {
-        if (profile?.apportionmentMethod !== 'proportional' || allTransactions.length === 0 || transactionsLoading) return;
+        if ((profile?.apportionmentMethod !== 'proportional' && profile?.apportionmentMethod !== 'percentage') || allTransactions.length === 0 || transactionsLoading) return;
         const recalculateApportionedExpenses = async () => {
             const batch = writeBatch(db);
-            const parentExpenses = allTransactions.filter(t => t.isShared && !t.isApportioned);
+            const parentExpenses = allTransactions.filter(t => t.isShared && !t.isApportioned); // This handles creation for new parents if any (though usually handled by creation logic) - actually this loop updates EXISTING children. 
+            // Wait, the original code updates EXISTING children.
+            // Let's look closer at lines 103-119.
+            // It iterates parents. Finds children. Updates them.
+            // It DOES NOT create children.
+
             const childrenByParentId = allTransactions.filter(t => t.isApportioned && t.parentId).reduce((acc, c) => {
                 acc.set(c.parentId!, [...(acc.get(c.parentId!) || []), c]);
                 return acc;
             }, new Map<string, Transaction[]>());
             let hasChanges = false;
+
+            // We need to iterate ALL shared expenses that SHOULD have children.
+            // If we are in proportional/percentage mode, all shared expenses should be apportioned?
+            // Existing logic: currentTransaction.isApportioned check in mutations suggests some might not be?
+            // In 'manual' mode, isShared=true but isApportioned=false (or undefined).
+            // In 'proportional'/'percentage', isShared=true AND isApportioned=true (for the parent? No, looking at Types, 'isApportioned' seems to be for children? Or parent?)
+            // Looking at `prepareApportionedChild`: child has `isApportioned: true`. Parent does NOT have `isApportioned: true` set explicitly in mutation logic, but `recalculateApportionedChildren` takes `updatedParentData`.
+            // Wait, let's check mutation logic again.
+            // `prepareApportionedChild`: `isApportioned: true` on child.
+            // Parent: `isShared: true`. `isApportioned` is NOT set to true on parent in mutation logic (lines 100-118 of hooks).
+            // BUT `DashboardScreen` line 103: `parentExpenses = allTransactions.filter(t => t.isShared && !t.isApportioned);`
+            // If parent has `isApportioned` false, it's selected.
+            // If child has `isApportioned` true, it's NOT selected (correct).
+            // So this selects parents.
+
+            // The loop updates children if they exist.
             parentExpenses.forEach(parent => {
                 subprofileRevenueProportions.forEach((proportion, subId) => {
                     const newPlanned = parent.planned * proportion;
@@ -117,6 +138,7 @@ export const DashboardScreen: React.FC = () => {
                     }
                 });
             });
+
             if (hasChanges) {
                 console.log("Recalculando despesas rateadas...");
                 await batch.commit();
@@ -328,14 +350,37 @@ export const DashboardScreen: React.FC = () => {
             await updateDoc(doc(db, "profiles", profileId), newSettings);
             if (newMethod !== oldMethod) {
                 const batch = writeBatch(db);
-                if (newMethod === 'proportional') {
+                if (newMethod === 'proportional' || newMethod === 'percentage') {
+                    // Determine proportions to use
+                    let proportions = subprofileRevenueProportions;
+                    if (newMethod === 'percentage' && newSettings.subprofileApportionmentPercentages) {
+                        proportions = new Map<string, number>();
+                        Object.entries(newSettings.subprofileApportionmentPercentages).forEach(([id, val]) => {
+                            proportions.set(id, val / 100);
+                        });
+                    }
+
                     allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
                         const { id, ...rest } = parent;
-                        subprofileRevenueProportions.forEach((proportion, subId) => {
-                            batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
-                        });
+                        // Determine if children already exist (if switching from prop to perc, they might)
+                        // But we can't easily check for children here without querying or scanning allTransactions.
+                        // However, we can query active children in 'allTransactions'
+                        // Actually, if we are switching from Manual, they don't exist.
+                        // If switching from Proportional -> Percentage (or vice versa), they DO exist.
+                        // If they exist, we should NOT create duplicates.
+                        // The 'useEffect' will handle updates. We only need to CREATE if they don't exist.
+
+                        // How to check if children exist efficiently here?
+                        // We can look at 'allTransactions'.
+                        const hasChildren = allTransactions.some(t => t.parentId === parent.id);
+
+                        if (!hasChildren) {
+                            proportions.forEach((proportion, subId) => {
+                                batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
+                            });
+                        }
                     });
-                } else if (oldMethod === 'proportional') {
+                } else if (oldMethod === 'proportional' || oldMethod === 'percentage') {
                     const childrenQuery = query(collection(db, 'transactions'), where('profileId', '==', profileId), where('isApportioned', '==', true));
                     const childrenSnapshot = await getDocs(childrenQuery);
                     childrenSnapshot.forEach(doc => batch.delete(doc.ref));

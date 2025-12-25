@@ -100,4 +100,26 @@ describe('useDashboardData', () => {
         expect(result.current.sortedData.receitas).toHaveLength(1); // t1
         expect(result.current.sortedData.despesas).toHaveLength(0);
     });
+
+    it('should use fixed percentages when profile uses percentage apportionment', () => {
+        const profileWithPercentages: Profile = {
+            ...mockProfile,
+            apportionmentMethod: 'percentage',
+            subprofileApportionmentPercentages: { 's1': 40, 's2': 60 }
+        };
+
+        const { result } = renderHook(() => useDashboardData(
+            mockTransactions,
+            profileWithPercentages,
+            mockLabels,
+            'geral',
+            '2023-01',
+            null,
+            defaultFilter
+        ));
+
+        const proportions = result.current.subprofileRevenueProportions;
+        expect(proportions.get('s1')).toBe(0.4);
+        expect(proportions.get('s2')).toBe(0.6);
+    });
 });

@@ -33,8 +33,9 @@ export interface Profile {
   subprofiles: Subprofile[];
   status: 'active' | 'archived';
   closedMonths?: string[];
-  apportionmentMethod?: 'proportional' | 'manual';
+  apportionmentMethod?: 'proportional' | 'manual' | 'percentage';
   savedThemes?: CustomTheme[];
+  subprofileApportionmentPercentages?: Record<string, number>;
 }
 
 export interface Transaction {

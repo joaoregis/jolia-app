@@ -1,183 +1,207 @@
-# Jolia Finances
+# Jolia App
 
-Aplicação web de **gestão financeira pessoal** com suporte a múltiplos perfis e subperfis, séries/parcelas, fechamento de mês, rótulos, wishlist, importação e exportação de dados.
+![Status](https://img.shields.io/badge/status-active-success.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License](https://img.shields.io/badge/license-Private-blue.svg)
 
-## Sumário
-- [Jolia Finances](#jolia-finances)
-  - [Sumário](#sumário)
-  - [Stack](#stack)
-  - [Arquitetura](#arquitetura)
-  - [Funcionalidades](#funcionalidades)
-  - [Modelos de Dados](#modelos-de-dados)
-  - [Estrutura de Pastas](#estrutura-de-pastas)
-  - [Começando](#começando)
+**Jolia App** é uma aplicação web progressiva (PWA) de gestão pessoal completa, projetada para gerenciar finanças familiares, listas de desejos e entretenimento em um hub centralizado e esteticamente agradável.
+
+Focada em **multi-perfis** (famílias/grupos), a aplicação permite controle financeiro detalhado com rateio de despesas, acompanhamento de séries e filmes, e customização visual por usuário.
+
+---
+
+## 📑 Índice
+
+- [Jolia App](#jolia-app)
+  - [📑 Índice](#-índice)
+  - [✨ Funcionalidades Principais](#-funcionalidades-principais)
+    - [💰 Gestão Financeira](#-gestão-financeira)
+    - [📺 Entretenimento (Media Tracker)](#-entretenimento-media-tracker)
+    - [🎁 Listas de Desejos (Wishlist)](#-listas-de-desejos-wishlist)
+    - [⚙️ Sistema e Configurações](#️-sistema-e-configurações)
+  - [🚀 Tech Stack](#-tech-stack)
+  - [📂 Estrutura do Projeto](#-estrutura-do-projeto)
+  - [📚 Documentação](#-documentação)
+  - [🛠️ Instalação e Configuração](#️-instalação-e-configuração)
     - [Pré-requisitos](#pré-requisitos)
-    - [Setup](#setup)
-  - [Scripts NPM](#scripts-npm)
-  - [Variáveis de Ambiente](#variáveis-de-ambiente)
-  - [Segurança (Firestore)](#segurança-firestore)
-  - [Deploy (Firebase Hosting)](#deploy-firebase-hosting)
-  - [Roadmap (alto nível)](#roadmap-alto-nível)
+    - [Passo a Passo](#passo-a-passo)
+    - [Variáveis de Ambiente (.env)](#variáveis-de-ambiente-env)
+  - [📜 Scripts Disponíveis](#-scripts-disponíveis)
+  - [☁️ Deploy](#️-deploy)
+  - [🤝 Contribuição e Feedback](#-contribuição-e-feedback)
 
-## Stack
-- **Frontend:** React 18 + TypeScript + Vite
-- **Estilos:** Tailwind CSS (temas via CSS variables)
-- **Roteamento:** react-router-dom v7
-- **Backend (BaaS):** Firebase (Auth + Firestore)
-- **Utilidades:** PapaParse (CSV), XLSX (Excel), lucide-react (ícones)
-- **Qualidade:** ESLint (TypeScript); *[tests/CI serão adicionados]*
+---
 
-## Arquitetura
-- Padrão atual por camadas (`components`, `hooks`, `lib`, `contexts`, `screens`).
-- Estados globais:
-  - `ProfileContext` para perfil/tema ativo.
-  - `ToastContext` para notificações.
-- Integração com Firestore via `src/lib/firebase.ts`; queries em hooks dedicados.
-- Roteamento protegido: `/login` → `/profile/:profileId[/subprofileId]`.
+## ✨ Funcionalidades Principais
 
-## Funcionalidades
-- **Perfis e Subperfis**: criação, edição, arquivamento e restauração (lixeira).
-- **Transações**: receitas e despesas, rótulos, compartilhadas/por subperfil, notas, datas (lançamento, pagamento, vencimento), **séries/parcelas** e edição projetada.
-- **Fechamento de mês**: trava modificações do mês encerrado.
-- **Importação**: JSON/CSV com pré-visualização e limpeza de dados.
-- **Exportação**: JSON/CSV/XLSX por subperfil ou por perfil.
-- **Rótulos**: CRUD com arquivamento.
-- **Wishlist**: listas (compartilhadas ou por subperfil) + itens com progresso.
-- **Temas**: paletas prontas e temas customizados persistidos no perfil.
-- **UI**: toasts, modais de confirmação, cards/resumos, indicadores de balanço.
+### 💰 Gestão Financeira
+O núcleo do sistema, permitindo controle rigoroso e colaborativo.
+- **Transações**: Receitas e Despesas com categorização (Labels).
+- **Parcelamentos Inteligentes**: Suporte a séries de pagamentos (Ex: "Compra TV 1/10") com projeção futura.
+- **Multi-Subperfis**: Cada membro da família tem seu subperfil.
+- **Métodos de Rateio**:
+  - *Proporcional*: Divisão automática baseada na renda de cada membro.
+  - *Manual*: Definição valor-a-valor.
+  - *Porcentagem*: Divisão fixa percentual.
+- **Fechamento de Mês**: Trava de segurança para impedir edições em meses contábeis encerrados.
+- **Filtros Avançados**: Por data, valor, etiqueta e tipo.
+- **Importação/Exportação**: Suporte robusto para CSV, JSON e Excel com validação de dados.
 
-## Modelos de Dados
-> Coleções principais no Firestore (resumo)
+### 📺 Entretenimento (Media Tracker)
+Um "Letterboxd" privado para a família.
+- **Catálogo**: Adicione Filmes, Séries, Documentários e Vídeos.
+- **Status**: *To Watch* (Para Assistir), *In Progress* (Em Progresso) e *Watched* (Assistido).
+- **Histórico**: Timeline do que foi assistido mês a mês.
+- **Avaliações**: Sistema de rating (0-10) individual por membro da família.
+- **Providers**: Indicação de onde assistir (Netflix, Prime, Disney+, etc.).
+- **Gestão de Temporadas**: Controle granular de episódios e temporadas assistidas.
 
-- `profiles/{profileId}`  
-  - `name`, `status: 'active'|'archived'`, `ownerId`, `subprofiles: Subprofile[]`, `savedThemes: CustomTheme[]`, `createdAt`, `updatedAt`
-- `transactions/{transactionId}`  
-  - `profileId`, `subprofileId?`, `type: 'income'|'expense'`, `planned`, `actual`, `date`, `paymentDate?`, `dueDate?`,  
-    `labels: string[]`, `notes?`, `isShared`, `isRecurring`, `seriesId?`, `currentInstallment?`, `installments?`, `closedMonths: string[]`, `createdAt`, `updatedAt`
-- `labels/{labelId}`  
-  - `profileId`, `name`, `status: 'active'|'archived'`, `createdAt`, `updatedAt`
-- `wishlists/{listId}`  
-  - `profileId`, `name`, `isShared`, `subprofileId?`, `createdAt`  
-  - Subcoleção: `items/{itemId}` → `title`, `amount?`, `isDone`, `notes?`, `createdAt`
+### 🎁 Listas de Desejos (Wishlist)
+Gerenciamento de compras futuras e sonhos de consumo.
+- **Listas Categorizadas**: Crie múltiplas listas (Ex: "Supermercado", "Tech", "Viagem").
+- **Itens**: Adicione itens com preço estimado, links e notas.
+- **Status de Conclusão**: Marque itens como comprados/concluídos.
+- **Visualização de Progresso**: Barras de progresso financeiro e de quantidade por lista.
 
-> **Observação:** índices e regras de segurança devem ser versionados (ver seção de Segurança).
+### ⚙️ Sistema e Configurações
+- **Temas Dinâmicos**: Troca de temas em tempo real (Cores, Fontes, Bordas).
+- **Customização**: O usuário pode criar e salvar seus próprios temas.
+- **Feedback Integrado**: Sistema interno para reportar Bugs, Ideias e Débitos Técnicos diretamente na interface (Context Aware - sabe em qual tela você está).
+- **Notificações**: Central de avisos para feedbacks e atualizações.
 
-## Estrutura de Pastas
+---
+
+## 🚀 Tech Stack
+
+O projeto utiliza as tecnologias mais modernas do ecossistema React para garantir performance, tipagem e manutenibilidade.
+
+| Categoria | Tecnologia | Descrição |
+| :--- | :--- | :--- |
+| **Frontend** | [React 18](https://react.dev/) | Biblioteca de UI baseada em componentes funcionais e Hooks. |
+| **Build Tool** | [Vite](https://vitejs.dev/) | Bundler ultrarrápido com HMR (Hot Module Replacement) instantâneo. |
+| **Linguagem** | [TypeScript](https://www.typescriptlang.org/) | Superset JS para tipagem estática e segurança de código. |
+| **Estilização** | [Tailwind CSS](https://tailwindcss.com/) | Framework utility-first com suporte a variáveis CSS para temas. |
+| **Animações** | [Framer Motion](https://www.framer.com/motion/) | Biblioteca líder para animações declarativas e gestos. |
+| **Roteamento** | [React Router v7](https://reactrouter.com/) | Gerenciamento de rotas client-side. |
+| **Data/Utils** | [Date-fns](https://date-fns.org/) | Manipulação imutável e leve de datas. |
+| **Backend (BaaS)** | [Firebase](https://firebase.google.com/) | Auth, Firestore (NoSQL Database) e Hosting. |
+| **Testes** | [Vitest](https://vitest.dev/) | Runner de testes unitários compatível com Jest. |
+
+---
+
+## 📂 Estrutura do Projeto
+
+```bash
+src/
+├── components/     # UI Kits (Cards, Modais, Inputs, Tabelas)
+├── contexts/       # Global State (Auth, Profile, Toast, Theme)
+├── hooks/          # Custom Hooks (UseTransactions, UseMedia, etc.)
+├── lib/            # Configurações (Firebase, Utils, Helpers)
+├── screens/        # Páginas da aplicação (Dashboard, Wishlist, Settings)
+├── types/          # Definições de Tipos TypeScript (Interfaces Globais)
+└── App.tsx         # Root Component e Configuração de Rotas
+docs/
+├── Database Docs.md # Documentação completa do Schema do Firestore
+└── Onboarding.md    # Guia para novos desenvolvedores
 ```
 
-src/
-App.tsx
-main.tsx
-index.css
-components/        # UI compartilhada (Card, Modais, Tabela, etc.)
-contexts/          # ProfileContext, ToastContext
-hooks/             # useProfile, useTransactions, useLabels, ...
-lib/               # firebase.ts, export.ts, themes.ts, utils.ts
-screens/           # Login, ProfileSelector, Dashboard, Settings, Trash, Wishlist
-types/             # Tipos globais (Transaction, Profile, Label, etc.)
+---
 
-````
+## 📚 Documentação
 
-## Começando
+Para aprofundamento técnico, consulte a pasta `/docs`:
+
+- **[Onboarding](./docs/Onboarding.md)**: Visão geral para desenvolvedores iniciantes no projeto.
+- **[Database Specs](./docs/Database%20Docs.md)**: Detalhamento completo das coleções, campos e relacionamentos do Firestore.
+
+---
+
+## 🛠️ Instalação e Configuração
+
 ### Pré-requisitos
-- Node.js 20+
-- Conta Firebase com projeto criado, Firestore e Auth habilitados (método Email/Senha).
+- **Node.js**: Versão 18 ou superior.
+- **Gerenciador de Pacotes**: NPM ou Yarn.
+- **Firebase CLI**: (Opcional, para deploy) `npm install -g firebase-tools`.
 
-### Setup
-1. **Instalar dependências**
-    ```bash
-    npm install
-    ````
+### Passo a Passo
 
-2. **Variáveis de ambiente**
-   Crie um arquivo `.env.local` na raiz com as chaves do Firebase:
-
-   ```dotenv
-   VITE_FIREBASE_API_KEY="..."
-   VITE_FIREBASE_AUTH_DOMAIN="..."
-   VITE_FIREBASE_PROJECT_ID="..."
-   VITE_FIREBASE_STORAGE_BUCKET="..."
-   VITE_FIREBASE_MESSAGING_SENDER_ID="..."
-   VITE_FIREBASE_APP_ID="..."
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/seu-usuario/jolia-app.git
+   cd jolia-app
    ```
-3. **Executar em desenvolvimento**
 
+2. **Instale as dependências:**
+   ```bash
+   npm install
+   ```
+
+3. **Configure as Variáveis de Ambiente:**
+   Crie um arquivo `.env.local` na raiz do projeto seguindo o exemplo abaixo.
+
+### Variáveis de Ambiente (.env)
+
+Você precisa de um projeto Firebase configurado. Obtenha estas chaves no console do Firebase.
+
+```env
+VITE_FIREBASE_API_KEY=seu_api_key
+VITE_FIREBASE_AUTH_DOMAIN=seu_projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu_projeto_id
+VITE_FIREBASE_STORAGE_BUCKET=seu_projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
+VITE_FIREBASE_APP_ID=seu_app_id
+```
+
+4. **Rode o servidor de desenvolvimento:**
    ```bash
    npm run dev
    ```
+   Acesse: `http://localhost:5173`
 
-   A aplicação abrirá em `http://localhost:5173`.
+---
 
-## Scripts NPM
+## 📜 Scripts Disponíveis
 
-* `npm run dev` — servidor de desenvolvimento (Vite).
-* `npm run build` — build de produção (TypeScript + Vite).
-* `npm run preview` — pré-visualização da pasta `dist`.
+No terminal, você pode executar:
 
-## Variáveis de Ambiente
+- `npm run dev`: Inicia o servidor local de desenvolvimento.
+- `npm run build`: Compila o projeto para produção na pasta `dist`.
+- `npm run preview`: Visualiza o build de produção localmente.
+- `npm run test`: Executa a suíte de testes unitários com Vitest.
+- `make deploy`: (Windows/Linux) Atalho para rodar testes, build e deploy.
 
-Todas lidas via `import.meta.env.*` em `src/lib/firebase.ts`.
-**Nunca** faça commit de `.env.local`.
+---
 
-## Segurança (Firestore)
+## ☁️ Deploy
 
-> **Importante:** versionar e aplicar **regras de segurança** antes de publicar.
+O deploy é automatizado via Firebase Hosting.
 
-Exemplo (ilustrativo) — **ajuste ao seu modelo**:
-
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isOwner(profileId) {
-      return isSignedIn() && exists(/databases/$(database)/documents/profiles/$(profileId))
-        && get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == request.auth.uid;
-    }
-
-    match /profiles/{profileId} {
-      allow read, write: if isOwner(profileId);
-    }
-
-    match /transactions/{txId} {
-      allow read, write: if isOwner(resource.data.profileId);
-    }
-
-    match /labels/{labelId} {
-      allow read, write: if isOwner(resource.data.profileId);
-    }
-
-    match /wishlists/{listId} {
-      allow read, write: if isOwner(resource.data.profileId);
-    }
-    match /wishlists/{listId}/items/{itemId} {
-      allow read, write: if isOwner(get(/databases/$(database)/documents/wishlists/$(listId)).data.profileId);
-    }
-  }
-}
-```
-
-> Recomenda-se usar **Emuladores** do Firebase localmente e adicionar `firestore.rules`/`firestore.indexes.json` ao repositório.
-
-## Deploy (Firebase Hosting)
-
-1. **Build**
-
+1. Faça login no Firebase CLI:
    ```bash
+   firebase login
+   ```
+
+2. Execute o build e deploy:
+   ```bash
+   # Opção 1: Manual
    npm run build
-   ```
-2. **Deploy**
-
-   ```bash
-   # requer `firebase-tools` instalado e projeto autenticado
    firebase deploy
+
+   # Opção 2: Via Makefile (Recomendado)
+   make deploy
    ```
 
-O `firebase.json` já reescreve rotas SPA para `index.html`.
+---
 
-## Roadmap (alto nível)
+## 🤝 Contribuição e Feedback
 
-* Testes (Vitest/RTL + Playwright), CI, Prettier, Husky.
-* TanStack Query + camada de repositórios (Zod).
-* Regras Firestore versionadas + Emuladores.
-* Virtualização de tabelas e code-splitting por rota.
+O projeto conta com um sistema interno de feedback. Se você encontrar um bug ou tiver uma ideia enquanto usa o app, clique no ícone de **Prancheta** no cabeçalho.
+
+Para contribuições de código:
+1. Siga os padrões de commit (Conventional Commits).
+2. Sempre rode `npm run test` antes de enviar PRs.
+3. Mantenha a tipagem do TypeScript estrita ("no-any").
+
+---
+
+**Desenvolvido por João Regis**

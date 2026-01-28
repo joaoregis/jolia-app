@@ -24,7 +24,7 @@ vi.mock('firebase/firestore', () => {
         serverTimestamp: vi.fn(),
         deleteField: vi.fn(),
         getDoc: vi.fn(),
-        getDocs: vi.fn(),
+        getDocs: vi.fn().mockResolvedValue({ docs: [], forEach: vi.fn() }),
         query: vi.fn(),
         where: vi.fn(),
         orderBy: vi.fn(),
@@ -113,10 +113,52 @@ describe('useTransactionMutations', () => {
 
         const batch = firestore.writeBatch(db);
         // Should update current transaction (skippedInMonths)
-        expect(batch.update).toHaveBeenCalled();
+        expect(batch.update).toHaveBeenCalled(); // t1
         // Should create next transaction
-        expect(batch.set).toHaveBeenCalled();
+        expect(batch.set).toHaveBeenCalled(); // next transaction
         expect(batch.commit).toHaveBeenCalled();
+    });
+
+    it('should propagate skip to children', async () => {
+        const { result } = renderHook(() => useTransactionMutations(mockProfile));
+
+        const transaction: Transaction = {
+            id: 't1',
+            description: 'Parent',
+            date: '2023-01-01',
+            type: 'expense',
+            planned: 100,
+            actual: 100,
+            profileId: 'p1',
+            isRecurring: true
+        };
+
+        // Mock getDocs finding children
+        (firestore.getDocs as any).mockResolvedValue({
+            docs: [
+                { id: 'c1', ref: { id: 'c1', path: 'transactions/c1' }, data: () => ({ skippedInMonths: [] }) },
+                { id: 'c2', ref: { id: 'c2', path: 'transactions/c2' }, data: () => ({ skippedInMonths: [] }) }
+            ],
+            forEach: function (opt: any) { this.docs.forEach(opt); }
+        });
+
+        await act(async () => {
+            await result.current.handleSkipTransaction(transaction, '2023-01');
+        });
+
+        const batch = firestore.writeBatch(db);
+
+        // Calls: 1 update (parent), 1 set (next parent), 2 updates (children)
+        // Note: The implementation might differ in order, but checking calls is key.
+        // We expect batch.update to be called for t1, c1, c2.
+
+        const updateCalls = (batch.update as any).mock.calls;
+        const idsUpdated = updateCalls.map((call: any) => call[0].id);
+        console.log('IDs updated:', idsUpdated);
+
+        expect(idsUpdated).toContain('t1'); // Parent
+        expect(idsUpdated).toContain('c1'); // Child 1
+        expect(idsUpdated).toContain('c2'); // Child 2
     });
 
     it('should handle unskip transaction', async () => {
@@ -145,6 +187,41 @@ describe('useTransactionMutations', () => {
         // Should update current transaction (remove from skippedInMonths)
         expect(batch.update).toHaveBeenCalled();
         expect(batch.commit).toHaveBeenCalled();
+    });
+
+    it('should propagate unskip to children', async () => {
+        const { result } = renderHook(() => useTransactionMutations(mockProfile));
+
+        const transaction: Transaction = {
+            id: 't1',
+            description: 'Parent',
+            date: '2023-01-01',
+            type: 'expense',
+            planned: 100,
+            actual: 100,
+            profileId: 'p1',
+            isRecurring: true,
+            skippedInMonths: ['2023-01'],
+        };
+
+        // Mock getDocs finding children
+        (firestore.getDocs as any).mockResolvedValue({
+            docs: [
+                { id: 'c1', ref: { id: 'c1', path: 'transactions/c1' }, data: () => ({ skippedInMonths: ['2023-01'] }) },
+            ],
+            forEach: function (opt: any) { this.docs.forEach(opt); }
+        });
+
+        await act(async () => {
+            await result.current.handleUnskipTransaction(transaction, '2023-01');
+        });
+
+        const batch = firestore.writeBatch(db);
+        const updateCalls = (batch.update as any).mock.calls;
+        const idsUpdated = updateCalls.map((call: any) => call[0].id);
+
+        expect(idsUpdated).toContain('t1'); // Parent
+        expect(idsUpdated).toContain('c1'); // Child
     });
 
     it('should create apportioned children when saving shared transaction with percentage mode', async () => {

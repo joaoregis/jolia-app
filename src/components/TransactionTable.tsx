@@ -335,9 +335,9 @@ export const IgnoredTransactionsTable: React.FC<IgnoredTransactionsTableProps> =
                                     <td className="px-4 py-3 text-center align-middle">
                                         <button
                                             onClick={() => onUnskip(item)}
-                                            disabled={isCurrentMonthClosed}
+                                            disabled={isCurrentMonthClosed || !!item.isApportioned || !!item.parentId}
                                             className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1 mx-auto disabled:bg-slate-400 disabled:cursor-not-allowed"
-                                            title={isCurrentMonthClosed ? "Não é possível reativar em meses fechados" : "Reativar transação para este mês"}
+                                            title={isCurrentMonthClosed ? "Não é possível reativar em meses fechados" : (item.isApportioned || item.parentId ? "Gerenciado na Visão Geral" : "Reativar transação para este mês")}
                                         >
                                             <RotateCw size={14} /> Reativar
                                         </button>

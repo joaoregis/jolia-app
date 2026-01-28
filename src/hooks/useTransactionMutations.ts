@@ -325,6 +325,16 @@ export const useTransactionMutations = (profile: Profile | null) => {
         });
         batch.set(nextTransactionRef, dataToSave);
 
+        // 3. Propagar para filhos se for transação compartilhada
+        const childrenQuery = query(collection(db, 'transactions'), where('parentId', '==', transaction.id));
+        const childrenSnapshot = await getDocs(childrenQuery);
+
+        childrenSnapshot.forEach(childDoc => {
+            const childData = childDoc.data() as Transaction;
+            const childUpdatedSkipped = [...(childData.skippedInMonths || []), currentMonthString];
+            batch.update(childDoc.ref, { skippedInMonths: childUpdatedSkipped });
+        });
+
         await batch.commit();
     };
 
@@ -344,6 +354,17 @@ export const useTransactionMutations = (profile: Profile | null) => {
         }
 
         batch.update(transactionRef, updatePayload);
+
+        // 3. Propagar para filhos se for transação compartilhada
+        const childrenQuery = query(collection(db, 'transactions'), where('parentId', '==', transaction.id));
+        const childrenSnapshot = await getDocs(childrenQuery);
+
+        childrenSnapshot.forEach(childDoc => {
+            const childData = childDoc.data() as Transaction;
+            const childUpdatedSkipped = (childData.skippedInMonths || []).filter(m => m !== currentMonthString);
+            batch.update(childDoc.ref, { skippedInMonths: childUpdatedSkipped });
+        });
+
         await batch.commit();
     };
 

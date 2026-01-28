@@ -1,7 +1,7 @@
 // src/components/Header.tsx
 
 import React, { useMemo } from 'react';
-import { Menu, User as UserIcon, ChevronRight } from 'lucide-react';
+import { Menu, User as UserIcon, ChevronRight, ClipboardList } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useProfileContext } from '../hooks/useProfileContext';
 import { useLocation, useParams } from 'react-router-dom';
@@ -9,9 +9,11 @@ import { useLocation, useParams } from 'react-router-dom';
 interface HeaderProps {
     onMenuClick: () => void;
     user: User | null;
+    onFeedbackClick?: () => void;
+    feedbackCount?: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onMenuClick, user }) => {
+export const Header: React.FC<HeaderProps> = ({ onMenuClick, user, onFeedbackClick, feedbackCount = 0 }) => {
     const { profile } = useProfileContext();
     const { subprofileId } = useParams();
     const location = useLocation();
@@ -58,6 +60,21 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, user }) => {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    <button
+                        onClick={onFeedbackClick}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sidebar-text-secondary hover:text-accent hover:bg-accent/10 rounded-md transition-all duration-200 group active:scale-95"
+                        title="Feedback & Issues"
+                    >
+                        <div className="relative">
+                            <ClipboardList size={18} className="group-hover:scale-110 transition-transform duration-200" />
+                            {feedbackCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white dark:ring-background animate-pulse">
+                                    {feedbackCount > 9 ? '9+' : feedbackCount}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-sm font-medium hidden sm:inline group-hover:font-semibold transition-all">Feedback</span>
+                    </button>
                     <div className="flex items-center gap-3 text-sm text-sidebar-text-secondary">
                         <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
                             <UserIcon size={18} className="text-text-secondary" />

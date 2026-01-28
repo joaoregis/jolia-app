@@ -18,12 +18,12 @@ export const ProfileContext = createContext<ProfileContextType | undefined>(unde
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { profileId } = useParams<{ profileId: string }>();
     const { profile, loading } = useProfile(profileId);
-    
+
     const [activeTheme, setActiveTheme] = useState<Theme>(themes.default);
 
     const setActiveThemeBySubprofileId = useCallback((subprofileId: string | null) => {
         if (!profile) return;
-        
+
         const activeSub = profile.subprofiles.find(s => s.id === subprofileId);
         let themeToApply = themes.default;
 
@@ -37,7 +37,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 themeToApply = themes[activeSub.themeId];
             }
         }
-        
+
         setActiveTheme(currentTheme => {
             if (JSON.stringify(currentTheme) === JSON.stringify(themeToApply)) {
                 return currentTheme;
@@ -45,20 +45,20 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             return themeToApply;
         });
     }, [profile]);
-    
+
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(activeTheme.variables).forEach(([key, value]) => {
             root.style.setProperty(key, value);
         });
-        
+
         return () => {
-             Object.entries(themes.default.variables).forEach(([key, value]) => {
+            Object.entries(themes.default.variables).forEach(([key, value]) => {
                 root.style.setProperty(key, value);
             });
         }
     }, [activeTheme]);
-    
+
     const value = useMemo(() => ({
         profile,
         loading,
@@ -71,4 +71,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
             {children}
         </ProfileContext.Provider>
     );
+};
+
+export const useProfileContext = () => {
+    const context = React.useContext(ProfileContext);
+    if (context === undefined) {
+        throw new Error('useProfileContext must be used within a ProfileProvider');
+    }
+    return context;
 };

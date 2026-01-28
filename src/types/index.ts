@@ -172,7 +172,25 @@ export interface MediaItem {
   watchedSeasons?: Record<number, string>; // Season Number -> YYYY-MM (para séries)
 
   // Legacy support
-  isWatched?: boolean;
   rating?: number;
   displayDate?: string; // Helper para exibição no histórico
+}
+
+// Tipos para a feature de Feedback/Débito Técnico
+export type FeedbackType = 'bug' | 'feature' | 'ux' | 'performance' | 'tech_debt' | 'other';
+export type FeedbackStatus = 'open' | 'in_progress' | 'resolved' | 'archived';
+export type FeedbackPriority = 'low' | 'medium' | 'high';
+
+export interface Feedback {
+  id: string;
+  profileId: string;
+  subprofileId?: string;
+  description: string;
+  type: FeedbackType;
+  priority: FeedbackPriority;
+  status: FeedbackStatus;
+  createdAt: any; // serverTimestamp
+  resolvedAt?: any;
+  isViewed?: boolean;
+  path?: string;
 }

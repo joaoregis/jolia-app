@@ -72,7 +72,7 @@ export const MediaFormModal: React.FC<MediaFormModalProps> = ({
                 if (initialData.status) {
                     setStatus(initialData.status);
                 } else {
-                    setStatus(initialData.isWatched ? 'watched' : 'to_watch');
+                    setStatus((initialData as any).isWatched ? 'watched' : 'to_watch');
                 }
 
                 setCurrentTime(initialData.currentTime);

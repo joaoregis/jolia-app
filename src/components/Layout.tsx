@@ -1,11 +1,11 @@
-// src/components/Layout.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { Briefcase, Home, LogOut, ChevronLeft, Gift, Settings, Film } from 'lucide-react';
 import { Header } from './Header';
-import { ProfileProvider } from '../contexts/ProfileContext';
+import { ProfileProvider, useProfileContext } from '../contexts/ProfileContext';
+import { FeedbackModal } from './FeedbackModal';
+import { useFeedbacks } from '../hooks/useFeedbacks';
 
 interface LayoutProps {
     user: User | null;
@@ -13,12 +13,17 @@ interface LayoutProps {
 
 const COLLAPSED_STATE_STORAGE_KEY = 'jolia_sidebar_collapsed';
 
-export const Layout: React.FC<LayoutProps> = ({ user }) => {
+const LayoutContent: React.FC<LayoutProps> = ({ user }) => {
     const navigate = useNavigate();
     const { profileId, subprofileId } = useParams<{ profileId: string; subprofileId?: string }>();
     const location = useLocation();
+    const { profile } = useProfileContext();
+    // Only fetch feedbacks if we have a profile to avoid errors. Passing undefined if no profile.
+    const { feedbacks } = useFeedbacks(profile?.id);
+    const unreadCount = feedbacks ? feedbacks.filter(f => !f.isViewed).length : 0;
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false); // State for Feedback Modal
 
     const [isCollapsed, setIsCollapsed] = useState(() => {
         try {
@@ -61,90 +66,108 @@ export const Layout: React.FC<LayoutProps> = ({ user }) => {
         );
 
     return (
-        <ProfileProvider>
-            <div className="flex h-screen overflow-hidden bg-background font-sans">
-                {isMobileMenuOpen && (
-                    <div
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="fixed inset-0 bg-black/60 z-30 lg:hidden"
-                        aria-hidden="true"
-                    ></div>
-                )}
+        <div className="flex h-screen overflow-hidden bg-background font-sans">
+            {isMobileMenuOpen && (
+                <div
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+                    aria-hidden="true"
+                ></div>
+            )}
 
-                <aside className={`
+            <aside className={`
                     absolute lg:relative inset-y-0 left-0 z-40 bg-sidebar p-4 flex flex-col justify-between transition-transform duration-300 ease-in-out border-r border-border
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                     ${isCollapsed ? 'w-20' : 'w-64'}
                 `}>
-                    <div>
-                        <div className={`flex items-center gap-3 mb-10 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-                            <Briefcase className="text-accent h-8 w-8 flex-shrink-0" />
-                            {!isCollapsed && <h1 className="text-2xl font-bold text-sidebar-text-primary whitespace-nowrap">Jolia</h1>}
-                        </div>
-
-                        <nav className="space-y-2">
-                            {navItems.map(item => {
-                                const isDashboardRoute = !location.pathname.includes('wishlist') && !location.pathname.includes('settings') && !location.pathname.includes('media');
-                                const isWishlistRoute = location.pathname.includes('wishlist');
-                                const isMediaRoute = location.pathname.includes('media');
-
-                                let isActive = false;
-                                if (item.label === 'Controle Financeiro') {
-                                    isActive = isDashboardRoute;
-                                } else if (item.label === 'Lista de Desejos') {
-                                    isActive = isWishlistRoute;
-                                } else if (item.label === 'Entretenimento') {
-                                    isActive = isMediaRoute;
-                                }
-
-                                return (
-                                    <NavLink
-                                        key={item.label}
-                                        href={item.href}
-                                        icon={item.icon}
-                                        label={item.label}
-                                        isCollapsed={isCollapsed}
-                                        isActive={isActive}
-                                    />
-                                )
-                            })}
-                        </nav>
+                <div>
+                    <div className={`flex items-center gap-3 mb-10 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
+                        <Briefcase className="text-accent h-8 w-8 flex-shrink-0" />
+                        {!isCollapsed && <h1 className="text-2xl font-bold text-sidebar-text-primary whitespace-nowrap">Jolia</h1>}
                     </div>
 
-                    <div className="space-y-2 border-t border-border pt-4">
-                        <NavLink
-                            href={`/profile/${profileId}/settings`}
-                            icon={Settings}
-                            label="Configurações"
-                            isCollapsed={isCollapsed}
-                            isActive={location.pathname.includes('settings')}
-                        />
-                        <button onClick={() => navigate('/')} title="Trocar de Perfil" className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-text-secondary hover:bg-background rounded-lg ${isCollapsed ? 'justify-center' : ''}`}>
-                            <LogOut size={20} />
-                            {!isCollapsed && <span>Trocar de Perfil</span>}
-                        </button>
-                    </div>
+                    <nav className="space-y-2">
+                        {navItems.map(item => {
+                            const isDashboardRoute = !location.pathname.includes('wishlist') && !location.pathname.includes('settings') && !location.pathname.includes('media');
+                            const isWishlistRoute = location.pathname.includes('wishlist');
+                            const isMediaRoute = location.pathname.includes('media');
 
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="absolute -right-3 top-16 hidden lg:flex items-center justify-center w-6 h-6 bg-accent text-white rounded-full hover:bg-accent-hover focus:outline-none"
-                        title={isCollapsed ? "Expandir menu" : "Recolher menu"}
-                    >
-                        <ChevronLeft className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} size={16} />
-                    </button>
-                </aside>
+                            let isActive = false;
+                            if (item.label === 'Controle Financeiro') {
+                                isActive = isDashboardRoute;
+                            } else if (item.label === 'Lista de Desejos') {
+                                isActive = isWishlistRoute;
+                            } else if (item.label === 'Entretenimento') {
+                                isActive = isMediaRoute;
+                            }
 
-                <div className="flex-1 flex flex-col overflow-hidden">
-                    <Header
-                        onMenuClick={() => setIsMobileMenuOpen(true)}
-                        user={user}
-                    />
-                    <main id="main-content" className="flex-1 overflow-y-auto bg-background">
-                        <Outlet />
-                    </main>
+                            return (
+                                <NavLink
+                                    key={item.label}
+                                    href={item.href}
+                                    icon={item.icon}
+                                    label={item.label}
+                                    isCollapsed={isCollapsed}
+                                    isActive={isActive}
+                                />
+                            )
+                        })}
+                    </nav>
                 </div>
+
+                <div className="space-y-2 border-t border-border pt-4">
+                    <NavLink
+                        href={`/profile/${profileId}/settings`}
+                        icon={Settings}
+                        label="Configurações"
+                        isCollapsed={isCollapsed}
+                        isActive={location.pathname.includes('settings')}
+                    />
+                    <button onClick={() => navigate('/')} title="Trocar de Perfil" className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-text-secondary hover:bg-background rounded-lg ${isCollapsed ? 'justify-center' : ''}`}>
+                        <LogOut size={20} />
+                        {!isCollapsed && <span>Trocar de Perfil</span>}
+                    </button>
+                </div>
+
+                <button
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="absolute -right-3 top-16 hidden lg:flex items-center justify-center w-6 h-6 bg-accent text-white rounded-full hover:bg-accent-hover focus:outline-none"
+                    title={isCollapsed ? "Expandir menu" : "Recolher menu"}
+                >
+                    <ChevronLeft className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} size={16} />
+                </button>
+            </aside>
+
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <Header
+                    onMenuClick={() => setIsMobileMenuOpen(true)}
+                    user={user}
+                    onFeedbackClick={() => setIsFeedbackModalOpen(true)}
+                    feedbackCount={unreadCount}
+                />
+                <main id="main-content" className="flex-1 overflow-y-auto bg-background">
+                    <Outlet />
+                </main>
             </div>
+
+            {/* Render Feedback Modal */}
+            {profile && (
+                <FeedbackModal
+                    isOpen={isFeedbackModalOpen}
+                    onClose={() => setIsFeedbackModalOpen(false)}
+                    profile={profile}
+                    activeSubprofileId={subprofileId}
+                />
+            )}
+        </div>
+    );
+}
+
+export const Layout: React.FC<LayoutProps> = ({ user }) => {
+    return (
+        <ProfileProvider>
+            <LayoutContent user={user} />
         </ProfileProvider>
     );
 };

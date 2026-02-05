@@ -72,7 +72,7 @@ export const prepareMonthClosingUpdates = (
         transactionsToCreate.push({ type: 'parent', data: parentToSave });
 
         // 2. If it's a Shared Proportional transaction, generate NEW children
-        if (profile.apportionmentMethod === 'proportional' && parent.isShared) {
+        if ((profile.apportionmentMethod === 'proportional' || profile.apportionmentMethod === 'percentage') && parent.isShared) {
             subprofileRevenueProportions.forEach((proportion, subId) => {
                 // We need a "complete" parent object to pass to prepareApportionedChild
                 // We construct it from the nextParentData + the tempId

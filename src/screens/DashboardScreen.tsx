@@ -401,8 +401,10 @@ export const DashboardScreen: React.FC = () => {
             const { apportionmentMethod: oldMethod } = profile;
             const { apportionmentMethod: newMethod } = newSettings;
             await updateDoc(doc(db, "profiles", profileId), newSettings);
-            if (newMethod !== oldMethod) {
-                const batch = writeBatch(db);
+
+            if (newMethod && newMethod !== oldMethod) {
+                const MAX_BATCH_SIZE = 500;
+
                 if (newMethod === 'proportional' || newMethod === 'percentage') {
                     // Determine proportions to use
                     let proportions = subprofileRevenueProportions;
@@ -413,36 +415,106 @@ export const DashboardScreen: React.FC = () => {
                         });
                     }
 
-                    allTransactions.filter(t => t.isShared && !t.isApportioned).forEach(parent => {
-                        const { id, ...rest } = parent;
-                        // Determine if children already exist (if switching from prop to perc, they might)
-                        // But we can't easily check for children here without querying or scanning allTransactions.
-                        // However, we can query active children in 'allTransactions'
-                        // Actually, if we are switching from Manual, they don't exist.
-                        // If switching from Proportional -> Percentage (or vice versa), they DO exist.
-                        // If they exist, we should NOT create duplicates.
-                        // The 'useEffect' will handle updates. We only need to CREATE if they don't exist.
+                    // OPTIMIZATION: Determine start date based on closed months
+                    let startProcessingDate = '0000-00-00';
+                    if (profile.closedMonths && profile.closedMonths.length > 0) {
+                        const sortedClosed = [...profile.closedMonths].sort();
+                        const lastClosed = sortedClosed[sortedClosed.length - 1];
+                        const [year, month] = lastClosed.split('-').map(Number);
+                        // new Date(2023, 10, 1) -> November 1st (Month is 0-indexed in JS Date? Wait, split gives explicit month number 1-12)
+                        // JS Date month is 0-11. 
+                        // "2023-10" -> year=2023, month=10. 
+                        // new Date(2023, 10, 1) is November 1st (index 10 = Nov). Correct.
+                        const nextMonthDate = new Date(year, month, 1);
+                        startProcessingDate = nextMonthDate.toISOString().split('T')[0];
+                    }
 
-                        // How to check if children exist efficiently here?
-                        // We can look at 'allTransactions'.
-                        const hasChildren = allTransactions.some(t => t.parentId === parent.id);
+                    // Define parentsToProcess
+                    const parentsToProcess = allTransactions.filter(t =>
+                        t.isShared &&
+                        !t.isApportioned &&
+                        t.date >= startProcessingDate
+                    );
 
-                        if (!hasChildren) {
+                    // Pre-fetch existing children to avoid duplicates
+                    const childrenQuery = query(
+                        collection(db, 'transactions'),
+                        where('profileId', '==', profileId),
+                        where('isApportioned', '==', true),
+                        where('date', '>=', startProcessingDate)
+                    );
+                    const childrenSnapshot = await getDocs(childrenQuery);
+                    const existingChildrenParentIds = new Set<string>();
+                    childrenSnapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.parentId) existingChildrenParentIds.add(data.parentId);
+                    });
+                    const transactionsToCreate: any[] = [];
+                    parentsToProcess.forEach(parent => {
+                        if (!existingChildrenParentIds.has(parent.id)) {
+                            const { id, ...rest } = parent;
                             proportions.forEach((proportion, subId) => {
-                                batch.set(doc(collection(db, 'transactions')), { ...rest, description: `[Rateio] ${parent.description}`, planned: parent.planned * proportion, actual: parent.actual * proportion, isShared: false, isApportioned: true, parentId: parent.id, subprofileId: subId, createdAt: serverTimestamp() });
+                                transactionsToCreate.push({
+                                    ...rest,
+                                    description: `[Rateio] ${parent.description}`,
+                                    planned: parent.planned * proportion,
+                                    actual: parent.actual * proportion,
+                                    isShared: false,
+                                    isApportioned: true,
+                                    parentId: parent.id,
+                                    subprofileId: subId,
+                                    createdAt: serverTimestamp()
+                                });
                             });
                         }
                     });
+
+                    // Execute batches
+                    for (let i = 0; i < transactionsToCreate.length; i += MAX_BATCH_SIZE) {
+                        const batch = writeBatch(db);
+                        const chunk = transactionsToCreate.slice(i, i + MAX_BATCH_SIZE);
+                        chunk.forEach(data => {
+                            batch.set(doc(collection(db, 'transactions')), data);
+                        });
+                        await batch.commit();
+                    }
+
                 } else if (oldMethod === 'proportional' || oldMethod === 'percentage') {
-                    const childrenQuery = query(collection(db, 'transactions'), where('profileId', '==', profileId), where('isApportioned', '==', true));
+                    // Deletion case
+                    // OPTIMIZATION: Determine start date based on closed months
+                    let startProcessingDate = '0000-00-00';
+                    if (profile.closedMonths && profile.closedMonths.length > 0) {
+                        const sortedClosed = [...profile.closedMonths].sort();
+                        const lastClosed = sortedClosed[sortedClosed.length - 1];
+                        const [year, month] = lastClosed.split('-').map(Number);
+                        const nextMonthDate = new Date(year, month, 1);
+                        startProcessingDate = nextMonthDate.toISOString().split('T')[0];
+                    }
+
+                    // Fetch all children first (safest)
+                    const childrenQuery = query(
+                        collection(db, 'transactions'),
+                        where('profileId', '==', profileId),
+                        where('isApportioned', '==', true),
+                        where('date', '>=', startProcessingDate)
+                    );
                     const childrenSnapshot = await getDocs(childrenQuery);
-                    childrenSnapshot.forEach(doc => batch.delete(doc.ref));
+
+                    const docsToDelete = childrenSnapshot.docs;
+                    for (let i = 0; i < docsToDelete.length; i += MAX_BATCH_SIZE) {
+                        const batch = writeBatch(db);
+                        const chunk = docsToDelete.slice(i, i + MAX_BATCH_SIZE);
+                        chunk.forEach(docSnap => {
+                            batch.delete(docSnap.ref);
+                        });
+                        await batch.commit();
+                    }
                 }
-                await batch.commit();
             }
             showToast('Configurações salvas com sucesso!', 'success');
             modals.settings.close();
         } catch (error) {
+            console.error(error);
             showToast('Erro ao salvar configurações.', 'error');
         }
     };

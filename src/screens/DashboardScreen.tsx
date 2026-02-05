@@ -40,6 +40,7 @@ import { CalculationToolbar } from '../components/CalculationToolbar';
 import { SwipeableTabContent } from '../components/SwipeableTabContent';
 
 import { prepareMonthClosingUpdates } from '../logic/monthClosingLogic';
+import { cleanUndefinedFields } from '../lib/transactionUtils';
 
 const LoadingScreen: React.FC = () => (
     <div className="flex h-screen items-center justify-center bg-background text-text-secondary">
@@ -421,7 +422,7 @@ export const DashboardScreen: React.FC = () => {
         try {
             const { apportionmentMethod: oldMethod } = profile;
             const { apportionmentMethod: newMethod } = newSettings;
-            await updateDoc(doc(db, "profiles", profileId), newSettings);
+            await updateDoc(doc(db, "profiles", profileId), cleanUndefinedFields(newSettings));
 
             if (newMethod && newMethod !== oldMethod) {
                 const MAX_BATCH_SIZE = 500;

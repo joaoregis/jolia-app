@@ -23,10 +23,15 @@ export const useTransactionMutations = (profile: Profile | null) => {
             // 1. Criando uma nova transação parcelada
             if (data.isInstallmentPurchase && data.totalInstallments && data.totalInstallments > 1 && !id) {
                 const installments = generateInstallments(data, profile.id, activeTab);
-                installments.forEach(installment => {
+
+                // Import logic here to avoid top-level circular dependency if needed, or just import top-level
+                const { registerMonthInStats } = await import('../logic/metadataLogic');
+
+                for (const installment of installments) {
                     const docRef = doc(transactionsRef);
                     batch.set(docRef, installment);
-                });
+                    await registerMonthInStats(profile.id, installment.date, batch);
+                }
 
             } else if (id) { // 2. Editando uma transação existente (qualquer tipo)
                 const docRef = doc(db, 'transactions', id);
@@ -116,6 +121,9 @@ export const useTransactionMutations = (profile: Profile | null) => {
                             batch.set(childDocRef, childData);
                         });
                     }
+                    // Update stats
+                    const { registerMonthInStats } = await import('../logic/metadataLogic');
+                    await registerMonthInStats(profile.id, finalParentData.date, batch);
                 } else {
                     const { isInstallmentPurchase, totalInstallments, ...restData } = data;
                     const dataToSave: Partial<Transaction> = { ...restData, profileId: profile.id };
@@ -127,6 +135,11 @@ export const useTransactionMutations = (profile: Profile | null) => {
                     }
                     dataToSave.createdAt = firestoreServerTimestamp();
                     batch.set(doc(transactionsRef), cleanUndefinedFields(dataToSave));
+
+                    const { registerMonthInStats } = await import('../logic/metadataLogic');
+                    if (dataToSave.date) {
+                        await registerMonthInStats(profile.id, dataToSave.date, batch);
+                    }
                 }
             }
 

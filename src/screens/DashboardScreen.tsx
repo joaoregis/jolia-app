@@ -358,6 +358,16 @@ export const DashboardScreen: React.FC = () => {
                     }
                 });
 
+                // OPTIMIZATION: Update available months metadata
+                const { registerMonthInStats } = await import('../logic/metadataLogic');
+                const uniqueMonths = new Set<string>();
+                transactionsToCreate.forEach(item => {
+                    if (item.data.date) uniqueMonths.add(item.data.date.substring(0, 7));
+                });
+                for (const m of uniqueMonths) {
+                    await registerMonthInStats(profile.id, `${m}-01`, batch);
+                }
+
                 await batch.commit();
             }
 
@@ -388,6 +398,17 @@ export const DashboardScreen: React.FC = () => {
         try {
             const batch = writeBatch(db);
             transactions.forEach(t => batch.set(doc(collection(db, 'transactions')), { ...t, profileId: profile.id, createdAt: serverTimestamp() }));
+
+            // OPTIMIZATION: Update available months metadata
+            const { registerMonthInStats } = await import('../logic/metadataLogic');
+            const uniqueMonths = new Set<string>();
+            transactions.forEach(t => {
+                if (t.date) uniqueMonths.add(t.date.substring(0, 7));
+            });
+            for (const m of uniqueMonths) {
+                await registerMonthInStats(profile.id, `${m}-01`, batch);
+            }
+
             await batch.commit();
             showToast(`${transactions.length} transações importadas com sucesso!`, 'success');
         } catch (error) {

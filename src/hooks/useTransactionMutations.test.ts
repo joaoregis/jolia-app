@@ -33,6 +33,11 @@ vi.mock('firebase/firestore', () => {
     };
 });
 
+vi.mock('../logic/metadataLogic', () => ({
+    registerMonthInStats: vi.fn(),
+    regenerateAvailableMonths: vi.fn().mockResolvedValue([])
+}));
+
 describe('useTransactionMutations', () => {
     const mockProfile: Profile = {
         id: 'p1',
@@ -252,7 +257,7 @@ describe('useTransactionMutations', () => {
         });
 
         const batch = firestore.writeBatch(db);
-        // 1 call for parent, 2 calls for children
+        // 1 call for parent, 2 calls for children (metadata update is mocked)
         expect(batch.set).toHaveBeenCalledTimes(3);
         expect(batch.commit).toHaveBeenCalled();
     });

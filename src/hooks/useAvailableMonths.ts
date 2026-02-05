@@ -1,6 +1,6 @@
 // src/hooks/useAvailableMonths.ts
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, doc, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 /**
@@ -18,25 +18,41 @@ export function useAvailableMonths(profileId?: string) {
             return;
         }
         setLoading(true);
-        // Este query busca todas as transações, mas poderíamos otimizá-lo
-        // no futuro se a performance se tornar um problema, por exemplo,
-        // mantendo um documento separado com a lista de meses.
-        const q = query(collection(db, "transactions"), where("profileId", "==", profileId), orderBy("date"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const months = new Set<string>();
-            snapshot.forEach(doc => {
-                const transactionDate = doc.data().date;
-                // Garante que a data existe e é uma string antes de processar
-                if (transactionDate && typeof transactionDate === 'string') {
-                    months.add(transactionDate.substring(0, 7)); // Extrai o formato 'YYYY-MM'
+        const statsRef = doc(db, `profiles/${profileId}/metadata/transactionStats`);
+
+        // Check metadata first
+        const unsubscribe = onSnapshot(statsRef, async (docSnap) => {
+            if (docSnap.exists() && docSnap.data().availableMonths) {
+                // Metadata exists, use it (1 READ)
+                const months = docSnap.data().availableMonths as string[];
+                setAvailableMonths(months.sort());
+                setLoading(false);
+            } else {
+                // Metadata missing or empty -> SELF-HEALING FALLBACK
+                console.log("Stats metadata missing. Performing self-healing...");
+
+                // Perform the expensive query ONCE
+                const q = query(collection(db, "transactions"), where("profileId", "==", profileId), orderBy("date"));
+
+                // We don't listen to this one, just get it once to build stats
+                try {
+                    const snapshot = await getDocs(q);
+                    const allTransactions = snapshot.docs.map(d => d.data());
+
+                    // Import dynamically to avoid circular dependency if possible, or use logic safely
+                    const { regenerateAvailableMonths } = await import('../logic/metadataLogic');
+                    const sortedMonths = await regenerateAvailableMonths(profileId, allTransactions);
+
+                    setAvailableMonths(sortedMonths);
+                } catch (err) {
+                    console.error("Self-healing failed:", err);
+                } finally {
+                    setLoading(false);
                 }
-            });
-            // Ordena os meses cronologicamente
-            setAvailableMonths(Array.from(months).sort());
-            setLoading(false);
+            }
         }, (error) => {
-            console.error("Erro ao buscar meses disponíveis:", error);
+            console.error("Erro ao buscar estatísticas de meses (metadata):", error);
             setLoading(false);
         });
 
